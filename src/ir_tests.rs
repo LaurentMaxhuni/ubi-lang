@@ -122,3 +122,50 @@ fn lowers_returning_if_branch_and_keeps_other_branch_value() {
     ));
     assert!(matches!(else_branch.kind, ExprKind::Block(_)));
 }
+
+#[test]
+fn folds_only_the_direct_minimum_integer_literal() {
+    let mut sources = SourceSet::default();
+    sources
+        .insert(
+            SourceFile::new(
+                "main.ubi",
+                b"export fn negative() -> int { -7 }\nexport fn minimum() -> int { -2147483648 }\nexport fn negativeZero() -> float { -0.0 }".to_vec(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let analysis = analyze(&sources);
+    assert!(
+        analysis.diagnostics.is_empty(),
+        "{:#?}",
+        analysis.diagnostics
+    );
+    let program = lower(&analysis).unwrap();
+
+    let negative = program
+        .functions
+        .get(&("main.ubi".to_owned(), "negative".to_owned()))
+        .unwrap();
+    let ExprKind::Unary { operand, .. } = &negative.body.tail.as_ref().unwrap().kind else {
+        panic!("ordinary negative literals retain their unary expression");
+    };
+    assert!(matches!(operand.kind, ExprKind::Integer(7)));
+    let minimum = program
+        .functions
+        .get(&("main.ubi".to_owned(), "minimum".to_owned()))
+        .unwrap();
+    assert!(matches!(
+        minimum.body.tail.as_ref().unwrap().kind,
+        ExprKind::Integer(i32::MIN)
+    ));
+    let negative_zero = program
+        .functions
+        .get(&("main.ubi".to_owned(), "negativeZero".to_owned()))
+        .unwrap();
+    let ExprKind::Unary { operand, .. } = &negative_zero.body.tail.as_ref().unwrap().kind else {
+        panic!("negative float literals retain their unary expression");
+    };
+    assert_eq!(operand.ty, ValueType::Float);
+    assert!(matches!(operand.kind, ExprKind::Float(value) if value == 0.0));
+}

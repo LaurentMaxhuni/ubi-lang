@@ -296,21 +296,8 @@ impl FunctionLowerer<'_> {
                             let magnitude = value
                                 .parse::<u64>()
                                 .map_err(|_| invariant(&expression.span))?;
-                            Some(ExprKind::Integer(if magnitude == 2_147_483_648 {
-                                i32::MIN
-                            } else {
-                                -(i32::try_from(magnitude)
-                                    .map_err(|_| invariant(&expression.span))?)
-                            }))
+                            (magnitude == 2_147_483_648).then_some(ExprKind::Integer(i32::MIN))
                         }
-                        AstExprKind::Float {
-                            value,
-                            literal_span,
-                        } if operand.span == *literal_span => Some(ExprKind::Float(
-                            -value
-                                .parse::<f64>()
-                                .map_err(|_| invariant(&expression.span))?,
-                        )),
                         _ => None,
                     }
                 } else {

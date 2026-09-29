@@ -783,12 +783,13 @@ impl FunctionChecker<'_> {
                     } = &operand.kind
                     {
                         if operand.span == *literal_span {
-                            return Some(self.check_integer(
-                                value,
-                                literal_span,
-                                true,
-                                &expression.span,
-                            ));
+                            let magnitude = value.parse::<u64>().unwrap_or(u64::MAX);
+                            if magnitude > i32::MAX as u64 {
+                                let ty =
+                                    self.check_integer(value, literal_span, true, &expression.span);
+                                self.expression_types.insert(operand.span.clone(), ty);
+                                return Some(ty);
+                            }
                         }
                     }
                     if let ExprKind::Float {
@@ -801,7 +802,9 @@ impl FunctionChecker<'_> {
                         } else {
                             literal_span
                         };
-                        return Some(self.check_float(value, span));
+                        let ty = self.check_float(value, span);
+                        self.expression_types.insert(operand.span.clone(), ty);
+                        return Some(ty);
                     }
                 }
                 let operand_type = self.check_expr(operand)?;
