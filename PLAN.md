@@ -65,7 +65,7 @@ What the human checks:
 
 ## Milestone 1 — Compile one complete program
 
-Progress: one Rust package, byte span type, validated in-memory source management, and lexer implemented. Thirteen focused checks pass; parser, type checker, interpreter, JavaScript output, CLI behavior, and fuzzing remain.
+Progress: one Rust package, byte span type, validated in-memory source management, lexer, and recursive-descent/Pratt parser implemented. Twenty-three focused checks pass; name/type checking, module graph validation, interpreter, JavaScript output, CLI behavior, and fuzzing remain.
 
 Build a vertical slice before expanding the language:
 
@@ -221,4 +221,4 @@ The compiler running in WASM and Ubi programs compiling to WASM are separate del
 - Keep the current JavaScript backend passing conformance checks before introducing another backend.
 - Avoid fixed delivery dates until the first two milestones establish implementation pace.
 - Track progress against completion gates; mark platform work blocked when required SDKs or devices are unavailable.
-- Next task: add the recursive-descent/Pratt parser; begin with existing independently reviewed core corpus programs.
+- Next task: resolve the supplied import graph, names, function signatures, and expressions; grade against independently reviewed core and diagnostic cases.

@@ -4,8 +4,10 @@ use crate::lexer::LexError;
 use crate::span::Span;
 
 pub(crate) const MAX_SOURCE_BYTES: usize = 1_048_576;
-const MAX_PROJECT_BYTES: usize = 4_194_304;
-const MAX_MODULES: usize = 64;
+pub(crate) const MAX_PROJECT_BYTES: usize = 4_194_304;
+pub(crate) const MAX_MODULES: usize = 64;
+pub(crate) const MAX_TOKENS: usize = 500_000;
+pub(crate) const MAX_NESTING: usize = 32;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SourceFile {
