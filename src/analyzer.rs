@@ -57,6 +57,7 @@ pub(crate) struct Analysis {
     pub(crate) expression_types: BTreeMap<(FunctionKey, Span), ValueType>,
 }
 
+#[cfg(test)]
 pub(crate) fn check(sources: &SourceSet) -> Vec<Diagnostic> {
     analyze(sources).diagnostics
 }
@@ -284,23 +285,27 @@ fn report_import_cycles<'a>(
         }
     }
     for pivot in 0..ids.len() {
-        for from in 0..ids.len() {
-            if !reachable[from][pivot] {
+        let pivot_row = reachable[pivot].clone();
+        for row in &mut reachable {
+            if !row[pivot] {
                 continue;
             }
-            for to in 0..ids.len() {
-                reachable[from][to] |= reachable[pivot][to];
+            for (is_reachable, through_pivot) in row.iter_mut().zip(&pivot_row) {
+                *is_reachable |= *through_pivot;
             }
         }
     }
 
     let mut assigned = BTreeSet::new();
-    for index in 0..ids.len() {
+    for (index, reachable_from_index) in reachable.iter().enumerate() {
         if assigned.contains(&index) {
             continue;
         }
-        let component: BTreeSet<usize> = (0..ids.len())
-            .filter(|other| reachable[index][*other] && reachable[*other][index])
+        let component: BTreeSet<usize> = reachable_from_index
+            .iter()
+            .enumerate()
+            .filter(|(other, is_reachable)| **is_reachable && reachable[*other][index])
+            .map(|(other, _)| other)
             .collect();
         assigned.extend(component.iter().copied());
         let cyclic = component.len() > 1 || self_edges.contains(&index);
@@ -878,9 +883,7 @@ impl FunctionChecker<'_> {
                 }
                 let then_type = self.check_block(then_branch);
                 let else_type = self.check_expr(else_branch);
-                if condition_type.is_none() {
-                    return None;
-                }
+                condition_type?;
                 match (then_type, else_type) {
                     (None, None) => None,
                     (Some(ty), None) | (None, Some(ty)) => Some(ty),

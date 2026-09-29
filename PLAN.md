@@ -1,6 +1,6 @@
 # Ubi implementation plan
 
-Status: Milestone 0 gate approved for reviewed revision `0dd23e85f93fffcd2657f3c24d944c1197fd24e3`. Milestone 1 compiler implementation in progress.
+Status: Milestone 0 gate approved for reviewed revision `0dd23e85f93fffcd2657f3c24d944c1197fd24e3`. Milestone 1 implementation is ready for human gate review; the hidden corpus and separate evaluator remain unavailable.
 
 Ubi (`.ubi`, short for ubiquitous) combines familiar JavaScript-style syntax with strict types, explicit errors, and checked access to host capabilities. AI agents write code; humans must be able to understand and review it.
 
@@ -65,7 +65,7 @@ What the human checks:
 
 ## Milestone 1 — Compile one complete program
 
-Progress: source/span management, lexer, recursive-descent/Pratt parser, import graph resolver, primitive name/type checker, typed IR lowering, independent AST interpreter, and deterministic JavaScript ES module backend implemented in one Rust package. Forty-seven tests pass; CLI behavior, browser execution, and fuzzing remain.
+Progress: source/span management, lexer, recursive-descent/Pratt parser, import graph resolver, primitive name/type checker, typed IR lowering, independent AST interpreter, deterministic JavaScript ES module backend, filesystem-independent compiler API, and `ubi check`/`ubi build` implemented in one Rust package. Sixty-seven tests pass; the public M1 runtime fixtures agree across the AST interpreter and Node, and the same generated module passes in a browser. The parser/checker mutation run completed under an external watchdog. Human gate review remains; the hidden corpus and separate evaluator were not provisioned.
 
 Build a vertical slice before expanding the language:
 

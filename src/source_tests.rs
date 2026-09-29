@@ -43,6 +43,7 @@ fn source_rejects_noncanonical_ids() {
         "../main.ubi",
         "a/../main.ubi",
         "a\\main.ubi",
+        "a/line\nbreak.ubi",
         "main.txt",
     ] {
         assert!(SourceFile::new(id, Vec::new()).is_err(), "accepted {id:?}");

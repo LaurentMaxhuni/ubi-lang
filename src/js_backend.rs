@@ -386,7 +386,10 @@ fn js_operator(operator: Symbol) -> Option<&'static str> {
 }
 
 fn js_file_id(source_id: &str) -> String {
-    format!("{}.js", source_id.strip_suffix(".ubi").unwrap_or(source_id))
+    format!(
+        "{}.mjs",
+        source_id.strip_suffix(".ubi").unwrap_or(source_id)
+    )
 }
 
 fn relative_specifier(importer_id: &str, target_id: &str) -> String {
@@ -394,7 +397,7 @@ fn relative_specifier(importer_id: &str, target_id: &str) -> String {
     importer_dirs.pop();
     let mut target_parts: Vec<_> = target_id.split('/').collect();
     let file = target_parts.pop().unwrap_or(target_id);
-    let target_file = format!("{}.js", file.strip_suffix(".ubi").unwrap_or(file));
+    let target_file = format!("{}.mjs", file.strip_suffix(".ubi").unwrap_or(file));
     let common = importer_dirs
         .iter()
         .zip(&target_parts)

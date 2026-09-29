@@ -1,14 +1,14 @@
 use crate::span::Span;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Severity {
+pub enum Severity {
     Error,
     Warning,
     Note,
 }
 
 impl Severity {
-    pub(crate) fn as_str(self) -> &'static str {
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::Error => "error",
             Self::Warning => "warning",
@@ -18,18 +18,18 @@ impl Severity {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct RelatedDiagnostic {
-    pub(crate) span: Span,
-    pub(crate) message: String,
+pub struct RelatedDiagnostic {
+    pub span: Span,
+    pub message: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Diagnostic {
-    pub(crate) code: String,
-    pub(crate) severity: Severity,
-    pub(crate) message: String,
-    pub(crate) primary: Span,
-    pub(crate) related: Vec<RelatedDiagnostic>,
+pub struct Diagnostic {
+    pub code: String,
+    pub severity: Severity,
+    pub message: String,
+    pub primary: Span,
+    pub related: Vec<RelatedDiagnostic>,
 }
 
 impl Diagnostic {

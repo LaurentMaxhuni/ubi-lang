@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use crate::diagnostics::Diagnostic;
 use crate::lexer::LexError;
 use crate::span::Span;
 
@@ -37,6 +38,7 @@ impl SourceFile {
         &self.id
     }
 
+    #[cfg(test)]
     pub(crate) fn bytes(&self) -> &[u8] {
         &self.bytes
     }
@@ -78,10 +80,10 @@ impl SourceFile {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum SourceError {
+pub enum SourceError {
     InvalidId(String),
     DuplicateId(String),
-    Diagnostic(LexError),
+    Diagnostic(Diagnostic),
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -111,22 +113,23 @@ impl SourceSet {
     }
 }
 
-fn resource_error(id: &str) -> LexError {
-    LexError {
-        code: "UBI0090".to_owned(),
-        message: "Compiler resource limit exceeded".to_owned(),
-        primary: Span {
+fn resource_error(id: &str) -> Diagnostic {
+    Diagnostic::error(
+        "UBI0090",
+        "Compiler resource limit exceeded",
+        Span {
             source_id: id.to_owned(),
             start: 0,
             end: 0,
         },
-    }
+    )
 }
 
 fn valid_source_id(id: &str) -> bool {
     id.ends_with(".ubi")
         && !id.starts_with('/')
         && !id.contains('\\')
+        && !id.chars().any(char::is_control)
         && id.split('/').all(|segment| {
             !segment.is_empty() && segment != "." && segment != ".." && !segment.contains(':')
         })

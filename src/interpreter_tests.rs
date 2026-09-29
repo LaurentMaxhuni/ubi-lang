@@ -29,6 +29,27 @@ fn run(
 }
 
 #[test]
+fn refuses_to_interpret_programs_with_frontend_errors() {
+    let mut sources = SourceSet::default();
+    sources
+        .insert(
+            SourceFile::new(
+                "main.ubi",
+                b"export fn answer() -> int { missing }".to_vec(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let analysis = analyze(&sources);
+
+    assert!(!analysis.diagnostics.is_empty());
+    assert_eq!(
+        run(&analysis, "main.ubi", "answer", vec![]),
+        Err(InvocationError::InvalidProgram)
+    );
+}
+
+#[test]
 fn evaluates_arithmetic_bindings_calls_and_early_returns() {
     let arithmetic = checked(&[(
         "core/arithmetic.ubi",

@@ -23,60 +23,15 @@ fn generated(items: &[(&str, &[u8])]) -> std::collections::BTreeMap<String, Stri
     emit(&lower(&analysis).unwrap()).unwrap()
 }
 
-#[test]
-fn emits_deterministic_checked_javascript_modules() {
-    let items = [(
-        "core/arithmetic.ubi",
-        include_bytes!("../examples/core/arithmetic.ubi").as_slice(),
-    )];
-    let first = generated(&items);
-    let second = generated(&items);
-    assert_eq!(first, second);
+type RuntimeSource = (&'static str, &'static [u8]);
+type RuntimeCase = (&'static str, Vec<RuntimeSource>);
 
-    let js = &first["core/arithmetic.js"];
-    assert!(js.contains("function $ubi_add"));
-    assert!(js.contains("function $ubi_div"));
-    assert!(js.contains("export { $ubi_export0 as evaluate"));
-    assert!(js.contains("$ubi_enter($ubi_budget)"));
-    assert!(js.contains("$ubi_leave($ubi_budget)"));
-}
-
-#[test]
-fn imports_resolved_functions_with_relative_esm_specifiers() {
-    let files = generated(&[
-        (
-            "modules/app/main.ubi",
-            include_bytes!("../examples/modules/app/main.ubi"),
-        ),
-        (
-            "modules/lib/math.ubi",
-            include_bytes!("../examples/modules/lib/math.ubi"),
-        ),
-    ]);
-    let app = &files["modules/app/main.js"];
-    assert!(app.contains("import { double as $ubi_import0 } from \"../lib/math.js\";"));
-    assert!(app.contains("$ubi_import0(($ubi_tick($ubi_budget), 21), $ubi_budget)"));
-    assert!(app.contains("export { $ubi_export0 as run };"));
-}
-
-#[test]
-fn escapes_strings_and_exports_reserved_javascript_names() {
-    let files = generated(&[(
-        "main.ubi",
-        r#"export fn default() -> string { "quote: \"; slash: \\; snow: ☃" }"#.as_bytes(),
-    )]);
-    let js = &files["main.js"];
-    assert!(js.contains("export { $ubi_export0 as default };"));
-    assert!(js.contains("quote: \\\"; slash: \\\\; snow: ☃"));
-}
-
-#[test]
-fn node_executes_the_complete_m1_runtime_corpus() {
-    let limits_source: &[u8] = b"export fn recurse(value: int) -> int { recurse(value + 1) }\nexport fn work(value: int) -> int { if (value <= 0) { 0 } else { work(value - 1) + work(value - 1) } }";
-    let reserved_source: &[u8] = r#"export fn default() -> string { "quote: \"; slash: \\; snow: ☃" } export fn identity(value: string) -> string { value } export fn concat(left: string, right: string) -> string { left + right }"#.as_bytes();
-    let escaped_import_main: &[u8] = b"import { default } from \"../lib/space name#part.ubi\"; export fn run() -> int { default() }";
-    let escaped_import_lib: &[u8] = b"export fn default() -> int { 42 }";
-    let cases: Vec<(&str, Vec<(&str, &[u8])>)> = vec![
+fn runtime_cases() -> Vec<RuntimeCase> {
+    let limits_source: &'static [u8] = b"export fn recurse(value: int) -> int { recurse(value + 1) }\nexport fn work(value: int) -> int { if (value <= 0) { 0 } else { work(value - 1) + work(value - 1) } }";
+    let reserved_source: &'static [u8] = r#"export fn default() -> string { "quote: \"; slash: \\; snow: ☃" } export fn identity(value: string) -> string { value } export fn concat(left: string, right: string) -> string { left + right }"#.as_bytes();
+    let escaped_import_main: &'static [u8] = b"import { default } from \"../lib/space name#part.ubi\"; export fn run() -> int { default() }";
+    let escaped_import_lib: &'static [u8] = b"export fn default() -> int { 42 }";
+    vec![
         (
             "arithmetic",
             vec![(
@@ -155,14 +110,377 @@ fn node_executes_the_complete_m1_runtime_corpus() {
         ),
         ("limits", vec![("main.ubi", limits_source)]),
         ("reserved", vec![("main.ubi", reserved_source)]),
+    ]
+}
+
+#[test]
+fn interpreter_matches_expected_results_for_the_node_runtime_corpus() {
+    use crate::interpreter::{invoke, InvocationError, Value};
+    use std::collections::BTreeMap;
+
+    #[derive(Debug)]
+    enum Expected {
+        Int(i32),
+        Float(f64),
+        Bool(bool),
+        String(&'static str),
+        Unit,
+        Fault(&'static str),
+    }
+
+    let mut analyses = BTreeMap::new();
+    for (case, items) in runtime_cases() {
+        let mut sources = SourceSet::default();
+        for (id, bytes) in items {
+            sources
+                .insert(SourceFile::new(id, bytes.to_vec()).unwrap())
+                .unwrap();
+        }
+        let analysis = analyze(&sources);
+        assert!(
+            analysis.diagnostics.is_empty(),
+            "{case}: {:#?}",
+            analysis.diagnostics
+        );
+        analyses.insert(case, analysis);
+    }
+
+    let calls = vec![
+        (
+            "arithmetic",
+            "core/arithmetic.ubi",
+            "evaluate",
+            vec![],
+            Expected::Int(-15),
+        ),
+        (
+            "arithmetic",
+            "core/arithmetic.ubi",
+            "minimum",
+            vec![],
+            Expected::Int(i32::MIN),
+        ),
+        (
+            "arithmetic",
+            "core/arithmetic.ubi",
+            "minimumRemainder",
+            vec![],
+            Expected::Int(0),
+        ),
+        (
+            "bindings",
+            "core/bindings.ubi",
+            "shadow",
+            vec![],
+            Expected::Int(9),
+        ),
+        (
+            "bindings",
+            "core/bindings.ubi",
+            "discard",
+            vec![],
+            Expected::Unit,
+        ),
+        (
+            "bindings",
+            "core/bindings.ubi",
+            "unitEquality",
+            vec![],
+            Expected::Bool(true),
+        ),
+        (
+            "control",
+            "core/control.ubi",
+            "factorial",
+            vec![Value::Int(5)],
+            Expected::Int(120),
+        ),
+        (
+            "control",
+            "core/control.ubi",
+            "branch",
+            vec![Value::Bool(true)],
+            Expected::Int(7),
+        ),
+        (
+            "control",
+            "core/control.ubi",
+            "branch",
+            vec![Value::Bool(false)],
+            Expected::Int(9),
+        ),
+        (
+            "floats",
+            "core/floats.ubi",
+            "finite",
+            vec![],
+            Expected::Float(1.5),
+        ),
+        (
+            "floats",
+            "core/floats.ubi",
+            "negativeZero",
+            vec![],
+            Expected::Float(-0.0),
+        ),
+        (
+            "floats",
+            "core/floats.ubi",
+            "positiveInfinity",
+            vec![],
+            Expected::Float(f64::INFINITY),
+        ),
+        (
+            "floats",
+            "core/floats.ubi",
+            "negativeInfinity",
+            vec![],
+            Expected::Float(f64::NEG_INFINITY),
+        ),
+        (
+            "floats",
+            "core/floats.ubi",
+            "notANumber",
+            vec![],
+            Expected::Float(f64::NAN),
+        ),
+        (
+            "floats",
+            "core/floats.ubi",
+            "rounding",
+            vec![],
+            Expected::Float(9_007_199_254_740_992.0),
+        ),
+        (
+            "floats",
+            "core/floats.ubi",
+            "underflow",
+            vec![],
+            Expected::Float(0.0),
+        ),
+        (
+            "floats",
+            "core/floats.ubi",
+            "comparisons",
+            vec![],
+            Expected::Bool(true),
+        ),
+        (
+            "short-circuit",
+            "core/short-circuit.ubi",
+            "run",
+            vec![],
+            Expected::Bool(true),
+        ),
+        (
+            "imports",
+            "modules/app/main.ubi",
+            "run",
+            vec![],
+            Expected::Int(42),
+        ),
+        (
+            "escaped-import",
+            "app/main.ubi",
+            "run",
+            vec![],
+            Expected::Int(42),
+        ),
+        (
+            "overflow",
+            "faults/overflow.ubi",
+            "addition",
+            vec![],
+            Expected::Fault("UBI-R0001"),
+        ),
+        (
+            "overflow",
+            "faults/overflow.ubi",
+            "subtraction",
+            vec![],
+            Expected::Fault("UBI-R0001"),
+        ),
+        (
+            "overflow",
+            "faults/overflow.ubi",
+            "multiplication",
+            vec![],
+            Expected::Fault("UBI-R0001"),
+        ),
+        (
+            "overflow",
+            "faults/overflow.ubi",
+            "negation",
+            vec![],
+            Expected::Fault("UBI-R0001"),
+        ),
+        (
+            "overflow",
+            "faults/overflow.ubi",
+            "division",
+            vec![],
+            Expected::Fault("UBI-R0001"),
+        ),
+        (
+            "zero-divisor",
+            "faults/zero-divisor.ubi",
+            "division",
+            vec![],
+            Expected::Fault("UBI-R0002"),
+        ),
+        (
+            "zero-divisor",
+            "faults/zero-divisor.ubi",
+            "remainder",
+            vec![],
+            Expected::Fault("UBI-R0002"),
+        ),
+        (
+            "evaluation-order",
+            "faults/evaluation-order.ubi",
+            "arguments",
+            vec![],
+            Expected::Fault("UBI-R0002"),
+        ),
+        (
+            "evaluation-order",
+            "faults/evaluation-order.ubi",
+            "operands",
+            vec![],
+            Expected::Fault("UBI-R0002"),
+        ),
+        (
+            "evaluation-order",
+            "faults/evaluation-order.ubi",
+            "selectedBranch",
+            vec![],
+            Expected::Int(8),
+        ),
+        (
+            "limits",
+            "main.ubi",
+            "recurse",
+            vec![Value::Int(0)],
+            Expected::Fault("UBI-R0005"),
+        ),
+        (
+            "limits",
+            "main.ubi",
+            "work",
+            vec![Value::Int(30)],
+            Expected::Fault("UBI-R0005"),
+        ),
+        (
+            "reserved",
+            "main.ubi",
+            "default",
+            vec![],
+            Expected::String("quote: \"; slash: \\; snow: ☃"),
+        ),
+        (
+            "reserved",
+            "main.ubi",
+            "identity",
+            vec![Value::String("😀".to_owned())],
+            Expected::String("😀"),
+        ),
+        (
+            "reserved",
+            "main.ubi",
+            "concat",
+            vec![
+                Value::String("snow".to_owned()),
+                Value::String("☃".to_owned()),
+            ],
+            Expected::String("snow☃"),
+        ),
     ];
+
+    for (case, source_id, export, arguments, expected) in calls {
+        let analysis = &analyses[case];
+        let key = (source_id.to_owned(), export.to_owned());
+        let actual = invoke(analysis, &key, arguments);
+        match (actual, expected) {
+            (Ok(Value::Int(actual)), Expected::Int(expected)) => {
+                assert_eq!(actual, expected, "{case}::{export}")
+            }
+            (Ok(Value::Float(actual)), Expected::Float(expected)) if expected.is_nan() => {
+                assert!(actual.is_nan(), "{case}::{export}")
+            }
+            (Ok(Value::Float(actual)), Expected::Float(expected)) => {
+                assert_eq!(actual.to_bits(), expected.to_bits(), "{case}::{export}")
+            }
+            (Ok(Value::Bool(actual)), Expected::Bool(expected)) => {
+                assert_eq!(actual, expected, "{case}::{export}")
+            }
+            (Ok(Value::String(actual)), Expected::String(expected)) => {
+                assert_eq!(actual, expected, "{case}::{export}")
+            }
+            (Ok(Value::Unit), Expected::Unit) => {}
+            (Err(InvocationError::Runtime(fault)), Expected::Fault(expected)) => {
+                assert_eq!(fault.code, expected, "{case}::{export}")
+            }
+            (actual, expected) => panic!("{case}::{export}: expected {expected:?}, got {actual:?}"),
+        }
+    }
+}
+
+#[test]
+fn emits_deterministic_checked_javascript_modules() {
+    let items = [(
+        "core/arithmetic.ubi",
+        include_bytes!("../examples/core/arithmetic.ubi").as_slice(),
+    )];
+    let first = generated(&items);
+    let second = generated(&items);
+    assert_eq!(first, second);
+
+    let js = &first["core/arithmetic.mjs"];
+    assert!(js.contains("function $ubi_add"));
+    assert!(js.contains("function $ubi_div"));
+    assert!(js.contains("export { $ubi_export0 as evaluate"));
+    assert!(js.contains("$ubi_enter($ubi_budget)"));
+    assert!(js.contains("$ubi_leave($ubi_budget)"));
+}
+
+#[test]
+fn imports_resolved_functions_with_relative_esm_specifiers() {
+    let files = generated(&[
+        (
+            "modules/app/main.ubi",
+            include_bytes!("../examples/modules/app/main.ubi"),
+        ),
+        (
+            "modules/lib/math.ubi",
+            include_bytes!("../examples/modules/lib/math.ubi"),
+        ),
+    ]);
+    let app = &files["modules/app/main.mjs"];
+    assert!(app.contains("import { double as $ubi_import0 } from \"../lib/math.mjs\";"));
+    assert!(app.contains("$ubi_import0(($ubi_tick($ubi_budget), 21), $ubi_budget)"));
+    assert!(app.contains("export { $ubi_export0 as run };"));
+}
+
+#[test]
+fn escapes_strings_and_exports_reserved_javascript_names() {
+    let files = generated(&[(
+        "main.ubi",
+        r#"export fn default() -> string { "quote: \"; slash: \\; snow: ☃" }"#.as_bytes(),
+    )]);
+    let js = &files["main.mjs"];
+    assert!(js.contains("export { $ubi_export0 as default };"));
+    assert!(js.contains("quote: \\\"; slash: \\\\; snow: ☃"));
+}
+
+#[test]
+fn node_executes_the_complete_m1_runtime_corpus() {
+    let cases = runtime_cases();
 
     let temp = TestDirectory::new();
     for (name, items) in cases {
         let output = generated(&items);
         let directory = temp.path.join(name);
         fs::create_dir_all(&directory).unwrap();
-        fs::write(directory.join("package.json"), "{\"type\":\"module\"}").unwrap();
         for (path, source) in output {
             let destination = directory.join(path);
             fs::create_dir_all(destination.parent().unwrap()).unwrap();
@@ -171,18 +489,18 @@ fn node_executes_the_complete_m1_runtime_corpus() {
     }
 
     let harness = r#"import assert from "node:assert/strict";
-import * as arithmetic from "./arithmetic/core/arithmetic.js";
-import * as bindings from "./bindings/core/bindings.js";
-import * as control from "./control/core/control.js";
-import * as floats from "./floats/core/floats.js";
-import * as shortCircuit from "./short-circuit/core/short-circuit.js";
-import * as imported from "./imports/modules/app/main.js";
-import * as escapedImport from "./escaped-import/app/main.js";
-import * as overflow from "./overflow/faults/overflow.js";
-import * as zero from "./zero-divisor/faults/zero-divisor.js";
-import * as order from "./evaluation-order/faults/evaluation-order.js";
-import * as limits from "./limits/main.js";
-import reservedText, * as reserved from "./reserved/main.js";
+import * as arithmetic from "./arithmetic/core/arithmetic.mjs";
+import * as bindings from "./bindings/core/bindings.mjs";
+import * as control from "./control/core/control.mjs";
+import * as floats from "./floats/core/floats.mjs";
+import * as shortCircuit from "./short-circuit/core/short-circuit.mjs";
+import * as imported from "./imports/modules/app/main.mjs";
+import * as escapedImport from "./escaped-import/app/main.mjs";
+import * as overflow from "./overflow/faults/overflow.mjs";
+import * as zero from "./zero-divisor/faults/zero-divisor.mjs";
+import * as order from "./evaluation-order/faults/evaluation-order.mjs";
+import * as limits from "./limits/main.mjs";
+import reservedText, * as reserved from "./reserved/main.mjs";
 
 function fault(fn, code) {
   assert.throws(fn, error => error.code === code && error.message.length > 0);
