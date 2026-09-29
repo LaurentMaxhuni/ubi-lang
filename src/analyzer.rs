@@ -8,35 +8,37 @@ use crate::parser::{
 use crate::source::{resolve_import_id, SourceSet};
 use crate::span::Span;
 
-type FunctionKey = (String, String);
+pub(crate) type FunctionKey = (String, String);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ValueType {
+pub(crate) enum ValueType {
     Int,
     Float,
     Bool,
     String,
     Unit,
+    Never,
     Error,
 }
 
 impl ValueType {
-    fn name(self) -> &'static str {
+    pub(crate) fn name(self) -> &'static str {
         match self {
             Self::Int => "int",
             Self::Float => "float",
             Self::Bool => "bool",
             Self::String => "string",
             Self::Unit => "unit",
+            Self::Never => "never",
             Self::Error => "<error>",
         }
     }
 }
 
 #[derive(Debug, Clone)]
-struct Signature {
-    parameters: Vec<ValueType>,
-    return_type: Option<ValueType>,
+pub(crate) struct Signature {
+    pub(crate) parameters: Vec<ValueType>,
+    pub(crate) return_type: Option<ValueType>,
     name_span: Span,
 }
 
@@ -47,7 +49,19 @@ struct ModuleEdges {
     span: Span,
 }
 
+pub(crate) struct Analysis {
+    pub(crate) diagnostics: Vec<Diagnostic>,
+    pub(crate) modules: BTreeMap<String, Module>,
+    pub(crate) module_symbols: BTreeMap<String, BTreeMap<String, FunctionKey>>,
+    pub(crate) signatures: BTreeMap<FunctionKey, Signature>,
+    pub(crate) expression_types: BTreeMap<(FunctionKey, Span), ValueType>,
+}
+
 pub(crate) fn check(sources: &SourceSet) -> Vec<Diagnostic> {
+    analyze(sources).diagnostics
+}
+
+pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
     let mut diagnostics = Vec::new();
     let mut modules = BTreeMap::<String, Module>::new();
 
@@ -68,7 +82,13 @@ pub(crate) fn check(sources: &SourceSet) -> Vec<Diagnostic> {
     }
     if !diagnostics.is_empty() {
         sort_diagnostics(&mut diagnostics);
-        return diagnostics;
+        return Analysis {
+            diagnostics,
+            modules,
+            module_symbols: BTreeMap::new(),
+            signatures: BTreeMap::new(),
+            expression_types: BTreeMap::new(),
+        };
     }
 
     let mut module_symbols = BTreeMap::new();
@@ -83,13 +103,20 @@ pub(crate) fn check(sources: &SourceSet) -> Vec<Diagnostic> {
     report_import_cycles(modules.keys(), &module_edges, &mut diagnostics);
     if !diagnostics.is_empty() {
         sort_diagnostics(&mut diagnostics);
-        return diagnostics;
+        return Analysis {
+            diagnostics,
+            modules,
+            module_symbols,
+            signatures: BTreeMap::new(),
+            expression_types: BTreeMap::new(),
+        };
     }
 
     let (functions, mut signatures) =
         collect_signatures(&modules, &mut module_symbols, &mut diagnostics);
     let call_graph = build_call_graph(&functions, &module_symbols);
     let components = strongly_connected_components(&call_graph);
+    let mut expression_types = BTreeMap::new();
 
     for component in components.into_iter().rev() {
         let recursive = component.len() > 1
@@ -111,9 +138,14 @@ pub(crate) fn check(sources: &SourceSet) -> Vec<Diagnostic> {
                 ));
             }
 
-            let (inferred_return, mut function_diagnostics) =
+            let (inferred_return, function_types, mut function_diagnostics) =
                 check_function(&key, function, &signature, &signatures, &module_symbols);
             diagnostics.append(&mut function_diagnostics);
+            expression_types.extend(
+                function_types
+                    .into_iter()
+                    .map(|(span, ty)| ((key.clone(), span), ty)),
+            );
             if signature.return_type.is_none() {
                 if let Some(return_type) = inferred_return.filter(|ty| *ty != ValueType::Error) {
                     if let Some(signature) = signatures.get_mut(&key) {
@@ -125,7 +157,13 @@ pub(crate) fn check(sources: &SourceSet) -> Vec<Diagnostic> {
     }
 
     sort_diagnostics(&mut diagnostics);
-    diagnostics
+    Analysis {
+        diagnostics,
+        modules,
+        module_symbols,
+        signatures,
+        expression_types,
+    }
 }
 
 fn lexical_diagnostic(error: crate::lexer::LexError) -> Diagnostic {
@@ -572,7 +610,11 @@ fn check_function(
     signature: &Signature,
     signatures: &BTreeMap<FunctionKey, Signature>,
     module_symbols: &BTreeMap<String, BTreeMap<String, FunctionKey>>,
-) -> (Option<ValueType>, Vec<Diagnostic>) {
+) -> (
+    Option<ValueType>,
+    BTreeMap<Span, ValueType>,
+    Vec<Diagnostic>,
+) {
     let mut checker = FunctionChecker {
         module_id: &key.0,
         signatures,
@@ -580,6 +622,7 @@ fn check_function(
         expected_return: signature.return_type,
         inferred_return: None,
         scopes: vec![BTreeMap::new()],
+        expression_types: BTreeMap::new(),
         diagnostics: Vec::new(),
     };
     for (index, parameter) in function.parameters.iter().enumerate() {
@@ -609,7 +652,11 @@ fn check_function(
             .clone();
         checker.record_return(body_type, completion_span);
     }
-    (checker.inferred_return, checker.diagnostics)
+    (
+        checker.inferred_return,
+        checker.expression_types,
+        checker.diagnostics,
+    )
 }
 
 struct FunctionChecker<'a> {
@@ -619,6 +666,7 @@ struct FunctionChecker<'a> {
     expected_return: Option<ValueType>,
     inferred_return: Option<ValueType>,
     scopes: Vec<BTreeMap<String, ValueType>>,
+    expression_types: BTreeMap<Span, ValueType>,
     diagnostics: Vec<Diagnostic>,
 }
 
@@ -707,6 +755,13 @@ impl FunctionChecker<'_> {
     }
 
     fn check_expr(&mut self, expression: &Expr) -> Option<ValueType> {
+        let result = self.check_expr_inner(expression);
+        self.expression_types
+            .insert(expression.span.clone(), result.unwrap_or(ValueType::Never));
+        result
+    }
+
+    fn check_expr_inner(&mut self, expression: &Expr) -> Option<ValueType> {
         match &expression.kind {
             ExprKind::Integer {
                 value,
