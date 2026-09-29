@@ -17,6 +17,7 @@ Current milestone: 1, Milestone 0 accepted by human. Compiler implementation in 
 | D009 | Milestone 0 specifies core and shared-domain profiles; adapter/effect syntax, async, packaging, and compiler budgets need pre-implementation revisions. | First phase produces a reviewable behavior contract and examples, not speculative compiler/framework scaffolding. Unsupported operations never fall through to JavaScript. | Before each owning milestone. |
 | D010 | Conformance expectations are independently authored/reviewed against SPEC.md; hidden cases remain evaluator-owned. | Prevent self-grading and agreement on wrong results. Public static checks cannot prove executable semantics. | Each behavior change and milestone gate. |
 | D011 | No TypeSafe/Jev integration in language semantics or diagnostics. | Consulted typesafe-ai guidance; grammar, types, arithmetic, and conformance are exact rules kept in code. A probabilistic judgment is unnecessary here. | Only a separately scoped AI product feature requiring model judgments. |
+| D012 | Lexer emits keywords as a token category distinct from identifiers. Source whitespace is the four ASCII characters space, tab, line feed, and carriage return; either CR or LF ends a line comment. | Matches `SPEC.md`'s reserved keyword/IDENT distinction and keeps tokenization independent of host Unicode whitespace tables and line-ending conventions. | Only through a specification revision with reviewed examples. |
 
 ## Milestone 0 evidence
 

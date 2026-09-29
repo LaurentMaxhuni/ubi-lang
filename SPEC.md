@@ -1,6 +1,6 @@
 # Ubi language specification
 
-Version: 0.1 draft. Current milestone: 0, awaiting human sign-off. This document specifies behavior; no compiler exists yet. Review evidence is recorded in DECISIONS.md.
+Version: 0.2 draft. Current milestone: 1. Milestone 0 was accepted; compiler implementation is in progress. Review evidence is recorded in DECISIONS.md.
 
 ## 1. Scope and conformance
 
@@ -10,7 +10,7 @@ A conforming implementation preserves specified values, evaluation order, recove
 
 ## 2. Source and grammar
 
-Source is UTF-8 without a byte-order mark. Identifiers are ASCII `[A-Za-z_][A-Za-z0-9_]*`, case-sensitive. `_` alone is reserved for wildcard patterns. Keywords cannot be identifiers. Whitespace separates tokens; newlines have no special syntax. `//` comments end at newline; `/* ... */` comments are non-nesting. Unterminated comments/strings and invalid source encoding are lexical errors. Retain comments and their original byte spans for future formatting.
+Source is UTF-8 without a byte-order mark. Identifiers are ASCII `[A-Za-z_][A-Za-z0-9_]*`, case-sensitive. `_` alone is reserved for wildcard patterns. Keywords cannot be identifiers; lex them as a distinct token kind rather than as `IDENT`. Whitespace is exactly U+0009 tab, U+000A line feed, U+000D carriage return, and U+0020 space. Newlines have no special syntax. `//` comments end before line feed or carriage return; `/* ... */` comments are non-nesting. Unterminated comments/strings and invalid source encoding are lexical errors. Retain comments and their original byte spans for future formatting.
 
 Integer tokens are decimal digits. Float tokens have a decimal point with digits on both sides, an exponent, or both; exponent syntax is `[eE][+-]?[0-9]+`. Leading zeroes are permitted, with no octal interpretation. Signs are separate operators. Numeric separators, hexadecimal literals, interpolation, and single-quoted strings are unsupported. Strings use double quotes and permit `\"`, `\\`, `\n`, `\r`, `\t`, and `\u{H...}` (1-6 hexadecimal digits denoting a Unicode scalar). Reject unknown escapes, surrogate escapes, raw newlines, and scalars above U+10FFFF. Raw Unicode scalars other than quotes/backslashes/newlines are allowed. No normalization occurs.
 
