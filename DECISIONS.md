@@ -56,4 +56,9 @@ Milestone 1 implementation changes that revise behavior must update SPEC.md and 
 
 ## Milestone 1 evidence
 
-Status: in progress. Bootstrap starts with an independently reviewed lexer test module. Compiler package and language implementation pending.
+Status: in progress. Rust library/CLI package, source span type, and lexer implemented. Parser and full compiler pipeline remain pending.
+
+- Package: one `ubi-lang` Rust package with `ubi` binary; zero third-party dependencies. Generated Cargo build output is ignored.
+- Lexer: UTF-8 byte spans; ASCII identifiers/numbers and fixed keyword tokens; supported punctuation; strict escapes; exact whitespace; non-nested comments retained by span; zero-width EOF token. Lexer tests were authored and reviewed independently against SPEC.md.
+- Review: an independent implementation review found no concrete lexer or span issues against SPEC.md; invalid UTF-8 remains source-manager work.
+- Verification: observed test-first failure when the lexer module was absent; now `cargo test --lib` passes all 6 focused lexer checks and `cargo fmt --all -- --check` passes. `cargo check` passes with expected dead-code warnings until parser/CLI integration consumes the lexer. This does not satisfy Milestone 1's executable conformance gate.

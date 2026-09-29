@@ -1,0 +1,8 @@
+[package]
+name = "ubi-lang"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "ubi"
+path = "src/main.rs"

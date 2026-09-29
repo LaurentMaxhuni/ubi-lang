@@ -65,6 +65,8 @@ What the human checks:
 
 ## Milestone 1 — Compile one complete program
 
+Progress: one Rust package, byte span type, and lexer implemented. Six focused lexer checks pass; in-memory source management, parser, type checker, interpreter, JavaScript output, CLI behavior, and fuzzing remain.
+
 Build a vertical slice before expanding the language:
 
 1. Create one Rust package with library and CLI modules; split crates only when needed.
@@ -219,4 +221,4 @@ The compiler running in WASM and Ubi programs compiling to WASM are separate del
 - Keep the current JavaScript backend passing conformance checks before introducing another backend.
 - Avoid fixed delivery dates until the first two milestones establish implementation pace.
 - Track progress against completion gates; mark platform work blocked when required SDKs or devices are unavailable.
-- Next task: create the Rust compiler package, source management, lexer, spans, and a runnable core slice under the accepted specification.
+- Next task: add validated in-memory source management and the recursive-descent/Pratt parser; begin with existing independently reviewed core corpus programs.
