@@ -18,6 +18,7 @@ Current milestone: 1, Milestone 0 accepted by human. Compiler implementation in 
 | D010 | Conformance expectations are independently authored/reviewed against SPEC.md; hidden cases remain evaluator-owned. | Prevent self-grading and agreement on wrong results. Public static checks cannot prove executable semantics. | Each behavior change and milestone gate. |
 | D011 | No TypeSafe/Jev integration in language semantics or diagnostics. | Consulted typesafe-ai guidance; grammar, types, arithmetic, and conformance are exact rules kept in code. A probabilistic judgment is unnecessary here. | Only a separately scoped AI product feature requiring model judgments. |
 | D012 | Lexer emits keywords as a token category distinct from identifiers. Source whitespace is the four ASCII characters space, tab, line feed, and carriage return; either CR or LF ends a line comment. | Matches `SPEC.md`'s reserved keyword/IDENT distinction and keeps tokenization independent of host Unicode whitespace tables and line-ending conventions. | Only through a specification revision with reviewed examples. |
+| D013 | Initial compiler budgets: 1 MiB per source, 4 MiB total source bytes, 64 modules, 500,000 tokens, and 128 nested syntax constructs. Exceeding a budget reports `UBI0090`. | Bound memory and recursion for the first compiler/fuzzing slice while keeping the accepted corpus in scope; limits are deterministic and independent of host. | Re-measure with corpus and fuzzing before raising any limit. |
 
 ## Milestone 0 evidence
 
@@ -56,9 +57,10 @@ Milestone 1 implementation changes that revise behavior must update SPEC.md and 
 
 ## Milestone 1 evidence
 
-Status: in progress. Rust library/CLI package, source span type, and lexer implemented. Parser and full compiler pipeline remain pending.
+Status: in progress. Rust library/CLI package, source span type, validated in-memory source management, and lexer implemented. Parser and full compiler pipeline remain pending.
 
 - Package: one `ubi-lang` Rust package with `ubi` binary; zero third-party dependencies. Generated Cargo build output is ignored.
 - Lexer: UTF-8 byte spans; ASCII identifiers/numbers and fixed keyword tokens; supported punctuation; strict escapes; exact whitespace; non-nested comments retained by span; zero-width EOF token. Lexer tests were authored and reviewed independently against SPEC.md.
-- Review: an independent implementation review found no concrete lexer or span issues against SPEC.md; invalid UTF-8 remains source-manager work.
-- Verification: observed test-first failure when the lexer module was absent; now `cargo test --lib` passes all 6 focused lexer checks and `cargo fmt --all -- --check` passes. `cargo check` passes with expected dead-code warnings until parser/CLI integration consumes the lexer. This does not satisfy Milestone 1's executable conformance gate.
+- Review: an independent implementation review found no concrete lexer or span issues against SPEC.md. Source management now reports invalid UTF-8 separately with byte-accurate spans.
+- Source management: preserves exact original bytes, rejects BOM/invalid UTF-8 at precise byte spans, computes SHA-256 revisions, sorts canonical source IDs, and enforces D013 byte/module budgets. The test-first run failed before `SourceError` existed; source tests now cover invalid encoding, exact hashes including multi-block input, duplicate IDs, ordering, and all three source budgets.
+- Verification: observed test-first failures before the lexer and source error types existed; `cargo test --lib` now passes 13 tests and `cargo fmt --all -- --check` passes. The parser/CLI integration and Milestone 1 executable conformance gate remain pending.
