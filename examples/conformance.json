@@ -1,0 +1,3285 @@
+{
+  "schemaVersion": 1,
+  "specification": "../SPEC.md",
+  "offsetUnit": "utf8-byte",
+  "sourceRevisionAlgorithm": "sha256",
+  "cases": [
+    {
+      "id": "core-arithmetic",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "core/arithmetic.ubi",
+          "revision": "sha256:9beb989e4c0f99fb7788537935114f543bf488a532472afce3423795432a9508"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "evaluate",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "evaluate"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": -15
+            }
+          }
+        },
+        {
+          "name": "minimum",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "minimum"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": -2147483648
+            }
+          }
+        },
+        {
+          "name": "minimumRemainder",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "minimumRemainder"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": 0
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "core-bindings-unit",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "core/bindings.ubi",
+          "revision": "sha256:af84d0131f0eb48bdefa94b4dce0d370428b3bab206fba7f1c4ad23c290bd828"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "shadow",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "shadow"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": 9
+            }
+          }
+        },
+        {
+          "name": "discard",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "discard"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "unit"
+            }
+          }
+        },
+        {
+          "name": "unitEquality",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "unitEquality"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "core-control-recursion",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "core/control.ubi",
+          "revision": "sha256:5568b06dc3d1bf99b4d5dc80040f6a5d5de4edba7ae9f916cd18a2877bac078d"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "factorial",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "factorial"
+          },
+          "arguments": [
+            {
+              "type": "int",
+              "value": 5
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": 120
+            }
+          }
+        },
+        {
+          "name": "early-return",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "branch"
+          },
+          "arguments": [
+            {
+              "type": "bool",
+              "value": true
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": 7
+            }
+          }
+        },
+        {
+          "name": "normal-completion",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "branch"
+          },
+          "arguments": [
+            {
+              "type": "bool",
+              "value": false
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": 9
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "core-float-binary64",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "core/floats.ubi",
+          "revision": "sha256:8c02e1e43a89e698017134e6e160223c6f03574a3abb5f8ace7dc7bb28b1f3f0"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "finite",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "finite"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "float",
+              "value": "1.5"
+            }
+          }
+        },
+        {
+          "name": "negativeZero",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "negativeZero"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "float",
+              "value": "-0"
+            }
+          }
+        },
+        {
+          "name": "positiveInfinity",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "positiveInfinity"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "float",
+              "value": "+Infinity"
+            }
+          }
+        },
+        {
+          "name": "negativeInfinity",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "negativeInfinity"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "float",
+              "value": "-Infinity"
+            }
+          }
+        },
+        {
+          "name": "notANumber",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "notANumber"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "float",
+              "value": "NaN"
+            }
+          }
+        },
+        {
+          "name": "rounding",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "rounding"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "float",
+              "value": "9007199254740992"
+            }
+          }
+        },
+        {
+          "name": "underflow",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "underflow"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "float",
+              "value": "+0"
+            }
+          }
+        },
+        {
+          "name": "comparisons",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "comparisons"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "core-short-circuit",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "core/short-circuit.ubi",
+          "revision": "sha256:14b93d6cb5d7e626663d01af739019aaa411642c5b32e7f24818e88e45f8cb42"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "run",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "run"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "core-two-module-import",
+      "minimumMilestone": 1,
+      "rootSourceId": "app/main.ubi",
+      "sources": [
+        {
+          "id": "app/main.ubi",
+          "path": "modules/app/main.ubi",
+          "revision": "sha256:ee144b6208f1a40cbccea059e6590742c237802e1df1a3424d05782b8eeb2121"
+        },
+        {
+          "id": "lib/math.ubi",
+          "path": "modules/lib/math.ubi",
+          "revision": "sha256:8eefc598f4b5f8daff4fced49da0bb3ffd609404e764926d4e16c49e9baedcaf"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "run",
+          "entrypoint": {
+            "sourceId": "app/main.ubi",
+            "export": "run"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": 42
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "runtime-integer-overflow",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "faults/overflow.ubi",
+          "revision": "sha256:812a27ba4e39d6e7fe0bb2bb0231a169dc660d7f4eeed5e509172c37614b0489"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "addition",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "addition"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0001"
+          }
+        },
+        {
+          "name": "subtraction",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "subtraction"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0001"
+          }
+        },
+        {
+          "name": "multiplication",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "multiplication"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0001"
+          }
+        },
+        {
+          "name": "negation",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "negation"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0001"
+          }
+        },
+        {
+          "name": "division",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "division"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0001"
+          }
+        }
+      ]
+    },
+    {
+      "id": "runtime-zero-divisor",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "faults/zero-divisor.ubi",
+          "revision": "sha256:7a7c4e855d4a8d150daaa28b93e9000bf7f06e90fe22acc08340fa8dd6c50919"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "division",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "division"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0002"
+          }
+        },
+        {
+          "name": "remainder",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "remainder"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0002"
+          }
+        }
+      ]
+    },
+    {
+      "id": "core-evaluation-order",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "faults/evaluation-order.ubi",
+          "revision": "sha256:c7a7659a17983ea174558b00c231f69c07ce73ed884e9766f89ab26d022163ca"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "arguments",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "arguments"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0002"
+          }
+        },
+        {
+          "name": "operands",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "operands"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0002"
+          }
+        },
+        {
+          "name": "selectedBranch",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "selectedBranch"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": 8
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "diagnostic-unicode-byte-span",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/unknown-unicode.ubi",
+          "revision": "sha256:0c2472bc581fa045dd59c4072982ce9e4834821be8b03d6930fe2ebfe0748641"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0010",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 51,
+              "end": 58
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-mixed-numeric",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/mixed-numeric.ubi",
+          "revision": "sha256:8c8d491e1c733ec8e76958cda46f57fcc430ce01d14ab8bd930b15fbfa4a80d8"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0020",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 33,
+              "end": 36
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-immutable-binding",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/immutable-binding.ubi",
+          "revision": "sha256:42435fc897fc19a4a7d7694b922e65a2c9b4906bd88fabecdeaabc270b7cde17"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0022",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 44,
+              "end": 49
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-duplicate-binding",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/duplicate-binding.ubi",
+          "revision": "sha256:3a12efea8cf8dcdf38465b48002588ab2410591c23331b33013a47d080b76a47"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0011",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 48,
+              "end": 53
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-export-return-annotation",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/return-annotation.ubi",
+          "revision": "sha256:7cb6162b092211cb02880128279c50d6b3b3b6a5094cf10c8a376b4317bffdc1"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0021",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 10,
+              "end": 13
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-unsupported-async",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/unsupported-async.ubi",
+          "revision": "sha256:0875dcf7d9eaaea6aca78004ccc13889f4007a92e2c917bf8e8a8035b260b127"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0003",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 0,
+              "end": 5
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-integer-literal-range",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/integer-literal.ubi",
+          "revision": "sha256:3fc3b70f9efab79c130dbd2743d5d81479220a063cd48dbbfcb4e175dae384c2"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0004",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 27,
+              "end": 37
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-unterminated-string",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/unterminated-string.ubi",
+          "revision": "sha256:846e70989d603996d3ed468ba90ee593806c6f96a51864c05e1d0d91d599fa0d"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0001",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 30,
+              "end": 41
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-unexpected-eof",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/unexpected-eof.ubi",
+          "revision": "sha256:5d6a774983cbc84990a2ab919ac22a3bd5e8128b89d617768fd20a108b0fade2"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0002",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 29,
+              "end": 29
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-absolute-import",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/absolute-import.ubi",
+          "revision": "sha256:27c91cf36499e234887430a85ba6f3341dbb381473466eae071d98c1a12d614e"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0012",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 22,
+              "end": 36
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-missing-export",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/missing-export/main.ubi",
+          "revision": "sha256:7501719f5c23125ba2e0d4fc91e2e6af9ffa554351d65b3ee7a6e04ba066584b"
+        },
+        {
+          "id": "library.ubi",
+          "path": "invalid/missing-export/library.ubi",
+          "revision": "sha256:bf2b4b92e2a88ccf77d81e390c5238b2e2252fc2b7f6d8f1f65ce34fc39cfe06"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0012",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 9,
+              "end": 15
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-import-cycle",
+      "minimumMilestone": 1,
+      "rootSourceId": "a.ubi",
+      "sources": [
+        {
+          "id": "a.ubi",
+          "path": "invalid/cycle/a.ubi",
+          "revision": "sha256:972168c7b73224da8ce871c886248289c1c5200e0a8bec62776896218a08b1f7"
+        },
+        {
+          "id": "b.ubi",
+          "path": "invalid/cycle/b.ubi",
+          "revision": "sha256:f9284e071743417f3ab7e78763f476a099e2447906bd9bab6a24a0ff6a197260"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0012",
+            "severity": "error",
+            "primary": {
+              "sourceId": "a.ubi",
+              "start": 18,
+              "end": 27
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-private-signature",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/private-signature.ubi",
+          "revision": "sha256:5a5498bf6cb4bdcdca546bf1e24390aee2da17cc49d67f1871c9bd4af52556ec"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0013",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 36,
+              "end": 42
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-call-arity",
+      "minimumMilestone": 1,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/call-arity.ubi",
+          "revision": "sha256:7d7fabd9721fdaaae31bece444ba69270d2af32cb79b10ae1eae309cb1798084"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0023",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 68,
+              "end": 78
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "shared-unicode-scalars",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "shared/unicode.ubi",
+          "revision": "sha256:354701fe39aa16cd352241177a431f062be05a39fee505217500892b1043e8c4"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "run",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "run"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "sourceId": "main.ubi",
+                "name": "Scalars",
+                "arguments": []
+              },
+              "fields": {
+                "count": {
+                  "type": "int",
+                  "value": 4
+                },
+                "emoji": {
+                  "type": {
+                    "name": "Option",
+                    "arguments": [
+                      "string"
+                    ]
+                  },
+                  "variant": "Some",
+                  "payload": [
+                    {
+                      "type": "string",
+                      "value": "😀"
+                    }
+                  ]
+                },
+                "combining": {
+                  "type": {
+                    "name": "Option",
+                    "arguments": [
+                      "string"
+                    ]
+                  },
+                  "variant": "Some",
+                  "payload": [
+                    {
+                      "type": "string",
+                      "value": "́"
+                    }
+                  ]
+                },
+                "negative": {
+                  "type": {
+                    "name": "Option",
+                    "arguments": [
+                      "string"
+                    ]
+                  },
+                  "variant": "None",
+                  "payload": []
+                },
+                "pastEnd": {
+                  "type": {
+                    "name": "Option",
+                    "arguments": [
+                      "string"
+                    ]
+                  },
+                  "variant": "None",
+                  "payload": []
+                },
+                "normalized": {
+                  "type": "bool",
+                  "value": false
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "shared-record-copy-equality-order",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "shared/record-update.ubi",
+          "revision": "sha256:0009a518cc8a23c06f07885690743f0a5d1f6bb134da2987b56dedfbcc297446"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "run",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "run"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "sourceId": "main.ubi",
+                "name": "Snapshot",
+                "arguments": []
+              },
+              "fields": {
+                "original": {
+                  "type": {
+                    "sourceId": "main.ubi",
+                    "name": "Point",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "x": {
+                      "type": "int",
+                      "value": 2
+                    },
+                    "y": {
+                      "type": "int",
+                      "value": 3
+                    }
+                  }
+                },
+                "updated": {
+                  "type": {
+                    "sourceId": "main.ubi",
+                    "name": "Point",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "x": {
+                      "type": "int",
+                      "value": 2
+                    },
+                    "y": {
+                      "type": "int",
+                      "value": 9
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "structural",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "structural"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          }
+        },
+        {
+          "name": "nanAggregate",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "nanAggregate"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "bool",
+              "value": true
+            }
+          }
+        },
+        {
+          "name": "fieldOrder",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "fieldOrder"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0002"
+          }
+        },
+        {
+          "name": "updateOrder",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "updateOrder"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0002"
+          }
+        }
+      ]
+    },
+    {
+      "id": "shared-list-copy-indexing",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "shared/list-update.ubi",
+          "revision": "sha256:6af45d5d2501ec1202bf29d476248bc46c8f8eb42d70ce4608a305e40ccc2a36"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "run",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "run"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "sourceId": "main.ubi",
+                "name": "Snapshot",
+                "arguments": []
+              },
+              "fields": {
+                "original": {
+                  "type": {
+                    "name": "List",
+                    "arguments": [
+                      "int"
+                    ]
+                  },
+                  "elements": [
+                    {
+                      "type": "int",
+                      "value": 1
+                    },
+                    {
+                      "type": "int",
+                      "value": 2
+                    }
+                  ]
+                },
+                "appended": {
+                  "type": {
+                    "name": "List",
+                    "arguments": [
+                      "int"
+                    ]
+                  },
+                  "elements": [
+                    {
+                      "type": "int",
+                      "value": 1
+                    },
+                    {
+                      "type": "int",
+                      "value": 2
+                    },
+                    {
+                      "type": "int",
+                      "value": 3
+                    }
+                  ]
+                },
+                "replaced": {
+                  "type": {
+                    "name": "Option",
+                    "arguments": [
+                      {
+                        "name": "List",
+                        "arguments": [
+                          "int"
+                        ]
+                      }
+                    ]
+                  },
+                  "variant": "Some",
+                  "payload": [
+                    {
+                      "type": {
+                        "name": "List",
+                        "arguments": [
+                          "int"
+                        ]
+                      },
+                      "elements": [
+                        {
+                          "type": "int",
+                          "value": 9
+                        },
+                        {
+                          "type": "int",
+                          "value": 2
+                        }
+                      ]
+                    }
+                  ]
+                },
+                "outside": {
+                  "type": {
+                    "name": "Option",
+                    "arguments": [
+                      {
+                        "name": "List",
+                        "arguments": [
+                          "int"
+                        ]
+                      }
+                    ]
+                  },
+                  "variant": "None",
+                  "payload": []
+                },
+                "indexed": {
+                  "type": {
+                    "name": "Option",
+                    "arguments": [
+                      "int"
+                    ]
+                  },
+                  "variant": "Some",
+                  "payload": [
+                    {
+                      "type": "int",
+                      "value": 2
+                    }
+                  ]
+                },
+                "negative": {
+                  "type": {
+                    "name": "Option",
+                    "arguments": [
+                      "int"
+                    ]
+                  },
+                  "variant": "None",
+                  "payload": []
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "shared-snapshot-capture",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "shared/capture.ubi",
+          "revision": "sha256:832ba1181c8143b7911e35410add16e00a72ff6e3da91e5efc341fa84de84806"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "run",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "run"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  "int"
+                ]
+              },
+              "elements": [
+                {
+                  "type": "int",
+                  "value": 11
+                },
+                {
+                  "type": "int",
+                  "value": 12
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "shared-map-filter",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "shared/map-filter.ubi",
+          "revision": "sha256:da61322566844bcdfbf12a6ab8aba6b5fa010a9e351ee114413f6f2d62c407db"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "run",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "run"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  "int"
+                ]
+              },
+              "elements": [
+                {
+                  "type": "int",
+                  "value": 4
+                },
+                {
+                  "type": "int",
+                  "value": 3
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "ownedMutation",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "ownedMutation"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  "int"
+                ]
+              },
+              "elements": [
+                {
+                  "type": "int",
+                  "value": 2
+                },
+                {
+                  "type": "int",
+                  "value": 3
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "runtime-map-callback-order",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "faults/map-order.ubi",
+          "revision": "sha256:611b15a334f606e2e6aee9c1d17d5fc95e9a7f472aaddf78f4b40dacdb791e5b"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "run",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "run"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0002"
+          }
+        }
+      ]
+    },
+    {
+      "id": "shared-nested-match-guards",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "shared/match.ubi",
+          "revision": "sha256:f8b0b7a50f512ba4d03d7671fee0e0ffc4e10d072b7b71befaea425ac9c9c637"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "guarded-false",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "classify"
+          },
+          "arguments": [
+            {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  {
+                    "name": "Option",
+                    "arguments": [
+                      "bool"
+                    ]
+                  },
+                  "string"
+                ]
+              },
+              "variant": "Ok",
+              "payload": [
+                {
+                  "type": {
+                    "name": "Option",
+                    "arguments": [
+                      "bool"
+                    ]
+                  },
+                  "variant": "Some",
+                  "payload": [
+                    {
+                      "type": "bool",
+                      "value": false
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": 1
+            }
+          }
+        },
+        {
+          "name": "unguarded-true",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "classify"
+          },
+          "arguments": [
+            {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  {
+                    "name": "Option",
+                    "arguments": [
+                      "bool"
+                    ]
+                  },
+                  "string"
+                ]
+              },
+              "variant": "Ok",
+              "payload": [
+                {
+                  "type": {
+                    "name": "Option",
+                    "arguments": [
+                      "bool"
+                    ]
+                  },
+                  "variant": "Some",
+                  "payload": [
+                    {
+                      "type": "bool",
+                      "value": true
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": 2
+            }
+          }
+        },
+        {
+          "name": "nested-none",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "classify"
+          },
+          "arguments": [
+            {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  {
+                    "name": "Option",
+                    "arguments": [
+                      "bool"
+                    ]
+                  },
+                  "string"
+                ]
+              },
+              "variant": "Ok",
+              "payload": [
+                {
+                  "type": {
+                    "name": "Option",
+                    "arguments": [
+                      "bool"
+                    ]
+                  },
+                  "variant": "None",
+                  "payload": []
+                }
+              ]
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": 4
+            }
+          }
+        },
+        {
+          "name": "result-error",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "classify"
+          },
+          "arguments": [
+            {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  {
+                    "name": "Option",
+                    "arguments": [
+                      "bool"
+                    ]
+                  },
+                  "string"
+                ]
+              },
+              "variant": "Err",
+              "payload": [
+                {
+                  "type": "string",
+                  "value": "failed"
+                }
+              ]
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": 5
+            }
+          }
+        },
+        {
+          "name": "guardAfterPattern",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "guardAfterPattern"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": "int",
+              "value": 4
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "shared-generics-and-capture",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "shared/generics.ubi",
+          "revision": "sha256:5844d9fea9b230fe962bdb2a730e7290460bef6e186ec31871052a7432d370fd"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "run",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "run"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "sourceId": "main.ubi",
+                "name": "Box",
+                "arguments": [
+                  {
+                    "name": "List",
+                    "arguments": [
+                      "int"
+                    ]
+                  }
+                ]
+              },
+              "fields": {
+                "value": {
+                  "type": {
+                    "name": "List",
+                    "arguments": [
+                      "int"
+                    ]
+                  },
+                  "elements": [
+                    {
+                      "type": "int",
+                      "value": 1
+                    },
+                    {
+                      "type": "int",
+                      "value": 2
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "captured",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "captured"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  "string"
+                ]
+              },
+              "elements": [
+                {
+                  "type": "string",
+                  "value": "é"
+                },
+                {
+                  "type": "string",
+                  "value": "é"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "shared-result-propagation-mapping",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "shared/propagation.ubi",
+          "revision": "sha256:beff74b36163d500bdc0636a9550766d812926fed8f72bbdb24cb6a25a2fa906"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "propagate-ok",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "run"
+          },
+          "arguments": [
+            {
+              "type": "bool",
+              "value": true
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  "int",
+                  {
+                    "sourceId": "main.ubi",
+                    "name": "Error",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Ok",
+              "payload": [
+                {
+                  "type": "int",
+                  "value": 8
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "propagate-error",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "run"
+          },
+          "arguments": [
+            {
+              "type": "bool",
+              "value": false
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  "int",
+                  {
+                    "sourceId": "main.ubi",
+                    "name": "Error",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Err",
+              "payload": [
+                {
+                  "type": {
+                    "sourceId": "main.ubi",
+                    "name": "Error",
+                    "arguments": []
+                  },
+                  "variant": "Missing",
+                  "payload": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "stopsAfterError",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "stopsAfterError"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  "int",
+                  {
+                    "sourceId": "main.ubi",
+                    "name": "Error",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Err",
+              "payload": [
+                {
+                  "type": {
+                    "sourceId": "main.ubi",
+                    "name": "Error",
+                    "arguments": []
+                  },
+                  "variant": "Missing",
+                  "payload": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "explicitMapping",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "explicitMapping"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  "int",
+                  {
+                    "sourceId": "main.ubi",
+                    "name": "Error",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Err",
+              "payload": [
+                {
+                  "type": {
+                    "sourceId": "main.ubi",
+                    "name": "Error",
+                    "arguments": []
+                  },
+                  "variant": "Missing",
+                  "payload": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "fatalIsNotResult",
+          "entrypoint": {
+            "sourceId": "main.ubi",
+            "export": "fatalIsNotResult"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "fault",
+            "code": "UBI-R0001"
+          }
+        }
+      ]
+    },
+    {
+      "id": "invalid-field-assignment",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/field-assignment.ubi",
+          "revision": "sha256:1bbfbb611a94be01e2553987370c256f6a04dd8ad64f445168d3b16cc2ad7276"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0003",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 81,
+              "end": 88
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-duplicate-record-field",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/duplicate-field.ubi",
+          "revision": "sha256:bf78d7dd2544e1c6904bb0d0aa5b09bfa427ecae16df9039128891ee9083a75f"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0030",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 77,
+              "end": 78
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-nominal-equality",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/nominal-equality.ubi",
+          "revision": "sha256:235f827395d2687cc6a0a32bd1d2c766d602c5c94a7062e9e57213b66cb71900"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0020",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 143,
+              "end": 148
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-guard-exhaustiveness",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/guard-coverage.ubi",
+          "revision": "sha256:4d030e3270f0e99e6490e94b18203ef60d686d15f435966b0f243d472c775b2e"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0032",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 37,
+              "end": 42
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-propagation-error-type",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/propagation-error.ubi",
+          "revision": "sha256:3fad71fee99728b15028f712627e76c10805ab4b5fe9d0b8810116cb58d47ad8"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0033",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 165,
+              "end": 166
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-capture-assignment",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/capture-assignment.ubi",
+          "revision": "sha256:bd0fdcc6683cc310c1a55ced3143a1073aaae5234d9b836793f2883737cb694a"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0022",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 92,
+              "end": 98
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "invalid-enum-inference-variant",
+      "minimumMilestone": 2,
+      "rootSourceId": "main.ubi",
+      "sources": [
+        {
+          "id": "main.ubi",
+          "path": "invalid/enum-inference.ubi",
+          "revision": "sha256:573818b178f27f5250267fc618f03b96435c8916558acc78dd1fd58fc5c33d17"
+        }
+      ],
+      "check": {
+        "outcome": "reject",
+        "requiredDiagnostics": [
+          {
+            "code": "UBI0020",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 44,
+              "end": 55
+            }
+          },
+          {
+            "code": "UBI0031",
+            "severity": "error",
+            "primary": {
+              "sourceId": "main.ubi",
+              "start": 73,
+              "end": 86
+            }
+          }
+        ],
+        "allowAdditionalDiagnostics": true
+      }
+    },
+    {
+      "id": "task-list-domain",
+      "minimumMilestone": 2,
+      "rootSourceId": "task-list.ubi",
+      "sources": [
+        {
+          "id": "task-list.ubi",
+          "path": "task-list.ubi",
+          "revision": "sha256:34e916607cf047de6b96c61f7eef7ce0658ef9a483dd4879a8a42e37c2d6bfe1"
+        }
+      ],
+      "check": {
+        "outcome": "accept"
+      },
+      "invocations": [
+        {
+          "name": "empty-title",
+          "entrypoint": {
+            "sourceId": "task-list.ubi",
+            "export": "validateTitle"
+          },
+          "arguments": [
+            {
+              "type": "string",
+              "value": ""
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  "string",
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Err",
+              "payload": [
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  },
+                  "variant": "EmptyTitle",
+                  "payload": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "preserve-whitespace",
+          "entrypoint": {
+            "sourceId": "task-list.ubi",
+            "export": "validateTitle"
+          },
+          "arguments": [
+            {
+              "type": "string",
+              "value": " "
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  "string",
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Ok",
+              "payload": [
+                {
+                  "type": "string",
+                  "value": " "
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "unicode-title",
+          "entrypoint": {
+            "sourceId": "task-list.ubi",
+            "export": "validateTitle"
+          },
+          "arguments": [
+            {
+              "type": "string",
+              "value": "😀"
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  "string",
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Ok",
+              "payload": [
+                {
+                  "type": "string",
+                  "value": "😀"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "first-task",
+          "entrypoint": {
+            "sourceId": "task-list.ubi",
+            "export": "create"
+          },
+          "arguments": [
+            {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  }
+                ]
+              },
+              "elements": []
+            },
+            {
+              "type": "int",
+              "value": 1
+            },
+            {
+              "type": "string",
+              "value": "first"
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  {
+                    "name": "List",
+                    "arguments": [
+                      {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Ok",
+              "payload": [
+                {
+                  "type": {
+                    "name": "List",
+                    "arguments": [
+                      {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  "elements": [
+                    {
+                      "type": {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      },
+                      "fields": {
+                        "id": {
+                          "type": "int",
+                          "value": 1
+                        },
+                        "title": {
+                          "type": "string",
+                          "value": "first"
+                        },
+                        "completed": {
+                          "type": "bool",
+                          "value": false
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "append-task",
+          "entrypoint": {
+            "sourceId": "task-list.ubi",
+            "export": "create"
+          },
+          "arguments": [
+            {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  }
+                ]
+              },
+              "elements": [
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "id": {
+                      "type": "int",
+                      "value": 1
+                    },
+                    "title": {
+                      "type": "string",
+                      "value": "first"
+                    },
+                    "completed": {
+                      "type": "bool",
+                      "value": false
+                    }
+                  }
+                },
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "id": {
+                      "type": "int",
+                      "value": 2
+                    },
+                    "title": {
+                      "type": "string",
+                      "value": "second"
+                    },
+                    "completed": {
+                      "type": "bool",
+                      "value": true
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "int",
+              "value": 3
+            },
+            {
+              "type": "string",
+              "value": "🚀"
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  {
+                    "name": "List",
+                    "arguments": [
+                      {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Ok",
+              "payload": [
+                {
+                  "type": {
+                    "name": "List",
+                    "arguments": [
+                      {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  "elements": [
+                    {
+                      "type": {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      },
+                      "fields": {
+                        "id": {
+                          "type": "int",
+                          "value": 1
+                        },
+                        "title": {
+                          "type": "string",
+                          "value": "first"
+                        },
+                        "completed": {
+                          "type": "bool",
+                          "value": false
+                        }
+                      }
+                    },
+                    {
+                      "type": {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      },
+                      "fields": {
+                        "id": {
+                          "type": "int",
+                          "value": 2
+                        },
+                        "title": {
+                          "type": "string",
+                          "value": "second"
+                        },
+                        "completed": {
+                          "type": "bool",
+                          "value": true
+                        }
+                      }
+                    },
+                    {
+                      "type": {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      },
+                      "fields": {
+                        "id": {
+                          "type": "int",
+                          "value": 3
+                        },
+                        "title": {
+                          "type": "string",
+                          "value": "🚀"
+                        },
+                        "completed": {
+                          "type": "bool",
+                          "value": false
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "duplicate-id",
+          "entrypoint": {
+            "sourceId": "task-list.ubi",
+            "export": "create"
+          },
+          "arguments": [
+            {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  }
+                ]
+              },
+              "elements": [
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "id": {
+                      "type": "int",
+                      "value": 1
+                    },
+                    "title": {
+                      "type": "string",
+                      "value": "first"
+                    },
+                    "completed": {
+                      "type": "bool",
+                      "value": false
+                    }
+                  }
+                },
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "id": {
+                      "type": "int",
+                      "value": 2
+                    },
+                    "title": {
+                      "type": "string",
+                      "value": "second"
+                    },
+                    "completed": {
+                      "type": "bool",
+                      "value": true
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "int",
+              "value": 1
+            },
+            {
+              "type": "string",
+              "value": "new"
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  {
+                    "name": "List",
+                    "arguments": [
+                      {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Err",
+              "payload": [
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  },
+                  "variant": "DuplicateId",
+                  "payload": [
+                    {
+                      "type": "int",
+                      "value": 1
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "title-error-precedes-id-error",
+          "entrypoint": {
+            "sourceId": "task-list.ubi",
+            "export": "create"
+          },
+          "arguments": [
+            {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  }
+                ]
+              },
+              "elements": []
+            },
+            {
+              "type": "int",
+              "value": -1
+            },
+            {
+              "type": "string",
+              "value": ""
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  {
+                    "name": "List",
+                    "arguments": [
+                      {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Err",
+              "payload": [
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  },
+                  "variant": "EmptyTitle",
+                  "payload": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "negative-id",
+          "entrypoint": {
+            "sourceId": "task-list.ubi",
+            "export": "create"
+          },
+          "arguments": [
+            {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  }
+                ]
+              },
+              "elements": []
+            },
+            {
+              "type": "int",
+              "value": -1
+            },
+            {
+              "type": "string",
+              "value": "valid"
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  {
+                    "name": "List",
+                    "arguments": [
+                      {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Err",
+              "payload": [
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  },
+                  "variant": "InvalidId",
+                  "payload": []
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "complete-task",
+          "entrypoint": {
+            "sourceId": "task-list.ubi",
+            "export": "complete"
+          },
+          "arguments": [
+            {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  }
+                ]
+              },
+              "elements": [
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "id": {
+                      "type": "int",
+                      "value": 1
+                    },
+                    "title": {
+                      "type": "string",
+                      "value": "first"
+                    },
+                    "completed": {
+                      "type": "bool",
+                      "value": false
+                    }
+                  }
+                },
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "id": {
+                      "type": "int",
+                      "value": 2
+                    },
+                    "title": {
+                      "type": "string",
+                      "value": "second"
+                    },
+                    "completed": {
+                      "type": "bool",
+                      "value": true
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "int",
+              "value": 1
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  {
+                    "name": "List",
+                    "arguments": [
+                      {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Ok",
+              "payload": [
+                {
+                  "type": {
+                    "name": "List",
+                    "arguments": [
+                      {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  "elements": [
+                    {
+                      "type": {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      },
+                      "fields": {
+                        "id": {
+                          "type": "int",
+                          "value": 1
+                        },
+                        "title": {
+                          "type": "string",
+                          "value": "first"
+                        },
+                        "completed": {
+                          "type": "bool",
+                          "value": true
+                        }
+                      }
+                    },
+                    {
+                      "type": {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      },
+                      "fields": {
+                        "id": {
+                          "type": "int",
+                          "value": 2
+                        },
+                        "title": {
+                          "type": "string",
+                          "value": "second"
+                        },
+                        "completed": {
+                          "type": "bool",
+                          "value": true
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "missing-task",
+          "entrypoint": {
+            "sourceId": "task-list.ubi",
+            "export": "complete"
+          },
+          "arguments": [
+            {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  }
+                ]
+              },
+              "elements": [
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "id": {
+                      "type": "int",
+                      "value": 1
+                    },
+                    "title": {
+                      "type": "string",
+                      "value": "first"
+                    },
+                    "completed": {
+                      "type": "bool",
+                      "value": false
+                    }
+                  }
+                },
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "id": {
+                      "type": "int",
+                      "value": 2
+                    },
+                    "title": {
+                      "type": "string",
+                      "value": "second"
+                    },
+                    "completed": {
+                      "type": "bool",
+                      "value": true
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "int",
+              "value": 9
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  {
+                    "name": "List",
+                    "arguments": [
+                      {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Err",
+              "payload": [
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  },
+                  "variant": "MissingId",
+                  "payload": [
+                    {
+                      "type": "int",
+                      "value": 9
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "filter-active",
+          "entrypoint": {
+            "sourceId": "task-list.ubi",
+            "export": "filterTasks"
+          },
+          "arguments": [
+            {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  }
+                ]
+              },
+              "elements": [
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "id": {
+                      "type": "int",
+                      "value": 1
+                    },
+                    "title": {
+                      "type": "string",
+                      "value": "first"
+                    },
+                    "completed": {
+                      "type": "bool",
+                      "value": false
+                    }
+                  }
+                },
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "id": {
+                      "type": "int",
+                      "value": 2
+                    },
+                    "title": {
+                      "type": "string",
+                      "value": "second"
+                    },
+                    "completed": {
+                      "type": "bool",
+                      "value": true
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "type": "bool",
+              "value": false
+            }
+          ],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "List",
+                "arguments": [
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  }
+                ]
+              },
+              "elements": [
+                {
+                  "type": {
+                    "sourceId": "task-list.ubi",
+                    "name": "Task",
+                    "arguments": []
+                  },
+                  "fields": {
+                    "id": {
+                      "type": "int",
+                      "value": 1
+                    },
+                    "title": {
+                      "type": "string",
+                      "value": "first"
+                    },
+                    "completed": {
+                      "type": "bool",
+                      "value": false
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "composed-example",
+          "entrypoint": {
+            "sourceId": "task-list.ubi",
+            "export": "example"
+          },
+          "arguments": [],
+          "expected": {
+            "kind": "value",
+            "value": {
+              "type": {
+                "name": "Result",
+                "arguments": [
+                  {
+                    "name": "List",
+                    "arguments": [
+                      {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  {
+                    "sourceId": "task-list.ubi",
+                    "name": "TaskError",
+                    "arguments": []
+                  }
+                ]
+              },
+              "variant": "Ok",
+              "payload": [
+                {
+                  "type": {
+                    "name": "List",
+                    "arguments": [
+                      {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      }
+                    ]
+                  },
+                  "elements": [
+                    {
+                      "type": {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      },
+                      "fields": {
+                        "id": {
+                          "type": "int",
+                          "value": 1
+                        },
+                        "title": {
+                          "type": "string",
+                          "value": "Write spec"
+                        },
+                        "completed": {
+                          "type": "bool",
+                          "value": true
+                        }
+                      }
+                    },
+                    {
+                      "type": {
+                        "sourceId": "task-list.ubi",
+                        "name": "Task",
+                        "arguments": []
+                      },
+                      "fields": {
+                        "id": {
+                          "type": "int",
+                          "value": 2
+                        },
+                        "title": {
+                          "type": "string",
+                          "value": "Review 😀"
+                        },
+                        "completed": {
+                          "type": "bool",
+                          "value": false
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

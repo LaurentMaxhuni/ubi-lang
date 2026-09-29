@@ -1,0 +1,9 @@
+export fn evaluate() -> int {
+  (-7 / 3) * 10 + (-7 % 3) + 2 * 3
+}
+export fn minimum() -> int {
+  -2147483648
+}
+export fn minimumRemainder() -> int {
+  -2147483648 % -1
+}

@@ -1,0 +1,2 @@
+import { secret } from "./library.ubi";
+export fn run() -> int { 1 }

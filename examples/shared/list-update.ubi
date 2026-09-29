@@ -1,0 +1,19 @@
+export record Snapshot {
+  original: List<int>,
+  appended: List<int>,
+  replaced: Option<List<int>>,
+  outside: Option<List<int>>,
+  indexed: Option<int>,
+  negative: Option<int>,
+}
+export fn run() -> Snapshot {
+  let original = [1, 2];
+  Snapshot {
+    original: original,
+    appended: append(original, 3),
+    replaced: set(original, 0, 9),
+    outside: set(original, 2, 9),
+    indexed: original[1],
+    negative: original[-1],
+  }
+}

@@ -1,0 +1,2 @@
+import { b } from "./b.ubi";
+export fn a() -> int { 1 }

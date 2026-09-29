@@ -1,0 +1,6 @@
+export fn run(flag: bool) -> int {
+  match (flag) {
+    true if (flag) => 1,
+    false => 0,
+  }
+}

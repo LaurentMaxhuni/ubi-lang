@@ -1,0 +1,18 @@
+fn twice(value: int) {
+  value * 2
+}
+export fn shadow() -> int {
+  let value = 2;
+  let inner = {
+    let value = value + 3;
+    value
+  };
+  twice(value) + inner
+}
+export fn discard() -> unit {
+  42;
+  return;
+}
+export fn unitEquality() -> bool {
+  discard() == ()
+}

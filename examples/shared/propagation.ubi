@@ -1,0 +1,23 @@
+export enum Error { Missing }
+export enum OtherError { Absent }
+fn seed(ok: bool) -> Result<int, Error> {
+  if (ok) { Result.Ok(7) } else { Result.Err(Error.Missing) }
+}
+export fn run(ok: bool) -> Result<int, Error> {
+  let value = seed(ok)?;
+  Result.Ok(value + 1)
+}
+export fn stopsAfterError() -> Result<int, Error> {
+  let value = seed(false)?;
+  Result.Ok(value + (2147483647 + 1))
+}
+export fn explicitMapping() -> Result<int, Error> {
+  let value: Result<int, OtherError> = Result.Err(OtherError.Absent);
+  match (value) {
+    Result.Ok(number) => Result.Ok(number),
+    Result.Err(error) => Result.Err(Error.Missing),
+  }
+}
+export fn fatalIsNotResult() -> Result<int, Error> {
+  Result.Ok(2147483647 + 1)
+}

@@ -1,0 +1,11 @@
+export record Box<T> { value: T }
+fn identity<T>(value: T) -> T { value }
+fn repeat<T>(value: T) -> List<T> {
+  map([1, 2], (index: int) => value)
+}
+export fn run() -> Box<List<int>> {
+  Box { value: [identity(1), identity(2)] }
+}
+export fn captured() -> List<string> {
+  repeat("é")
+}

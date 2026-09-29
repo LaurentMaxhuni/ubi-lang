@@ -1,0 +1,4 @@
+import { double } from "../lib/./math.ubi";
+export fn run() -> int {
+  double(21)
+}

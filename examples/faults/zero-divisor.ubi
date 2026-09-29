@@ -1,0 +1,2 @@
+export fn division() -> int { 10 / 0 }
+export fn remainder() -> int { 10 % 0 }

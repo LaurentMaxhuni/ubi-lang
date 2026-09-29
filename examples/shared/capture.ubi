@@ -1,0 +1,6 @@
+export fn run() -> List<int> {
+  let mut offset = 10;
+  let callback = (value: int) => value + offset;
+  offset = 20;
+  map([1, 2], callback)
+}

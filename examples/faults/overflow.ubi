@@ -1,0 +1,5 @@
+export fn addition() -> int { 2147483647 + 1 }
+export fn subtraction() -> int { -2147483648 - 1 }
+export fn multiplication() -> int { 1073741824 * 2 }
+export fn negation() -> int { -(-2147483648) }
+export fn division() -> int { -2147483648 / -1 }

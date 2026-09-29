@@ -1,0 +1,18 @@
+export fn classify(value: Result<Option<bool>, string>) -> int {
+  match (value) {
+    Result.Ok(Option.Some(flag)) if (!flag) => 1,
+    Result.Ok(Option.Some(true)) => 2,
+    Result.Ok(Option.Some(false)) => 3,
+    Result.Ok(Option.None) => 4,
+    Result.Err(message) => 5,
+  }
+}
+fn trap() -> bool { (1 / 0) == 0 }
+export fn guardAfterPattern() -> int {
+  let value: Option<bool> = Option.None;
+  match (value) {
+    Option.Some(flag) if (trap()) => 1,
+    Option.Some(flag) => 2,
+    Option.None => 4,
+  }
+}

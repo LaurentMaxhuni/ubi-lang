@@ -1,0 +1,4 @@
+export fn run() -> int {
+  let label = "😀é";
+  missing
+}

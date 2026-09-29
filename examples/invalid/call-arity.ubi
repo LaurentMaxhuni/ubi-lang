@@ -1,0 +1,4 @@
+fn identity(value: int) -> int { value }
+export fn run() -> int {
+  identity()
+}

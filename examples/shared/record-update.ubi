@@ -1,0 +1,27 @@
+export record Point { x: int, y: int }
+export record Snapshot { original: Point, updated: Point }
+record FloatBox { value: float }
+export fn run() -> Snapshot {
+  let original = Point { x: 2, y: 3 };
+  let alias = original;
+  let updated = Point { ...original, y: 9 };
+  Snapshot { original: alias, updated: updated }
+}
+export fn structural() -> bool {
+  (Point { x: 1, y: 2 } == Point { x: 1, y: 2 })
+    && ([1, 2] == [1, 2])
+    && (Option.Some(1) == Option.Some(1))
+}
+export fn nanAggregate() -> bool {
+  let box = FloatBox { value: 0.0 / 0.0 };
+  box != box
+}
+fn faultyPoint() -> Point {
+  Point { x: 1 / 0, y: 0 }
+}
+export fn fieldOrder() -> Point {
+  Point { x: 1 / 0, y: 2147483647 + 1 }
+}
+export fn updateOrder() -> Point {
+  Point { ...faultyPoint(), y: 2147483647 + 1 }
+}

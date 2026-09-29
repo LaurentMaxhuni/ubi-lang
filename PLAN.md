@@ -1,6 +1,6 @@
 # Ubi implementation plan
 
-Status: proposed implementation roadmap. No compiler implemented yet.
+Status: Milestone 0 specification and example corpus prepared and independently reviewed; completion gate pending human review. No compiler implemented yet.
 
 Ubi (`.ubi`, short for ubiquitous) combines familiar JavaScript-style syntax with strict types, explicit errors, and checked access to host capabilities. AI agents write code; humans must be able to understand and review it.
 
@@ -35,7 +35,7 @@ Do not expose an unrestricted `any`, unchecked JSON casts, ambient host globals,
 ## Agent workflow and independent review
 
 - Required repository documents: `SPEC.md` defines behavior, `DECISIONS.md` records reasoning and tradeoffs, and `PLAN.md` tracks milestones and their gates. Milestone 0 creates the missing specification and decisions log alongside the example corpus.
-- Every session starts by reading all three documents and stating the current milestone. During bootstrap, explicitly report missing documents; do not invent their contents. Current milestone: Milestone 0, pending.
+- Every session starts by reading all three documents and stating the current milestone. During bootstrap, explicitly report missing documents; do not invent their contents. Current milestone: Milestone 0; artifacts and independent review ready, human sign-off pending.
 - Before implementing any behavior change, update `SPEC.md` first and log the reasoning in `DECISIONS.md`.
 - Make small commits, one meaningful change per commit.
 - The conformance corpus must be authored or reviewed separately from implementation work, against the specification. An implementation session must not write and grade its own tests; route new cases and expected results through an independent reviewer/evaluator.
@@ -44,6 +44,8 @@ Do not expose an unrestricted `any`, unchecked JSON casts, ambient host globals,
 - Every milestone requires human sign-off in `DECISIONS.md`, identifying the reviewed revision and evidence. Passing automated checks alone does not pass a completion gate. Changes that invalidate reviewed evidence require renewed sign-off.
 
 ## Milestone 0 — Specify observable behavior
+
+Progress: `SPEC.md`, `DECISIONS.md`, and independently authored `examples/` prepared. Public artifact integrity checks and independent static semantic/oracle review passed; evidence recorded in `DECISIONS.md`. Human completion-gate sign-off remains pending; no executable conformance is claimed.
 
 - Write a compact `SPEC.md` covering grammar, bindings, values, functions, modules, matching, errors, and evaluation order.
 - Define `int` width and overflow behavior, float behavior, division, equality, string indexing, and out-of-bounds collection access. Prefer signed 32-bit integers initially; require consistent behavior across backends.
@@ -217,4 +219,4 @@ The compiler running in WASM and Ubi programs compiling to WASM are separate del
 - Keep the current JavaScript backend passing conformance checks before introducing another backend.
 - Avoid fixed delivery dates until the first two milestones establish implementation pace.
 - Track progress against completion gates; mark platform work blocked when required SDKs or devices are unavailable.
-- Next implementation task: Milestone 0's compact specification and example corpus. This plan does not start compiler implementation.
+- Next task: human review and sign-off on Milestone 0's recorded revision/evidence. Milestone 1 compiler work starts only after that gate is accepted.

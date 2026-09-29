@@ -1,0 +1,5 @@
+record Point { x: int }
+export fn run() -> int {
+  let point = Point { x: 1, x: 2 };
+  0
+}

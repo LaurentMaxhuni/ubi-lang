@@ -1,0 +1,19 @@
+export record Scalars {
+  count: int,
+  emoji: Option<string>,
+  combining: Option<string>,
+  negative: Option<string>,
+  pastEnd: Option<string>,
+  normalized: bool,
+}
+export fn run() -> Scalars {
+  let text = "A😀e\u{301}";
+  Scalars {
+    count: length(text),
+    emoji: text[1],
+    combining: text[3],
+    negative: text[-1],
+    pastEnd: text[4],
+    normalized: "é" == "e\u{301}",
+  }
+}

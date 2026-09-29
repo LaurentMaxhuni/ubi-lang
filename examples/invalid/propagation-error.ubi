@@ -1,0 +1,7 @@
+enum First { Bad }
+export enum Second { Bad }
+fn seed() -> Result<int, First> { Result.Err(First.Bad) }
+export fn run() -> Result<int, Second> {
+  let value = seed()?;
+  Result.Ok(value)
+}

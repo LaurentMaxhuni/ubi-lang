@@ -1,0 +1,12 @@
+fn first(left: int, right: int) -> int {
+  left
+}
+export fn arguments() -> int {
+  first(1 / 0, 2147483647 + 1)
+}
+export fn operands() -> int {
+  (1 / 0) + (2147483647 + 1)
+}
+export fn selectedBranch() -> int {
+  if (true) { 8 } else { 1 / 0 }
+}

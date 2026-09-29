@@ -1,0 +1,8 @@
+fn trap() -> bool {
+  (2147483647 + 1) == 0
+}
+export fn run() -> bool {
+  let conjunction = false && trap();
+  let disjunction = true || trap();
+  !conjunction && disjunction
+}

@@ -1,0 +1,4 @@
+record Secret {}
+export fn run() -> Secret {
+  Secret {}
+}

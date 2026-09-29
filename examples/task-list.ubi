@@ -1,0 +1,60 @@
+export record Task {
+  id: int,
+  title: string,
+  completed: bool,
+}
+
+export enum TaskError {
+  EmptyTitle,
+  InvalidId,
+  DuplicateId(int),
+  MissingId(int),
+}
+
+export fn validateTitle(title: string) -> Result<string, TaskError> {
+  if (length(title) == 0) {
+    Result.Err(TaskError.EmptyTitle)
+  } else {
+    Result.Ok(title)
+  }
+}
+
+export fn create(tasks: List<Task>, id: int, title: string) -> Result<List<Task>, TaskError> {
+  let checkedTitle = validateTitle(title)?;
+  if (id < 0) {
+    Result.Err(TaskError.InvalidId)
+  } else {
+    let duplicates = filter(tasks, (task: Task) => task.id == id);
+    if (length(duplicates) > 0) {
+      Result.Err(TaskError.DuplicateId(id))
+    } else {
+      Result.Ok(append(tasks, Task { id: id, title: checkedTitle, completed: false }))
+    }
+  }
+}
+
+export fn complete(tasks: List<Task>, id: int) -> Result<List<Task>, TaskError> {
+  let matches = filter(tasks, (task: Task) => task.id == id);
+  if (length(matches) == 0) {
+    Result.Err(TaskError.MissingId(id))
+  } else {
+    Result.Ok(map(tasks, (task: Task) => {
+      if (task.id == id) {
+        Task { ...task, completed: true }
+      } else {
+        task
+      }
+    }))
+  }
+}
+
+export fn filterTasks(tasks: List<Task>, completed: bool) -> List<Task> {
+  filter(tasks, (task: Task) => task.completed == completed)
+}
+
+export fn example() -> Result<List<Task>, TaskError> {
+  let empty: List<Task> = [];
+  let first = create(empty, 1, "Write spec")?;
+  let second = create(first, 2, "Review 😀")?;
+  complete(second, 1)
+}

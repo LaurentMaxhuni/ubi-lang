@@ -1,0 +1,7 @@
+record A { value: int }
+record B { value: int }
+export fn run() -> bool {
+  let left = A { value: 1 };
+  let right = B { value: 1 };
+  left == right
+}

@@ -1,0 +1,10 @@
+fn fail(value: int) -> int {
+  if (value == 1) {
+    1 / 0
+  } else {
+    2147483647 + 1
+  }
+}
+export fn run() -> List<int> {
+  map([1, 2], fail)
+}

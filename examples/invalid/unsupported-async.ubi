@@ -1,0 +1,3 @@
+async fn run() -> int {
+  1
+}
