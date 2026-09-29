@@ -2,6 +2,7 @@
 
 mod analyzer;
 mod diagnostics;
+mod interpreter;
 mod ir;
 mod lexer;
 mod parser;
@@ -27,3 +28,7 @@ mod analysis_tests;
 #[cfg(test)]
 #[path = "ir_tests.rs"]
 mod ir_tests;
+
+#[cfg(test)]
+#[path = "interpreter_tests.rs"]
+mod interpreter_tests;

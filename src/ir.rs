@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::analyzer::{Analysis, FunctionKey, ValueType};
-use crate::diagnostics::Diagnostic;
+use crate::diagnostics::{Diagnostic, Severity};
 use crate::lexer::Symbol;
 use crate::parser::{
     Block, Declaration, Expr, ExprKind as AstExprKind, Module, StatementKind as AstStatementKind,
@@ -94,7 +94,11 @@ pub(crate) enum ExprKind {
 }
 
 pub(crate) fn lower(analysis: &Analysis) -> Result<Program, Diagnostic> {
-    if let Some(diagnostic) = analysis.diagnostics.first() {
+    if let Some(diagnostic) = analysis
+        .diagnostics
+        .iter()
+        .find(|diagnostic| diagnostic.severity == Severity::Error)
+    {
         return Err(diagnostic.clone());
     }
 
