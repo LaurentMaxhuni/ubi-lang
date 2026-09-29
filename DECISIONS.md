@@ -1,6 +1,6 @@
 # Ubi decisions and milestone evidence
 
-Current milestone: 0, specification and corpus prepared and independently reviewed. Human completion gate: pending. No compiler implemented.
+Current milestone: 1, Milestone 0 accepted by human. Compiler implementation in progress.
 
 ## Decisions
 
@@ -42,15 +42,17 @@ Independent author and reviewer were separate agents from this implementation se
 
 ## Human sign-off
 
-Status: pending human review. Automated checks and agent review cannot supply this sign-off.
+Status: accepted.
 
-To accept Milestone 0, append a human-authored record containing:
+- Reviewer: user in this Codex task, who explicitly approved the gate.
+- Date: 2026-09-29.
+- Reviewed revision: `0dd23e85f93fffcd2657f3c24d944c1197fd24e3` (Milestone 0 specification, decisions, corpus, independent review, and static evidence).
+- Decisions accepted: D003 plain-copy immutable collections and their recorded costs; D004 same-error-only `Result` propagation without implicit conversion.
+- Gate accepted: independent review found no blockers; representative expected values and diagnostics are unambiguous; grammar and examples agree; no behavior relies on unspecified JavaScript semantics.
+- Approval: advance to Milestone 1.
 
-- Reviewer identity and review date.
-- Reviewed Git commit ID (the exact specification/corpus/evidence revision).
-- Evidence reviewed: SPEC.md, decisions D001-D011, public examples/expectations, independent review record, and static validation outcomes.
-- Explicit approval of collection copying/costs and same-error-only propagation.
-- Gate result: representative programs have unambiguous expected values/diagnostics, grammar and examples agree, and no behavior depends on unspecified JavaScript semantics.
-- Approval to advance to Milestone 1, or specific changes required before advancement.
+Milestone 1 implementation changes that revise behavior must update SPEC.md and decisions before implementation. Changes invalidating this Milestone 0 evidence require renewed sign-off.
 
-Changes invalidating reviewed evidence require renewed sign-off. Implementation remains at Milestone 0 until a human accepts the gate.
+## Milestone 1 evidence
+
+Status: in progress. Bootstrap starts with an independently reviewed lexer test module. Compiler package and language implementation pending.
