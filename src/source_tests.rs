@@ -104,3 +104,29 @@ fn source_set_enforces_project_byte_and_module_budgets() {
         Err(SourceError::Diagnostic(error)) if error.code == "UBI0090"
     ));
 }
+
+#[test]
+fn import_paths_normalize_within_the_virtual_project_root() {
+    assert_eq!(
+        crate::source::resolve_import_id("modules/app/main.ubi", "../lib/./math.ubi").unwrap(),
+        "modules/lib/math.ubi"
+    );
+    assert_eq!(
+        crate::source::resolve_import_id("main.ubi", "./helper.ubi").unwrap(),
+        "helper.ubi"
+    );
+
+    for path in [
+        "/library.ubi",
+        "C:/library.ubi",
+        "..\\library.ubi",
+        "./../../outside.ubi",
+        "./bad.js",
+        "./a//b.ubi",
+    ] {
+        assert!(
+            crate::source::resolve_import_id("main.ubi", path).is_err(),
+            "accepted {path:?}"
+        );
+    }
+}

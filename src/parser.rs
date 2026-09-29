@@ -96,8 +96,14 @@ pub(crate) struct Expr {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ExprKind {
-    Integer(String),
-    Float(String),
+    Integer {
+        value: String,
+        literal_span: Span,
+    },
+    Float {
+        value: String,
+        literal_span: Span,
+    },
     String(String),
     Bool(bool),
     Unit,
@@ -592,12 +598,18 @@ impl Parser {
         match token.kind {
             TokenKind::Eof => Err(self.error("Expected an expression")),
             TokenKind::Integer(value) => Ok(Expr {
-                kind: ExprKind::Integer(value),
+                kind: ExprKind::Integer {
+                    value,
+                    literal_span: token.span.clone(),
+                },
                 span: token.span,
                 nesting: 1,
             }),
             TokenKind::Float(value) => Ok(Expr {
-                kind: ExprKind::Float(value),
+                kind: ExprKind::Float {
+                    value,
+                    literal_span: token.span.clone(),
+                },
                 span: token.span,
                 nesting: 1,
             }),

@@ -132,6 +132,37 @@ fn valid_source_id(id: &str) -> bool {
         })
 }
 
+pub(crate) fn resolve_import_id(importer_id: &str, path: &str) -> Result<String, ()> {
+    if !(path.starts_with("./") || path.starts_with("../"))
+        || path.contains('\\')
+        || !path.ends_with(".ubi")
+    {
+        return Err(());
+    }
+
+    let mut segments: Vec<&str> = importer_id.split('/').collect();
+    segments.pop();
+    for segment in path.split('/') {
+        match segment {
+            "" => return Err(()),
+            "." => {}
+            ".." => {
+                if segments.pop().is_none() {
+                    return Err(());
+                }
+            }
+            value => segments.push(value),
+        }
+    }
+
+    let id = segments.join("/");
+    if valid_source_id(&id) {
+        Ok(id)
+    } else {
+        Err(())
+    }
+}
+
 fn hex(bytes: &[u8]) -> String {
     const DIGITS: &[u8; 16] = b"0123456789abcdef";
     let mut output = String::with_capacity(bytes.len() * 2);

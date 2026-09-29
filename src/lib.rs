@@ -1,5 +1,7 @@
 // Compiler library; source loading stays independent of filesystem access.
 
+mod analyzer;
+mod diagnostics;
 mod lexer;
 mod parser;
 mod source;
@@ -16,3 +18,7 @@ mod source_tests;
 #[cfg(test)]
 #[path = "parser_tests.rs"]
 mod parser_tests;
+
+#[cfg(test)]
+#[path = "analysis_tests.rs"]
+mod analysis_tests;
