@@ -1,0 +1,30 @@
+export record Signal {
+    radius: int,
+    duration: int,
+    label: string,
+}
+
+fn mood(energy: int) -> string {
+    if (energy < 35) { "A little curiosity." } else {
+        if (energy < 70) { "An idea in motion." } else { "Full of possibilities." }
+    }
+}
+
+export fn signal(energy: int) -> Signal {
+    let safe = if (energy < 1) { 1 } else {
+        if (energy > 100) { 100 } else { energy }
+    };
+    Signal {
+        radius: 40 + safe,
+        duration: 24 - safe / 5,
+        label: mood(safe),
+    }
+}
+
+export fn targetNote(target: string) -> string {
+    if (target == "web") { "Ready for the browser. JavaScript ES modules, generated from Ubi." } else {
+        if (target == "cli") { "Ready for the terminal. Run compiled Ubi with Node.js." } else {
+            "The same JavaScript output. Native packaging is still on the roadmap."
+        }
+    }
+}

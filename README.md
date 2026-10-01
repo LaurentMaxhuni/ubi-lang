@@ -89,6 +89,15 @@ Config changes require restarting the server.
 
 ## Project config
 
+For a complete animated landing page with a live Ubi-powered orbit demo, run:
+
+```powershell
+cargo run -- dev --root examples/landing-page --port 3017
+```
+
+Open `http://127.0.0.1:3017/`. See the [landing page example](examples/landing-page/README.md)
+for source and interaction details.
+
 Put `ubi.json` in an application's root to declare where its shared logic runs:
 
 ```json
