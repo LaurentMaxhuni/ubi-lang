@@ -211,3 +211,18 @@ Exit status `0` means success, `1` means the reachable graph has compiler errors
 `examples/conformance.json` lists public sources, required profiles, entrypoints, typed arguments, and expected values/faults or required compile diagnostics. Float expectations use tagged strings for NaN, infinities, and signed zero so JSON does not lose information; nominal aggregates identify their module/type, enum variant, and payload. The corpus README defines the oracle format. Public `.ubi` fixtures use LF line endings, enforced by `.gitattributes` so checkout conversion cannot invalidate hashes/spans; the compiler still accepts CRLF and counts its exact bytes. `examples/task-list.ubi` declares the intended pure domain interface, with executable example bodies; persistence belongs to later application/host layers.
 
 Human sign-off in `DECISIONS.md` must name the reviewed Git revision and evidence, approve examples and decisions, and explicitly accept Milestone 0's gate. A separate evaluator owns hidden tests outside implementation workspace/credentials. Do not treat public static validation as compiler conformance or claim the hidden evaluation has occurred.
+
+## 12. Windows source-file registration
+
+`scripts/register-windows.ps1` registers `.ubi` as a text source file named
+`Ubi source file` for the current Windows user. Opening a source file launches
+an editor: detected VS Code by default, otherwise Notepad; `-EditorPath`
+selects another executable. Executable and document paths are quoted separately.
+Source files are not executed by double-clicking.
+
+Registration uses `HKCU\Software\Classes`, the `Ubi.Source` ProgID, an editor
+icon, and an Open With entry. An existing default association or protected
+Windows UserChoice is preserved; Windows' Open With UI can select the editor.
+Notify the Shell after registration. `-WhatIf` previews without registry writes.
+No administrator privileges, compiler installation, or language semantics change
+is required.

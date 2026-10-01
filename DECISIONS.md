@@ -4,6 +4,17 @@ Current milestone: 1, Milestone 0 accepted by human. Milestone 1 implementation 
 
 ## Decisions
 
+User direction, 2026-10-01: set aside milestone gates for the current task and
+implement Windows recognition of `.ubi` files. This direction does not assert
+that outstanding milestone evaluations passed.
+
+Windows registration evidence: installed for the current user on 2026-10-01.
+Native Shell `AssocQueryString` lookups for `.ubi`/`open` resolve installed
+VS Code and the friendly name `Ubi source file`; the icon, quoted open command,
+text metadata, and Open With entry are registered under HKCU. Re-running the
+installer succeeds. `-WhatIf` preview and whitespace checks pass. Compiler code
+is unchanged.
+
 | ID | Decision | Reason / cost | Revisit |
 | --- | --- | --- | --- |
 | D001 | Rust library with thin CLI, one package; readable JavaScript ES modules first. | Matches PLAN.md; library accepts supplied sources independently of filesystem/host access. Avoid premature crate/backend splits. | Milestone 1 evidence, then profiling. |
@@ -21,6 +32,7 @@ Current milestone: 1, Milestone 0 accepted by human. Milestone 1 implementation 
 | D013 | Initial compiler budgets: 1 MiB per source, 4 MiB total source bytes, 64 modules, 500,000 tokens, and 32 expression-AST levels including binary and postfix chains. Exceeding a budget reports `UBI0090`. Exceeding these limits is a resource error rather than a language error. | Bound memory and recursive AST traversal for the first compiler/fuzzing slice while keeping the accepted corpus in scope; limits are deterministic and independent of host. The smaller nesting cap avoids stack exhaustion during recursive AST destruction on the supported Windows host. | Re-measure with corpus and fuzzing before raising any limit. |
 | D014 | M1 execution is limited to 1,000,000 steps and 32 active named-function frames per exported invocation; each evaluated expression, executed statement, and named-function entry consumes one step. Exceeding either limit faults with `UBI-R0005`. | Bounds recursive or otherwise runaway execution consistently in the interpreter and compiled JavaScript, independently of host watchdogs. A 256-frame implementation overflowed the supported Windows test stack, so the lower deterministic cap protects the host while allowing the reviewed recursive examples. | Re-measure with conformance and workload evidence before changing. |
 | D015 | The CLI accepts a canonical root-relative entry ID, loads only its transitive imports, and rejects any source path whose canonical target leaves the canonical project root. `ubi build` writes each reachable module as a same-layout `.mjs` file under `.ubi-build` by default (or the selected output directory), without cleaning unrelated files; output symlinks cannot redirect writes outside the canonical output directory. Exit codes are 0 success, 1 compile errors, and 2 usage/input/I/O/artifact errors; `--json` applies to compiler results, while operational errors remain on stderr. | Keeps source loading inside the CLI, matches the library's virtual-root import rules, and produces modules directly executable by Node and browsers without overwriting package metadata. Separating operational failures from source diagnostics preserves accurate compiler spans and source revisions. | Revisit if cross-host path tests or field use reveal incompatibilities. |
+| D016 | Register `.ubi` source files per user with an editor open command; prefer installed VS Code, fall back to Notepad, allow explicit executable selection. Preserve existing default choices. | Gives Windows a named file type, icon, and Open With integration without machine-wide changes or executing arbitrary source on opening. | Dedicated editor or installer work. |
 
 ## Milestone 0 evidence
 

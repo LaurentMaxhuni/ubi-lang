@@ -1,5 +1,9 @@
 # Ubi implementation plan
 
+User direction, 2026-10-01: set aside milestone gates for the current task.
+Current work: Windows `.ubi` source-file registration and editor opening.
+Milestone evidence below remains historical; unrun checks are not marked passed.
+
 Status: Milestone 0 gate approved for reviewed revision `0dd23e85f93fffcd2657f3c24d944c1197fd24e3`. Milestone 1 implementation is ready for human gate review; the pre-M2 mini benchmark now has separate solution and public evaluation agents. Evaluator-owned hidden conformance remains unavailable.
 
 Ubi (`.ubi`, short for ubiquitous) combines familiar JavaScript-style syntax with strict types, explicit errors, and checked access to host capabilities. AI agents write code; humans must be able to understand and review it.
