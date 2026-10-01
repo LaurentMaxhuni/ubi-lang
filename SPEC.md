@@ -1,6 +1,6 @@
 # Ubi language specification
 
-Version: 0.2 draft. Current milestone: 1. Milestone 0 was accepted; Milestone 1 implementation is ready for human gate review. Review evidence is recorded in DECISIONS.md.
+Version: 0.3 draft. Current work: Milestone 2 shared logic, delivered in slices under user direction. Milestone 1 evidence remains recorded in DECISIONS.md.
 
 ## 1. Scope and conformance
 
@@ -9,6 +9,11 @@ Milestone 1 implements the core profile: primitive values, immutable local bindi
 A conforming implementation preserves specified values, evaluation order, recoverable errors, and fatal faults on every backend. Invalid programs are rejected before either execution path runs. Compiler optimizations cannot change observable behavior. The interpreter evaluates source syntax independently of JavaScript lowering; agreement alone does not establish correctness. Public expectations and an evaluator-owned hidden corpus establish expected behavior separately.
 
 ## 2. Source and grammar
+
+Current shared-logic slice: local reassignment and non-generic records, including
+imports/exports, immutable updates, field access, and structural equality. Enums,
+lists, generic declarations, matching, propagation, and closures remain unsupported
+until their owning slices land.
 
 Source is UTF-8 without a byte-order mark. Identifiers are ASCII `[A-Za-z_][A-Za-z0-9_]*`, case-sensitive. `_` alone is reserved for wildcard patterns. Keywords cannot be identifiers; lex them as a distinct token kind rather than as `IDENT`. Whitespace is exactly U+0009 tab, U+000A line feed, U+000D carriage return, and U+0020 space. Newlines have no special syntax. `//` comments end before line feed or carriage return; `/* ... */` comments are non-nesting. Unterminated comments/strings and invalid source encoding are lexical errors. Retain comments and their original byte spans for future formatting.
 
@@ -266,3 +271,24 @@ compile the same shared source to JavaScript ES modules; declaring `mobile` or
 `desktop` does not generate packages, launch hosts, grant capabilities, or enable
 additional language features. Platform-specific hosts/packagers remain separate
 work. The compiler library remains independent of filesystem/project config.
+
+## 14. Record host representation and runtime limits
+
+Exported JavaScript functions accept record arguments as serialized JSON text
+containing exactly the declared field names, recursively. They reject live object
+arguments without reading their properties, so getters/proxies cannot run during
+decoding. Numeric fields use the declared int/float type; float fields additionally
+accept the strings `NaN`, `+Infinity`, `-Infinity`, `+0`, and `-0`. Other string
+values retain their ordinary string meaning according to their field type.
+Unit fields use JSON `null`, decoded to the single Ubi unit value.
+Decoded records are copied into frozen field objects. Return records are frozen
+field objects, which trusted hosts may serialize before supplying them to another
+exported invocation. Internal Ubi calls pass record values directly.
+When serializing returned records, hosts must encode unit fields as `null` and
+special floats with the tags above; plain JSON serialization otherwise drops
+unit fields or loses non-finite float values and the sign of zero.
+
+Record nesting is limited to 32 record levels at runtime. Constructing/updating a
+value beyond this limit faults with `UBI-R0005`; inbound arguments exceeding it
+are rejected as host validation failures before execution. This bounds recursive
+copy/equality/decoding work in both backends without permitting shared mutation.

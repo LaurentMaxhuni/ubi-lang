@@ -43,6 +43,30 @@ fn emit_module(
     }
 
     output.push_str(RUNTIME);
+    if !program.records.is_empty() {
+        output.push_str(RECORD_RUNTIME);
+        let records = program
+            .records
+            .iter()
+            .map(|record| {
+                let fields = record
+                    .fields
+                    .iter()
+                    .map(|(name, ty)| {
+                        let ty = match ty {
+                            ValueType::Record(id) => id.to_string(),
+                            _ => js_string(ty.name()),
+                        };
+                        format!("[{}, {ty}]", js_string(name))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!("[{fields}]")
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        output.push_str(&format!("\nconst $ubi_record_types = [{records}];\n"));
+    }
     for key in &module.functions {
         let function = program
             .functions
@@ -195,14 +219,30 @@ impl<'a> FunctionEmitter<'a> {
         for statement in &block.statements {
             lines.push(format!("{prefix}$ubi_tick($ubi_budget);"));
             match &statement.kind {
-                StatementKind::Let { name, value } => {
+                StatementKind::Let {
+                    name,
+                    mutable,
+                    value,
+                } => {
                     let value = self.expression(value, indent)?;
                     let local = self.new_local();
-                    lines.push(format!("{prefix}const {local} = {value};"));
+                    let binding = if *mutable { "let" } else { "const" };
+                    lines.push(format!("{prefix}{binding} {local} = {value};"));
                     self.scopes
                         .last_mut()
                         .ok_or_else(|| invariant_span(&statement.span))?
                         .insert(name.clone(), local);
+                }
+                StatementKind::Assign { name, value } => {
+                    let local = self
+                        .scopes
+                        .iter()
+                        .rev()
+                        .find_map(|scope| scope.get(name))
+                        .cloned()
+                        .ok_or_else(|| invariant_span(&statement.span))?;
+                    let value = self.expression(value, indent)?;
+                    lines.push(format!("{prefix}{local} = {value};"));
                 }
                 StatementKind::Return(value) => {
                     let value = value
@@ -244,6 +284,32 @@ impl<'a> FunctionEmitter<'a> {
                 .find_map(|scope| scope.get(name))
                 .cloned()
                 .ok_or_else(|| invariant_span(&expression.span))?,
+            ExprKind::Record { base, fields } => {
+                let base = base
+                    .as_ref()
+                    .map(|base| self.expression(base, indent))
+                    .transpose()?;
+                let fields = fields
+                    .iter()
+                    .map(|(name, value)| {
+                        Ok(format!(
+                            "[{}, {}]",
+                            js_string(name),
+                            self.expression(value, indent)?
+                        ))
+                    })
+                    .collect::<Result<Vec<_>, Diagnostic>>()?
+                    .join(", ");
+                match base {
+                    Some(base) => format!("$ubi_update_record({base}, [{fields}])"),
+                    None => format!("$ubi_make_record([{fields}])"),
+                }
+            }
+            ExprKind::Member { object, name } => format!(
+                "({})[{}]",
+                self.expression(object, indent)?,
+                js_string(name)
+            ),
             ExprKind::Call { target, arguments } => {
                 let target = self
                     .names
@@ -272,9 +338,18 @@ impl<'a> FunctionEmitter<'a> {
                 operator,
                 right,
             } => {
+                let record_equality = matches!(left.ty, ValueType::Record(_))
+                    && matches!(operator, Symbol::EqualEqual | Symbol::BangEqual);
                 let left = self.expression(left, indent)?;
                 let right = self.expression(right, indent)?;
-                if expression.ty == ValueType::Int {
+                if record_equality {
+                    let prefix = if *operator == Symbol::BangEqual {
+                        "!"
+                    } else {
+                        ""
+                    };
+                    format!("({prefix}$ubi_equal_record({left}, {right}))")
+                } else if expression.ty == ValueType::Int {
                     match operator {
                         Symbol::Plus => format!("$ubi_add({left}, {right})"),
                         Symbol::Minus => format!("$ubi_sub({left}, {right})"),
@@ -337,11 +412,17 @@ fn emit_export_wrapper(function: &FunctionIr, implementation: &str, binding: &st
         &argument_checks
     };
     let mut output = format!("function {binding}(...$ubi_args) {{\n");
+    output.push_str("  let $ubi_internal = false;\n");
     output.push_str(&format!(
-        "  let $ubi_budget;\n  if ($ubi_args.length === {} && $ubi_is_budget($ubi_args[{}])) {{\n    $ubi_budget = $ubi_args.pop();\n  }} else if ($ubi_args.length === {count}) {{\n    $ubi_budget = $ubi_new_budget();\n  }} else {{\n    throw new TypeError(\"Invalid Ubi function arguments\");\n  }}\n",
+        "  let $ubi_budget;\n  if ($ubi_args.length === {} && $ubi_is_budget($ubi_args[{}])) {{\n    $ubi_internal = true;\n    $ubi_budget = $ubi_args.pop();\n  }} else if ($ubi_args.length === {count}) {{\n    $ubi_budget = $ubi_new_budget();\n  }} else {{\n    throw new TypeError(\"Invalid Ubi function arguments\");\n  }}\n",
         count + 1,
         count
     ));
+    for (index, parameter) in function.parameters.iter().enumerate() {
+        if let ValueType::Record(id) = parameter.ty {
+            output.push_str(&format!("  if (!$ubi_internal) $ubi_args[{index}] = $ubi_read_record($ubi_args[{index}], {id});\n"));
+        }
+    }
     output.push_str(&format!(
         "  if ($ubi_args.length !== {count} || !({})) throw new TypeError(\"Invalid Ubi function arguments\");\n",
         argument_checks
@@ -362,6 +443,7 @@ fn js_argument_check(ty: crate::analyzer::ValueType, value: &str) -> String {
         ValueType::Bool => format!("typeof {value} === \"boolean\""),
         ValueType::String => format!("$ubi_is_scalar_string({value})"),
         ValueType::Unit => format!("{value} === undefined"),
+        ValueType::Record(_) => "true".to_owned(),
         ValueType::Never | ValueType::Error => "false".to_owned(),
     }
 }
@@ -478,6 +560,61 @@ fn invariant_span(span: &Span) -> Diagnostic {
         span.clone(),
     )
 }
+
+const RECORD_RUNTIME: &str = r#"
+const $ubi_record_depth = Symbol.for("ubi:record-depth:v1");
+function $ubi_make_record(entries) {
+  const record = Object.fromEntries(entries);
+  const depth = 1 + Object.values(record).reduce((max, value) => Math.max(max, value && typeof value === "object" ? value[$ubi_record_depth] : 0), 0);
+  if (depth > 32) throw $ubi_fault("UBI-R0005", "Record nesting limit exceeded");
+  Object.defineProperty(record, $ubi_record_depth, { value: depth });
+  return Object.freeze(record);
+}
+function $ubi_update_record(base, entries) {
+  return $ubi_make_record(Object.entries(base).concat(entries));
+}
+function $ubi_equal_record(left, right) {
+  if (typeof left !== "object" || left === null) return left === right;
+  const names = Object.keys(left);
+  return names.length === Object.keys(right).length && names.every(name => $ubi_equal_record(left[name], right[name]));
+}
+function $ubi_read_record(text, type) {
+  if (typeof text !== "string") throw new TypeError("Record arguments must be serialized JSON");
+  let data;
+  try { data = JSON.parse(text); } catch { throw new TypeError("Invalid record JSON"); }
+  return $ubi_decode_record(data, type, 0);
+}
+function $ubi_decode_record(data, type, depth) {
+  if (depth >= 32 || data === null || typeof data !== "object" || Array.isArray(data)) throw new TypeError("Invalid record data or nesting");
+  const fields = $ubi_record_types[type];
+  if (Object.keys(data).length !== fields.length) throw new TypeError("Invalid record fields");
+  const entries = fields.map(([name, fieldType]) => {
+    if (!Object.prototype.hasOwnProperty.call(data, name)) throw new TypeError("Missing record field");
+    let value = data[name];
+    if (typeof fieldType === "number") value = $ubi_decode_record(value, fieldType, depth + 1);
+    else {
+      if (fieldType === "unit" && value === null) value = undefined;
+      if (fieldType === "float" && typeof value === "string") {
+        switch (value) {
+          case "NaN": value = NaN; break;
+          case "+Infinity": value = Infinity; break;
+          case "-Infinity": value = -Infinity; break;
+          case "+0": value = 0; break;
+          case "-0": value = -0; break;
+        }
+      }
+      const valid = fieldType === "int" ? typeof value === "number" && Number.isInteger(value) && value >= -2147483648 && value <= 2147483647
+        : fieldType === "float" ? typeof value === "number"
+        : fieldType === "bool" ? typeof value === "boolean"
+        : fieldType === "string" ? $ubi_is_scalar_string(value)
+        : fieldType === "unit" && value === undefined;
+      if (!valid) throw new TypeError("Invalid record field type");
+    }
+    return [name, value];
+  });
+  return $ubi_make_record(entries);
+}
+"#;
 
 const RUNTIME: &str = r#"const $ubi_return = Symbol("ubi:return");
 const $ubi_budget_key = Symbol.for("ubi.runtime.budget");

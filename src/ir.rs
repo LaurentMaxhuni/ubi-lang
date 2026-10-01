@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::analyzer::{Analysis, FunctionKey, ValueType};
+use crate::analyzer::{Analysis, FunctionKey, RecordInfo, ValueType};
 use crate::diagnostics::{Diagnostic, Severity};
 use crate::lexer::Symbol;
 use crate::parser::{
@@ -12,6 +12,7 @@ use crate::span::Span;
 pub(crate) struct Program {
     pub(crate) modules: BTreeMap<String, ModuleIr>,
     pub(crate) functions: BTreeMap<FunctionKey, FunctionIr>,
+    pub(crate) records: Vec<RecordInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -52,7 +53,15 @@ pub(crate) struct StatementIr {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum StatementKind {
-    Let { name: String, value: ExprIr },
+    Let {
+        name: String,
+        mutable: bool,
+        value: ExprIr,
+    },
+    Assign {
+        name: String,
+        value: ExprIr,
+    },
     Return(Option<ExprIr>),
     Expression(ExprIr),
 }
@@ -72,6 +81,14 @@ pub(crate) enum ExprKind {
     Bool(bool),
     Unit,
     Local(String),
+    Record {
+        base: Option<Box<ExprIr>>,
+        fields: Vec<(String, ExprIr)>,
+    },
+    Member {
+        object: Box<ExprIr>,
+        name: String,
+    },
     Call {
         target: FunctionKey,
         arguments: Vec<ExprIr>,
@@ -107,7 +124,9 @@ pub(crate) fn lower(analysis: &Analysis) -> Result<Program, Diagnostic> {
     for (module_id, module) in &analysis.modules {
         let mut module_functions = Vec::new();
         for declaration in &module.declarations {
-            let Declaration::Function(function) = declaration;
+            let Declaration::Function(function) = declaration else {
+                continue;
+            };
             let key = (module_id.clone(), function.name.name.clone());
             let signature = analysis
                 .signatures
@@ -132,6 +151,7 @@ pub(crate) fn lower(analysis: &Analysis) -> Result<Program, Diagnostic> {
                 module_id,
                 module_symbols: &analysis.module_symbols,
                 expression_types: &analysis.expression_types,
+                record_keys: &analysis.record_keys,
                 scopes: vec![function
                     .parameters
                     .iter()
@@ -153,7 +173,8 @@ pub(crate) fn lower(analysis: &Analysis) -> Result<Program, Diagnostic> {
             );
         }
 
-        let imports = imported_symbols(module_id, module, &analysis.module_symbols)?;
+        let mut imports = imported_symbols(module_id, module, &analysis.module_symbols)?;
+        imports.retain(|_, key| analysis.signatures.contains_key(key));
         modules.insert(
             module_id.clone(),
             ModuleIr {
@@ -163,7 +184,11 @@ pub(crate) fn lower(analysis: &Analysis) -> Result<Program, Diagnostic> {
         );
     }
 
-    Ok(Program { modules, functions })
+    Ok(Program {
+        modules,
+        functions,
+        records: analysis.records.clone(),
+    })
 }
 
 fn imported_symbols(
@@ -195,6 +220,7 @@ struct FunctionLowerer<'a> {
     module_id: &'a str,
     module_symbols: &'a BTreeMap<String, BTreeMap<String, FunctionKey>>,
     expression_types: &'a BTreeMap<(FunctionKey, Span), ValueType>,
+    record_keys: &'a BTreeMap<FunctionKey, usize>,
     scopes: Vec<BTreeSet<String>>,
 }
 
@@ -208,7 +234,12 @@ impl FunctionLowerer<'_> {
                 break;
             }
             let kind = match &statement.kind {
-                AstStatementKind::Let { name, value, .. } => {
+                AstStatementKind::Let {
+                    name,
+                    mutable,
+                    value,
+                    ..
+                } => {
                     let value = self.lower_expr(value)?;
                     if value.ty == ValueType::Never {
                         completes = false;
@@ -217,6 +248,7 @@ impl FunctionLowerer<'_> {
                     }
                     StatementKind::Let {
                         name: name.name.clone(),
+                        mutable: *mutable,
                         value,
                     }
                 }
@@ -233,8 +265,16 @@ impl FunctionLowerer<'_> {
                     completes = expression.ty != ValueType::Never;
                     StatementKind::Expression(expression)
                 }
-                AstStatementKind::Assign { target, .. } => {
-                    return Err(invariant(&target.span));
+                AstStatementKind::Assign { target, value } => {
+                    let AstExprKind::Name(name) = &target.kind else {
+                        return Err(invariant(&target.span));
+                    };
+                    let value = self.lower_expr(value)?;
+                    completes = value.ty != ValueType::Never;
+                    StatementKind::Assign {
+                        name: name.name.clone(),
+                        value,
+                    }
                 }
             };
             statements.push(StatementIr {
@@ -340,6 +380,30 @@ impl FunctionLowerer<'_> {
                 }
             }
             AstExprKind::Block(block) => ExprKind::Block(Box::new(self.lower_block(block)?)),
+            AstExprKind::Record { name, base, fields } => {
+                let key = self
+                    .module_symbols
+                    .get(self.module_id)
+                    .and_then(|symbols| symbols.get(&name.name))
+                    .ok_or_else(|| invariant(&name.span))?;
+                if !self.record_keys.contains_key(key) {
+                    return Err(invariant(&name.span));
+                }
+                ExprKind::Record {
+                    base: base
+                        .as_ref()
+                        .map(|base| self.lower_expr(base).map(Box::new))
+                        .transpose()?,
+                    fields: fields
+                        .iter()
+                        .map(|(name, value)| Ok((name.name.clone(), self.lower_expr(value)?)))
+                        .collect::<Result<_, Diagnostic>>()?,
+                }
+            }
+            AstExprKind::Member { object, name } => ExprKind::Member {
+                object: Box::new(self.lower_expr(object)?),
+                name: name.name.clone(),
+            },
             AstExprKind::If {
                 condition,
                 then_branch,
@@ -349,7 +413,7 @@ impl FunctionLowerer<'_> {
                 then_branch: Box::new(self.lower_block(then_branch)?),
                 else_branch: Box::new(self.lower_expr(else_branch)?),
             },
-            AstExprKind::Member { .. } | AstExprKind::Index { .. } | AstExprKind::Propagate(_) => {
+            AstExprKind::Index { .. } | AstExprKind::Propagate(_) => {
                 return Err(invariant(&expression.span))
             }
         };

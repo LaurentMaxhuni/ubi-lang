@@ -17,6 +17,7 @@ pub(crate) enum ValueType {
     Bool,
     String,
     Unit,
+    Record(usize),
     Never,
     Error,
 }
@@ -29,6 +30,7 @@ impl ValueType {
             Self::Bool => "bool",
             Self::String => "string",
             Self::Unit => "unit",
+            Self::Record(_) => "record",
             Self::Never => "never",
             Self::Error => "<error>",
         }
@@ -55,6 +57,15 @@ pub(crate) struct Analysis {
     pub(crate) module_symbols: BTreeMap<String, BTreeMap<String, FunctionKey>>,
     pub(crate) signatures: BTreeMap<FunctionKey, Signature>,
     pub(crate) expression_types: BTreeMap<(FunctionKey, Span), ValueType>,
+    pub(crate) records: Vec<RecordInfo>,
+    pub(crate) record_keys: BTreeMap<FunctionKey, usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct RecordInfo {
+    pub(crate) key: FunctionKey,
+    pub(crate) exported: bool,
+    pub(crate) fields: BTreeMap<String, ValueType>,
 }
 
 #[cfg(test)]
@@ -89,6 +100,8 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
             module_symbols: BTreeMap::new(),
             signatures: BTreeMap::new(),
             expression_types: BTreeMap::new(),
+            records: Vec::new(),
+            record_keys: BTreeMap::new(),
         };
     }
 
@@ -110,11 +123,19 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
             module_symbols,
             signatures: BTreeMap::new(),
             expression_types: BTreeMap::new(),
+            records: Vec::new(),
+            record_keys: BTreeMap::new(),
         };
     }
 
-    let (functions, mut signatures) =
-        collect_signatures(&modules, &mut module_symbols, &mut diagnostics);
+    let (records, record_keys) = collect_records(&modules, &mut module_symbols, &mut diagnostics);
+    let (functions, mut signatures) = collect_signatures(
+        &modules,
+        &module_symbols,
+        &records,
+        &record_keys,
+        &mut diagnostics,
+    );
     let call_graph = build_call_graph(&functions, &module_symbols);
     let components = strongly_connected_components(&call_graph);
     let mut expression_types = BTreeMap::new();
@@ -139,8 +160,15 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
                 ));
             }
 
-            let (inferred_return, function_types, mut function_diagnostics) =
-                check_function(&key, function, &signature, &signatures, &module_symbols);
+            let (inferred_return, function_types, mut function_diagnostics) = check_function(
+                &key,
+                function,
+                &signature,
+                &signatures,
+                &module_symbols,
+                &records,
+                &record_keys,
+            );
             diagnostics.append(&mut function_diagnostics);
             expression_types.extend(
                 function_types
@@ -164,6 +192,8 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
         module_symbols,
         signatures,
         expression_types,
+        records,
+        record_keys,
     }
 }
 
@@ -228,8 +258,17 @@ fn resolve_imports(
                 if duplicate_spans.contains(&(imported.span.start, imported.span.end)) {
                     continue;
                 }
-                match find_function(&modules[&target_id], &imported.name) {
-                    Some(function) if function.exported => {
+                match modules[&target_id].declarations.iter().find(
+                    |declaration| match declaration {
+                        Declaration::Function(value) => {
+                            value.name.name == imported.name && value.exported
+                        }
+                        Declaration::Record(value) => {
+                            value.name.name == imported.name && value.exported
+                        }
+                    },
+                ) {
+                    Some(_) => {
                         symbols.insert(
                             imported.name.clone(),
                             (target_id.clone(), imported.name.clone()),
@@ -244,16 +283,6 @@ fn resolve_imports(
             }
         }
     }
-}
-
-fn find_function<'a>(module: &'a Module, name: &str) -> Option<&'a Function> {
-    module
-        .declarations
-        .iter()
-        .find_map(|declaration| match declaration {
-            Declaration::Function(function) if function.name.name == name => Some(function),
-            _ => None,
-        })
 }
 
 fn report_import_cycles<'a>(
@@ -348,9 +377,104 @@ fn report_import_cycles<'a>(
     }
 }
 
+fn collect_records(
+    modules: &BTreeMap<String, Module>,
+    module_symbols: &mut BTreeMap<String, BTreeMap<String, FunctionKey>>,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> (Vec<RecordInfo>, BTreeMap<FunctionKey, usize>) {
+    let mut records = Vec::new();
+    let mut keys = BTreeMap::new();
+    for (source_id, module) in modules {
+        let symbols = module_symbols.entry(source_id.clone()).or_default();
+        for declaration in &module.declarations {
+            let name = match declaration {
+                Declaration::Function(value) => &value.name,
+                Declaration::Record(value) => &value.name,
+            };
+            if symbols.contains_key(&name.name)
+                || matches!(name.name.as_str(), "List" | "Option" | "Result")
+            {
+                diagnostics.push(Diagnostic::error(
+                    "UBI0011",
+                    format!("Duplicate or reserved declaration: {}", name.name),
+                    name.span.clone(),
+                ));
+                continue;
+            }
+            let key = (source_id.clone(), name.name.clone());
+            symbols.insert(name.name.clone(), key.clone());
+            if let Declaration::Record(record) = declaration {
+                keys.insert(key.clone(), records.len());
+                records.push(RecordInfo {
+                    key,
+                    exported: record.exported,
+                    fields: BTreeMap::new(),
+                });
+            }
+        }
+    }
+    for record in &mut records {
+        let declaration = modules[&record.key.0]
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                Declaration::Record(value) if value.name.name == record.key.1 => Some(value),
+                _ => None,
+            })
+            .unwrap();
+        for field in &declaration.fields {
+            let ty = type_from_syntax(&field.ty, &record.key.0, module_symbols, &keys, diagnostics);
+            if record.fields.insert(field.name.name.clone(), ty).is_some() {
+                diagnostics.push(Diagnostic::error(
+                    "UBI0030",
+                    "Duplicate record field",
+                    field.name.span.clone(),
+                ));
+            }
+        }
+    }
+    for record in &records {
+        if !record.exported {
+            continue;
+        }
+        let declaration = modules[&record.key.0]
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                Declaration::Record(value) if value.name.name == record.key.1 => Some(value),
+                _ => None,
+            })
+            .unwrap();
+        for field in &declaration.fields {
+            let ty = record.fields[&field.name.name];
+            check_public_type(ty, &field.ty.span, &records, diagnostics);
+        }
+    }
+    (records, keys)
+}
+
+fn check_public_type(
+    ty: ValueType,
+    span: &Span,
+    records: &[RecordInfo],
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    if let ValueType::Record(id) = ty {
+        if !records[id].exported {
+            diagnostics.push(Diagnostic::error(
+                "UBI0013",
+                "Private record type exposed by exported signature",
+                span.clone(),
+            ));
+        }
+    }
+}
+
 fn collect_signatures<'a>(
     modules: &'a BTreeMap<String, Module>,
-    module_symbols: &mut BTreeMap<String, BTreeMap<String, FunctionKey>>,
+    module_symbols: &BTreeMap<String, BTreeMap<String, FunctionKey>>,
+    records: &[RecordInfo],
+    record_keys: &BTreeMap<FunctionKey, usize>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> (
     BTreeMap<FunctionKey, &'a Function>,
@@ -359,28 +483,42 @@ fn collect_signatures<'a>(
     let mut functions = BTreeMap::new();
     let mut signatures = BTreeMap::new();
     for (source_id, module) in modules {
-        let symbols = module_symbols.entry(source_id.clone()).or_default();
         for declaration in &module.declarations {
-            let Declaration::Function(function) = declaration;
-            if symbols.contains_key(&function.name.name) {
-                diagnostics.push(Diagnostic::error(
-                    "UBI0011",
-                    format!("Duplicate declaration: {}", function.name.name),
-                    function.name.span.clone(),
-                ));
+            let Declaration::Function(function) = declaration else {
+                continue;
+            };
+            let key = (source_id.clone(), function.name.name.clone());
+            if record_keys.contains_key(&key)
+                || functions.contains_key(&key)
+                || module_symbols[source_id].get(&function.name.name) != Some(&key)
+            {
                 continue;
             }
-            let key = (source_id.clone(), function.name.name.clone());
-            symbols.insert(function.name.name.clone(), key.clone());
             let parameters = function
                 .parameters
                 .iter()
-                .map(|parameter| type_from_syntax(&parameter.ty, diagnostics))
+                .map(|parameter| {
+                    let ty = type_from_syntax(
+                        &parameter.ty,
+                        source_id,
+                        module_symbols,
+                        record_keys,
+                        diagnostics,
+                    );
+                    if function.exported {
+                        check_public_type(ty, &parameter.ty.span, records, diagnostics);
+                    }
+                    ty
+                })
                 .collect();
-            let return_type = function
-                .return_type
-                .as_ref()
-                .map(|ty| type_from_syntax(ty, diagnostics));
+            let return_type = function.return_type.as_ref().map(|ty| {
+                let value =
+                    type_from_syntax(ty, source_id, module_symbols, record_keys, diagnostics);
+                if function.exported {
+                    check_public_type(value, &ty.span, records, diagnostics);
+                }
+                value
+            });
             if function.exported && return_type.is_none() {
                 diagnostics.push(Diagnostic::error(
                     "UBI0021",
@@ -402,7 +540,13 @@ fn collect_signatures<'a>(
     (functions, signatures)
 }
 
-fn type_from_syntax(ty: &Type, diagnostics: &mut Vec<Diagnostic>) -> ValueType {
+fn type_from_syntax(
+    ty: &Type,
+    module_id: &str,
+    symbols: &BTreeMap<String, BTreeMap<String, FunctionKey>>,
+    records: &BTreeMap<FunctionKey, usize>,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> ValueType {
     match ty.name.as_str() {
         "int" => ValueType::Int,
         "float" => ValueType::Float,
@@ -410,6 +554,13 @@ fn type_from_syntax(ty: &Type, diagnostics: &mut Vec<Diagnostic>) -> ValueType {
         "string" => ValueType::String,
         "unit" => ValueType::Unit,
         _ => {
+            if let Some(id) = symbols
+                .get(module_id)
+                .and_then(|module| module.get(&ty.name))
+                .and_then(|key| records.get(key))
+            {
+                return ValueType::Record(*id);
+            }
             diagnostics.push(Diagnostic::error(
                 "UBI0020",
                 format!("Unknown type: {}", ty.name),
@@ -509,6 +660,14 @@ fn collect_expression_calls(
         }
         ExprKind::Member { object, .. } => {
             collect_expression_calls(object, symbols, scopes, calls);
+        }
+        ExprKind::Record { base, fields, .. } => {
+            if let Some(base) = base {
+                collect_expression_calls(base, symbols, scopes, calls);
+            }
+            for (_, value) in fields {
+                collect_expression_calls(value, symbols, scopes, calls);
+            }
         }
         ExprKind::Index { object, index } => {
             collect_expression_calls(object, symbols, scopes, calls);
@@ -615,6 +774,8 @@ fn check_function(
     signature: &Signature,
     signatures: &BTreeMap<FunctionKey, Signature>,
     module_symbols: &BTreeMap<String, BTreeMap<String, FunctionKey>>,
+    records: &[RecordInfo],
+    record_keys: &BTreeMap<FunctionKey, usize>,
 ) -> (
     Option<ValueType>,
     BTreeMap<Span, ValueType>,
@@ -624,6 +785,8 @@ fn check_function(
         module_id: &key.0,
         signatures,
         module_symbols,
+        records,
+        record_keys,
         expected_return: signature.return_type,
         inferred_return: None,
         scopes: vec![BTreeMap::new()],
@@ -644,7 +807,7 @@ fn check_function(
                 parameter.name.span.clone(),
             ));
         } else {
-            scope.insert(parameter.name.name.clone(), ty);
+            scope.insert(parameter.name.name.clone(), Binding { ty, mutable: false });
         }
     }
 
@@ -664,13 +827,21 @@ fn check_function(
     )
 }
 
+#[derive(Clone, Copy)]
+struct Binding {
+    ty: ValueType,
+    mutable: bool,
+}
+
 struct FunctionChecker<'a> {
     module_id: &'a str,
     signatures: &'a BTreeMap<FunctionKey, Signature>,
     module_symbols: &'a BTreeMap<String, BTreeMap<String, FunctionKey>>,
+    records: &'a [RecordInfo],
+    record_keys: &'a BTreeMap<FunctionKey, usize>,
     expected_return: Option<ValueType>,
     inferred_return: Option<ValueType>,
-    scopes: Vec<BTreeMap<String, ValueType>>,
+    scopes: Vec<BTreeMap<String, Binding>>,
     expression_types: BTreeMap<Span, ValueType>,
     diagnostics: Vec<Diagnostic>,
 }
@@ -686,6 +857,7 @@ impl FunctionChecker<'_> {
             match &statement.kind {
                 StatementKind::Let {
                     name,
+                    mutable,
                     annotation,
                     value,
                 } => {
@@ -694,9 +866,15 @@ impl FunctionChecker<'_> {
                         completes = false;
                         continue;
                     };
-                    let bound_type = annotation
-                        .as_ref()
-                        .map(|ty| type_from_syntax(ty, &mut self.diagnostics));
+                    let bound_type = annotation.as_ref().map(|ty| {
+                        type_from_syntax(
+                            ty,
+                            self.module_id,
+                            self.module_symbols,
+                            self.record_keys,
+                            &mut self.diagnostics,
+                        )
+                    });
                     if let Some(bound_type) = bound_type {
                         self.require_same_type(
                             bound_type,
@@ -713,7 +891,13 @@ impl FunctionChecker<'_> {
                             name.span.clone(),
                         ));
                     } else {
-                        scope.insert(name.name.clone(), bound_type.unwrap_or(value_type));
+                        scope.insert(
+                            name.name.clone(),
+                            Binding {
+                                ty: bound_type.unwrap_or(value_type),
+                                mutable: *mutable,
+                            },
+                        );
                     }
                 }
                 StatementKind::Assign { target, value } => {
@@ -842,13 +1026,25 @@ impl FunctionChecker<'_> {
                 Some(self.binary_type(*operator, left_type, right_type, left, right))
             }
             ExprKind::Call { callee, arguments } => self.check_call(expression, callee, arguments),
-            ExprKind::Member { .. } => {
+            ExprKind::Member { object, name } => {
+                let ty = self.check_expr(object)?;
+                if ty == ValueType::Error {
+                    return Some(ty);
+                }
+                if let ValueType::Record(id) = ty {
+                    if let Some(field) = self.records[id].fields.get(&name.name) {
+                        return Some(*field);
+                    }
+                }
                 self.diagnostics.push(Diagnostic::error(
-                    "UBI0003",
-                    "Member access is not supported in Milestone 1",
-                    expression.span.clone(),
+                    "UBI0030",
+                    "Invalid record field access",
+                    name.span.clone(),
                 ));
                 Some(ValueType::Error)
+            }
+            ExprKind::Record { name, base, fields } => {
+                self.check_record(expression, name, base.as_deref(), fields)
             }
             ExprKind::Index { .. } => {
                 self.diagnostics.push(Diagnostic::error(
@@ -932,6 +1128,76 @@ impl FunctionChecker<'_> {
             name.span.clone(),
         ));
         ValueType::Error
+    }
+
+    fn check_record(
+        &mut self,
+        expression: &Expr,
+        name: &Identifier,
+        base: Option<&Expr>,
+        fields: &[(Identifier, Expr)],
+    ) -> Option<ValueType> {
+        let id = if self.lookup_local(&name.name).is_none() {
+            self.module_symbols
+                .get(self.module_id)
+                .and_then(|symbols| symbols.get(&name.name))
+                .and_then(|key| self.record_keys.get(key))
+                .copied()
+        } else {
+            None
+        };
+        let Some(id) = id else {
+            self.diagnostics.push(Diagnostic::error(
+                "UBI0010",
+                format!("Unknown record: {}", name.name),
+                name.span.clone(),
+            ));
+            return Some(ValueType::Error);
+        };
+        let record = &self.records[id];
+        let mut completes = true;
+        if let Some(base) = base {
+            if let Some(ty) = self.check_expr(base) {
+                self.require_same_type(
+                    ValueType::Record(id),
+                    ty,
+                    &base.span,
+                    "Record update base has the wrong type",
+                );
+            } else {
+                completes = false;
+            }
+        }
+        let mut seen = BTreeSet::new();
+        for (field, value) in fields {
+            if !seen.insert(field.name.clone()) || !record.fields.contains_key(&field.name) {
+                self.diagnostics.push(Diagnostic::error(
+                    "UBI0030",
+                    "Unknown or duplicate record field",
+                    field.span.clone(),
+                ));
+            }
+            if let Some(ty) = self.check_expr(value) {
+                if let Some(expected) = record.fields.get(&field.name) {
+                    self.require_same_type(
+                        *expected,
+                        ty,
+                        &value.span,
+                        "Record field has the wrong type",
+                    );
+                }
+            } else {
+                completes = false;
+            }
+        }
+        if base.is_none() && record.fields.keys().any(|field| !seen.contains(field)) {
+            self.diagnostics.push(Diagnostic::error(
+                "UBI0030",
+                "Missing record field",
+                expression.span.clone(),
+            ));
+        }
+        completes.then_some(ValueType::Record(id))
     }
 
     fn check_call(&mut self, call: &Expr, callee: &Expr, arguments: &[Expr]) -> Option<ValueType> {
@@ -1019,11 +1285,20 @@ impl FunctionChecker<'_> {
             return Some(ValueType::Error);
         };
         if let Some(ty) = self.lookup_local(&name.name) {
-            self.diagnostics.push(Diagnostic::error(
-                "UBI0022",
-                format!("Cannot assign to immutable binding: {}", name.name),
-                name.span.clone(),
-            ));
+            if !self
+                .scopes
+                .iter()
+                .rev()
+                .find_map(|scope| scope.get(&name.name))
+                .unwrap()
+                .mutable
+            {
+                self.diagnostics.push(Diagnostic::error(
+                    "UBI0022",
+                    format!("Cannot assign to immutable binding: {}", name.name),
+                    name.span.clone(),
+                ));
+            }
             return Some(ty);
         }
         if self
@@ -1050,7 +1325,7 @@ impl FunctionChecker<'_> {
         self.scopes
             .iter()
             .rev()
-            .find_map(|scope| scope.get(name).copied())
+            .find_map(|scope| scope.get(name).map(|binding| binding.ty))
     }
 
     fn binary_type(

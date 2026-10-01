@@ -1,8 +1,11 @@
 # Ubi decisions and milestone evidence
 
-Current milestone: 1, Milestone 0 accepted by human. Milestone 1 implementation ready for human gate review; pre-M2 public mini benchmark passed. Hidden evaluation remains unavailable.
+Current work: first M2 shared-logic slice complete under user direction. Local reassignment and non-generic records are implemented; the full M2 task-list scope remains unfinished. Historical M1 hidden evaluation remains unavailable.
 
 ## Decisions
+
+Current language work: M2 local reassignment and non-generic records, under the
+user's direction to continue application development without historical gates.
 
 User direction, 2026-10-01: set aside milestone gates for the current task and
 implement Windows recognition of `.ubi` files. This direction does not assert
@@ -34,6 +37,7 @@ is unchanged.
 | D015 | The CLI accepts a canonical root-relative entry ID, loads only its transitive imports, and rejects any source path whose canonical target leaves the canonical project root. `ubi build` writes each reachable module as a same-layout `.mjs` file under `.ubi-build` by default (or the selected output directory), without cleaning unrelated files; output symlinks cannot redirect writes outside the canonical output directory. Exit codes are 0 success, 1 compile errors, and 2 usage/input/I/O/artifact errors; `--json` applies to compiler results, while operational errors remain on stderr. | Keeps source loading inside the CLI, matches the library's virtual-root import rules, and produces modules directly executable by Node and browsers without overwriting package metadata. Separating operational failures from source diagnostics preserves accurate compiler spans and source revisions. | Revisit if cross-host path tests or field use reveal incompatibilities. |
 | D016 | Register `.ubi` source files per user with an editor open command; prefer installed VS Code, fall back to Notepad, allow explicit executable selection. Preserve existing default choices. | Gives Windows a named file type, icon, and Open With integration without machine-wide changes or executing arbitrary source on opening. | Dedicated editor or installer work. |
 | D017 | Versioned `ubi.json` declares project name, shared entry, and one or more web/mobile/desktop/cli targets. Omitted CLI entry loads the config; multi-target projects require explicit selection, and build outputs are separated by target. | Supports shared logic across platforms without forcing a project into one app kind or implying finished host packaging. Strict typed JSON parsing uses Serde rather than a custom parser; compiler library semantics remain unchanged. | Platform-specific entries and packaging options when their hosts exist. |
+| D018 | Land M2 in runnable slices: local rebinding and non-generic nominal records first. Record host arguments use serialized JSON; returned records are frozen field objects. Runtime record depth is capped at 32. | Enables shared data logic while bounding recursive work and avoiding inspection of arbitrary live host objects/getters. Records keep plain-copy update semantics and source/module nominal identity. | Generic/collection slices and richer serialized host codecs. |
 
 ## Milestone 0 evidence
 
@@ -108,3 +112,13 @@ User-directed application tooling, 2026-10-01; no language milestone gate claime
 - A separate agent derived 11 grouped CLI tests from SPEC.md sections 10/13 before inspecting implementation. Checks cover all four targets, identical generated ESM, module layout, working-directory/root selection, output overrides and preserved files, malformed/unknown/duplicate config fields, version/type/name/path/target errors, the exact 64 KiB boundary, explicit-entry isolation, and compiler-error JSON/exit behavior. No implementation mismatches found.
 - `cargo test --all-targets`: 81 tests pass. Symlink scenarios were explicitly skipped because Windows denied symlink creation (error 1314), including an unsandboxed retry; those new containment scenarios remain unverified on this host.
 - Clippy with warnings denied, formatting, and whitespace checks pass. The example builds cleanly for `web` into `.ubi-build/web/src/main.mjs`. Targets still emit shared JavaScript modules; no web UI, desktop/mobile package, or CLI application host is claimed.
+
+## First M2 shared-logic slice evidence
+
+Run date: 2026-10-01. SPEC.md 0.3 specifies this partial language expansion.
+
+- Parser, checker, typed IR, AST interpreter, and JavaScript backend support non-generic nominal records, field access, immutable updates, structural equality, record imports, and mutable local rebinding. Exported JavaScript record arguments use validated JSON text; returned records are frozen.
+- A separate conformance agent derived ten grouped tests against the specification before inspecting implementation. Both execution paths pass cases covering nominal identity, aliases, scopes, diagnostics, early returns, evaluation/fault order, hostile host inputs, prototype-like fields, float/unit encoding, and the 32-level runtime record limit.
+- `examples/project` now creates and completes a Task. Generated web modules passed a browser check for immutable updates, Unicode, frozen results, and rejection of live host objects without reading getters. The browser displayed `PASS: shared Ubi task records, immutable updates, and host validation.`
+- `cargo test --all-targets`: 91 tests pass. Fuzz coverage includes valid record/rebinding seeds and 10,000 deterministic mutations, completing in under one second under a separate 60-second watchdog. Windows symlink scenarios retain the previously recorded host limitation.
+- Clippy with warnings denied, formatting, and whitespace checks pass. Lists, enums, generics, matching, closures, and the full task-list application remain future work; no full M2 completion gate is claimed.

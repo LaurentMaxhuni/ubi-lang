@@ -1,8 +1,8 @@
 # Ubi implementation plan
 
 User direction, 2026-10-01: set aside milestone gates for the current task.
-Current work: project config declaring web/mobile/desktop/CLI targets; Windows
-`.ubi` source-file registration is complete. User-directed work continues without
+Current work: first M2 slice complete: local reassignment and non-generic
+records. Project config and Windows registration are complete. User-directed work continues without
 reopening the historical milestone gates.
 Milestone evidence below remains historical; unrun checks are not marked passed.
 
@@ -41,7 +41,7 @@ Do not expose an unrestricted `any`, unchecked JSON casts, ambient host globals,
 ## Agent workflow and independent review
 
 - Required repository documents: `SPEC.md` defines behavior, `DECISIONS.md` records reasoning and tradeoffs, and `PLAN.md` tracks milestones and their gates. Milestone 0 creates the missing specification and decisions log alongside the example corpus.
-- Every session starts by reading all three documents and stating the current milestone. During bootstrap, explicitly report missing documents; do not invent their contents. Current milestone: Milestone 1.
+- Every session starts by reading all three documents and stating the current milestone. During bootstrap, explicitly report missing documents; do not invent their contents. Current work: partial Milestone 2.
 - Before implementing any behavior change, update `SPEC.md` first and log the reasoning in `DECISIONS.md`.
 - Make small commits, one meaningful change per commit.
 - The conformance corpus must be authored or reviewed separately from implementation work, against the specification. An implementation session must not write and grade its own tests; route new cases and expected results through an independent reviewer/evaluator.
@@ -103,6 +103,11 @@ After Milestone 1 and before Milestone 2, run a mini agent benchmark. Give an ag
 Mini benchmark progress: all four tasks converged within the preset three-iteration limit (repair: two; imports, guarded division, early returns: one each). A separate public evaluator passed 45 expected outcomes on each backend plus an explicit-return check. Sources, attempts, evaluator, and results are in `benchmarks/m1`; evidence is recorded in `DECISIONS.md`. Hidden evaluation and human review remain pending.
 
 ## Milestone 2 — Make the language useful for shared logic
+
+Progress: local reassignment, non-generic records, field access, immutable updates,
+equality, and record imports pass independent interpreter/JavaScript checks.
+The example creates and completes a Task; browser verification passes.
+Lists and the remaining language/application scope below are unfinished.
 
 - Add nominal records, field access, record updates, lists, and local reassignment.
 - Add data enums, pattern bindings, and exhaustive matching, including nested patterns. Guards must not incorrectly establish coverage.
@@ -229,4 +234,4 @@ The compiler running in WASM and Ubi programs compiling to WASM are separate del
 - Keep the current JavaScript backend passing conformance checks before introducing another backend.
 - Avoid fixed delivery dates until the first two milestones establish implementation pace.
 - Track progress against completion gates; mark platform work blocked when required SDKs or devices are unavailable.
-- Next task: review M1 revision `03d0a34a033279b637deed7c7125bc90210aacc0` and the completed mini benchmark, and resolve the unavailable hidden evaluation before advancing through the human gate. After acceptance, start M2 with local reassignment and nominal records, extending the checker, typed IR, interpreter, JavaScript backend, and independently reviewed conformance together.
+- Next task: add lists and the minimum collection operations needed to store and filter tasks, extending the checker, typed IR, interpreter, JavaScript backend, and independent conformance together. Follow the user's direction to continue without reopening historical gates.

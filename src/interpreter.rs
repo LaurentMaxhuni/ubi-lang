@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::rc::Rc;
 
 use crate::analyzer::{Analysis, FunctionKey, Signature, ValueType};
 use crate::diagnostics::Severity;
@@ -10,13 +11,47 @@ use crate::parser::{
 const MAX_STEPS: usize = 1_000_000;
 const MAX_CALL_DEPTH: usize = 32;
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub(crate) enum Value {
     Int(i32),
     Float(f64),
     Bool(bool),
     String(String),
     Unit,
+    Record {
+        type_id: usize,
+        fields: Rc<BTreeMap<String, Value>>,
+    },
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Int(a), Self::Int(b)) => a == b,
+            (Self::Float(a), Self::Float(b)) => a == b,
+            (Self::Bool(a), Self::Bool(b)) => a == b,
+            (Self::String(a), Self::String(b)) => a == b,
+            (Self::Unit, Self::Unit) => true,
+            (
+                Self::Record {
+                    type_id: a,
+                    fields: af,
+                },
+                Self::Record {
+                    type_id: b,
+                    fields: bf,
+                },
+            ) => {
+                a == b
+                    && af.len() == bf.len()
+                    && af
+                        .iter()
+                        .zip(bf.iter())
+                        .all(|((ak, av), (bk, bv))| ak == bk && av == bv)
+            }
+            _ => false,
+        }
+    }
 }
 
 impl Value {
@@ -27,6 +62,7 @@ impl Value {
             Self::Bool(_) => ValueType::Bool,
             Self::String(_) => ValueType::String,
             Self::Unit => ValueType::Unit,
+            Self::Record { type_id, .. } => ValueType::Record(*type_id),
         }
     }
 }
@@ -79,7 +115,7 @@ pub(crate) fn invoke(
         .signatures
         .get(key)
         .ok_or(InvocationError::InvalidProgram)?;
-    if !valid_arguments(&arguments, signature) {
+    if !valid_arguments(&arguments, signature, &analysis.records) {
         return Err(InvocationError::InvalidArguments);
     }
 
@@ -96,12 +132,49 @@ pub(crate) fn invoke(
     })
 }
 
-fn valid_arguments(arguments: &[Value], signature: &Signature) -> bool {
+fn valid_arguments(
+    arguments: &[Value],
+    signature: &Signature,
+    records: &[crate::analyzer::RecordInfo],
+) -> bool {
     arguments.len() == signature.parameters.len()
         && arguments
             .iter()
             .zip(&signature.parameters)
-            .all(|(value, expected)| value.ty() == *expected)
+            .all(|(value, expected)| valid_value(value, *expected, records, 0))
+}
+
+fn valid_value(
+    value: &Value,
+    ty: ValueType,
+    records: &[crate::analyzer::RecordInfo],
+    depth: usize,
+) -> bool {
+    if value.ty() != ty {
+        return false;
+    }
+    if let Value::Record { type_id, fields } = value {
+        if depth >= 32 {
+            return false;
+        }
+        let Some(record) = records.get(*type_id) else {
+            return false;
+        };
+        return fields.len() == record.fields.len()
+            && record.fields.iter().all(|(name, ty)| {
+                fields
+                    .get(name)
+                    .is_some_and(|value| valid_value(value, *ty, records, depth + 1))
+            });
+    }
+    true
+}
+
+fn record_depth(value: &Value) -> usize {
+    match value {
+        Value::Record { fields, .. } => 1 + fields.values().map(record_depth).max().unwrap_or(0),
+        _ => 0,
+    }
 }
 
 fn find_function<'a>(
@@ -144,7 +217,7 @@ impl Interpreter<'_> {
             .get(key)
             .cloned()
             .ok_or_else(invariant_error)?;
-        if !valid_arguments(&arguments, &signature) {
+        if !valid_arguments(&arguments, &signature, &self.analysis.records) {
             return Err(invariant_error());
         }
 
@@ -207,7 +280,23 @@ impl Interpreter<'_> {
                 }
                 Completion::Return(value) => Ok(Completion::Return(value)),
             },
-            StatementKind::Assign { .. } => Err(invariant_error()),
+            StatementKind::Assign { target, value } => {
+                let ExprKind::Name(name) = &target.kind else {
+                    return Err(invariant_error());
+                };
+                let scope = self
+                    .scopes
+                    .iter()
+                    .rposition(|scope| scope.contains_key(&name.name))
+                    .ok_or_else(invariant_error)?;
+                match self.eval_expr(value)? {
+                    Completion::Value(value) => {
+                        self.scopes[scope].insert(name.name.clone(), value);
+                        Ok(Completion::Value(Value::Unit))
+                    }
+                    Completion::Return(value) => Ok(Completion::Return(value)),
+                }
+            }
             StatementKind::Return(value) => {
                 let value = match value {
                     Some(expression) => match self.eval_expr(expression)? {
@@ -323,9 +412,53 @@ impl Interpreter<'_> {
                     _ => Err(invariant_error()),
                 }
             }
-            ExprKind::Member { .. } | ExprKind::Index { .. } | ExprKind::Propagate(_) => {
-                Err(invariant_error())
+            ExprKind::Record { name, base, fields } => {
+                let key = self
+                    .analysis
+                    .module_symbols
+                    .get(&expression.span.source_id)
+                    .and_then(|symbols| symbols.get(&name.name))
+                    .ok_or_else(invariant_error)?;
+                let type_id = *self
+                    .analysis
+                    .record_keys
+                    .get(key)
+                    .ok_or_else(invariant_error)?;
+                let mut values = if let Some(base) = base {
+                    match self.eval_expr(base)? {
+                        Completion::Return(value) => return Ok(Completion::Return(value)),
+                        Completion::Value(Value::Record { fields, .. }) => fields.as_ref().clone(),
+                        _ => return Err(invariant_error()),
+                    }
+                } else {
+                    BTreeMap::new()
+                };
+                for (field, expression) in fields {
+                    match self.eval_expr(expression)? {
+                        Completion::Value(value) => {
+                            values.insert(field.name.clone(), value);
+                        }
+                        Completion::Return(value) => return Ok(Completion::Return(value)),
+                    }
+                }
+                if values.values().map(record_depth).max().unwrap_or(0) >= 32 {
+                    return Err(resource_fault());
+                }
+                Ok(Completion::Value(Value::Record {
+                    type_id,
+                    fields: Rc::new(values),
+                }))
             }
+            ExprKind::Member { object, name } => match self.eval_expr(object)? {
+                Completion::Return(value) => Ok(Completion::Return(value)),
+                Completion::Value(Value::Record { fields, .. }) => fields
+                    .get(&name.name)
+                    .cloned()
+                    .map(Completion::Value)
+                    .ok_or_else(invariant_error),
+                _ => Err(invariant_error()),
+            },
+            ExprKind::Index { .. } | ExprKind::Propagate(_) => Err(invariant_error()),
         }
     }
 
@@ -366,6 +499,14 @@ fn eval_unary(operator: Symbol, value: Value) -> Result<Value, EvalError> {
 }
 
 fn eval_binary(operator: Symbol, left: Value, right: Value) -> Result<Value, EvalError> {
+    if matches!(operator, Symbol::EqualEqual | Symbol::BangEqual) {
+        let equal = left == right;
+        return Ok(Value::Bool(if operator == Symbol::EqualEqual {
+            equal
+        } else {
+            !equal
+        }));
+    }
     match (left, right) {
         (Value::Int(left), Value::Int(right)) => match operator {
             Symbol::Plus => left

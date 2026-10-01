@@ -175,3 +175,7 @@ mod js_backend_tests;
 #[cfg(test)]
 #[path = "../benchmarks/m1/grade.rs"]
 mod benchmark_grade;
+
+#[cfg(test)]
+#[path = "records_tests.rs"]
+mod records_tests;

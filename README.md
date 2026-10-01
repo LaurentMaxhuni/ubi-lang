@@ -3,6 +3,30 @@
 Ubi source files use `.ubi`. The Rust compiler checks source and emits JavaScript
 ES modules; supported language behavior is documented in [SPEC.md](SPEC.md).
 
+Current shared-logic support includes local rebinding with `let mut` and nominal
+records. Record fields stay immutable; updates create new values:
+
+```ubi
+record Task { title: string, completed: bool }
+fn complete(task: Task) -> Task {
+    Task { ...task, completed: true }
+}
+```
+
+The example project includes `createTask` and `completeTask`. JavaScript hosts
+pass record arguments as JSON text and receive frozen field objects:
+
+```js
+import { createTask, completeTask } from "./.ubi-build/web/src/main.mjs";
+const task = createTask(1, "Try Ubi");
+const done = completeTask(JSON.stringify(task));
+// task.completed remains false; done.completed is true.
+```
+
+Primitive arguments still pass directly. See [record host encoding](SPEC.md#14-record-host-representation-and-runtime-limits)
+for unit/special-float serialization. Lists, enums, generics, closures, async, and
+host capabilities remain future slices.
+
 ```powershell
 cargo run -- check main.ubi --root path/to/project
 cargo run -- build main.ubi --root path/to/project

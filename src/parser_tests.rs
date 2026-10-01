@@ -26,7 +26,9 @@ fn parses_all_milestone_one_core_programs() {
 #[test]
 fn pratt_parser_observes_precedence_and_byte_spans() {
     let module = parse("main.ubi", "export fn value() -> int { 1 + 2 * 3 }").unwrap();
-    let Declaration::Function(function) = &module.declarations[0];
+    let Declaration::Function(function) = &module.declarations[0] else {
+        panic!("expected function")
+    };
     let expression = function.body.tail.as_ref().unwrap();
     assert_eq!((expression.span.start, expression.span.end), (27, 36));
     let ExprKind::Binary {
@@ -49,7 +51,9 @@ fn pratt_parser_observes_precedence_and_byte_spans() {
 #[test]
 fn let_and_return_statements_keep_their_syntax_spans() {
     let module = parse("main.ubi", "fn f() -> int { let x: int = 2; return x; }").unwrap();
-    let Declaration::Function(function) = &module.declarations[0];
+    let Declaration::Function(function) = &module.declarations[0] else {
+        panic!("expected function")
+    };
     assert!(matches!(
         function.body.statements[0].kind,
         StatementKind::Let { .. }
@@ -89,10 +93,10 @@ fn unsupported_keyword_and_later_profile_syntax_get_ubi0003() {
     assert_eq!(error.code, "UBI0003");
     assert_eq!(&source[error.primary.start..error.primary.end], "await");
 
-    let source = "record Later {}";
+    let source = "enum Later {}";
     let error = parse("main.ubi", source).unwrap_err();
     assert_eq!(error.code, "UBI0003");
-    assert_eq!(&source[error.primary.start..error.primary.end], "record");
+    assert_eq!(&source[error.primary.start..error.primary.end], "enum");
 }
 
 #[test]
@@ -119,7 +123,9 @@ fn parser_enforces_token_and_nesting_budgets() {
 fn parser_expression_spans_count_utf8_bytes() {
     let source = "fn f() -> string { \"é\" }";
     let module = parse("unicode.ubi", source).unwrap();
-    let Declaration::Function(function) = &module.declarations[0];
+    let Declaration::Function(function) = &module.declarations[0] else {
+        panic!("expected function")
+    };
     let expression = function.body.tail.as_ref().unwrap();
     assert_eq!(&source[expression.span.start..expression.span.end], "\"é\"");
 }

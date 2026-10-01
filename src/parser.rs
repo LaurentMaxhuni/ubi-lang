@@ -27,6 +27,15 @@ pub(crate) struct Import {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Declaration {
     Function(Function),
+    Record(Record),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Record {
+    pub(crate) exported: bool,
+    pub(crate) name: Identifier,
+    pub(crate) fields: Vec<Parameter>,
+    pub(crate) span: Span,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,6 +85,7 @@ pub(crate) struct Statement {
 pub(crate) enum StatementKind {
     Let {
         name: Identifier,
+        mutable: bool,
         annotation: Option<Type>,
         value: Expr,
     },
@@ -108,6 +118,11 @@ pub(crate) enum ExprKind {
     Bool(bool),
     Unit,
     Name(Identifier),
+    Record {
+        name: Identifier,
+        base: Option<Box<Expr>>,
+        fields: Vec<(Identifier, Expr)>,
+    },
     Unary {
         operator: Symbol,
         operand: Box<Expr>,
@@ -250,7 +265,36 @@ impl Parser {
                 .parse_function(exported, export_span)
                 .map(Declaration::Function);
         }
-        if self.at_keyword("record") || self.at_keyword("enum") {
+        if self.at_keyword("record") {
+            let start = self.advance().span.clone();
+            let name = self.parse_identifier()?;
+            if self.at_symbol(Symbol::Less) {
+                return Err(self.unsupported(self.current().span.clone(), "Generic records"));
+            }
+            self.expect_symbol(Symbol::LBrace)?;
+            let mut fields = Vec::new();
+            while !self.at_symbol(Symbol::RBrace) {
+                let name = self.parse_identifier()?;
+                self.expect_symbol(Symbol::Colon)?;
+                let ty = self.parse_type()?;
+                fields.push(Parameter {
+                    span: cover(&name.span, &ty.span),
+                    name,
+                    ty,
+                });
+                if self.eat_symbol(Symbol::Comma).is_none() {
+                    break;
+                }
+            }
+            let end = self.expect_symbol(Symbol::RBrace)?.span;
+            return Ok(Declaration::Record(Record {
+                exported,
+                name,
+                fields,
+                span: cover(export_span.as_ref().unwrap_or(&start), &end),
+            }));
+        }
+        if self.at_keyword("enum") {
             return Err(self.unsupported(self.current().span.clone(), "Type declarations"));
         }
         if is_unsupported_keyword(self.current()) {
@@ -414,9 +458,7 @@ impl Parser {
 
     fn parse_let_statement(&mut self) -> Result<Statement, ParseError> {
         let start = self.expect_keyword("let")?.span;
-        if self.at_keyword("mut") {
-            return Err(self.unsupported(self.current().span.clone(), "Mutable bindings"));
-        }
+        let mutable = self.eat_keyword("mut").is_some();
         let name = self.parse_identifier()?;
         let annotation = if self.eat_symbol(Symbol::Colon).is_some() {
             Some(self.parse_type()?)
@@ -430,6 +472,7 @@ impl Parser {
             span: cover(&start, &end),
             kind: StatementKind::Let {
                 name,
+                mutable,
                 annotation,
                 value,
             },
@@ -476,8 +519,46 @@ impl Parser {
     ) -> Result<Expr, ParseError> {
         let mut left = self.parse_prefix_or_primary(comparison_seen)?;
         loop {
-            if self.at_symbol(Symbol::LBrace) && matches!(left.kind, ExprKind::Name(_)) {
-                return Err(self.unsupported(self.current().span.clone(), "Record values"));
+            if self.at_symbol(Symbol::LBrace) {
+                if let ExprKind::Name(name) = &left.kind {
+                    if left.span == name.span {
+                        let name = name.clone();
+                        self.advance();
+                        let base = if self.eat_symbol(Symbol::Ellipsis).is_some() {
+                            let base = self.parse_expression(0)?;
+                            self.expect_symbol(Symbol::Comma)?;
+                            Some(Box::new(base))
+                        } else {
+                            None
+                        };
+                        let mut fields = Vec::new();
+                        while !self.at_symbol(Symbol::RBrace) {
+                            let field = self.parse_identifier()?;
+                            self.expect_symbol(Symbol::Colon)?;
+                            fields.push((field, self.parse_expression(0)?));
+                            if self.eat_symbol(Symbol::Comma).is_none() {
+                                break;
+                            }
+                        }
+                        if base.is_some() && fields.is_empty() {
+                            return Err(self.error("Record update requires a replacement field"));
+                        }
+                        let end = self.expect_symbol(Symbol::RBrace)?.span;
+                        let span = cover(&left.span, &end);
+                        let nesting = self.nested_depth(
+                            base.iter()
+                                .map(|base| base.nesting)
+                                .chain(fields.iter().map(|(_, value)| value.nesting)),
+                            &span,
+                        )?;
+                        left = Expr {
+                            span,
+                            nesting,
+                            kind: ExprKind::Record { name, base, fields },
+                        };
+                        continue;
+                    }
+                }
             }
             if self.at_symbol(Symbol::LParen) {
                 let arguments = self.parse_arguments()?;

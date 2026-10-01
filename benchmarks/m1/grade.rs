@@ -246,7 +246,9 @@ fn benchmark_grade_explicit_early_return() {
         .declarations
         .iter()
         .find_map(|declaration| {
-            let Declaration::Function(function) = declaration;
+            let Declaration::Function(function) = declaration else {
+                return None;
+            };
             (function.name.name == "label").then_some(function)
         })
         .unwrap();

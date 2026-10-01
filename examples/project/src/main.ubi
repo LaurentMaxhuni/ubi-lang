@@ -1,3 +1,17 @@
 export fn greeting() -> string {
     "Hello from Ubi!"
 }
+
+export record Task {
+    id: int,
+    title: string,
+    completed: bool,
+}
+
+export fn createTask(id: int, title: string) -> Task {
+    Task { id: id, title: title, completed: false }
+}
+
+export fn completeTask(task: Task) -> Task {
+    Task { ...task, completed: true }
+}
