@@ -171,3 +171,7 @@ mod interpreter_tests;
 #[cfg(test)]
 #[path = "js_backend_tests.rs"]
 mod js_backend_tests;
+
+#[cfg(test)]
+#[path = "../benchmarks/m1/grade.rs"]
+mod benchmark_grade;

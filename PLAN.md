@@ -1,6 +1,6 @@
 # Ubi implementation plan
 
-Status: Milestone 0 gate approved for reviewed revision `0dd23e85f93fffcd2657f3c24d944c1197fd24e3`. Milestone 1 implementation is ready for human gate review; the hidden corpus and separate evaluator remain unavailable.
+Status: Milestone 0 gate approved for reviewed revision `0dd23e85f93fffcd2657f3c24d944c1197fd24e3`. Milestone 1 implementation is ready for human gate review; the pre-M2 mini benchmark now has separate solution and public evaluation agents. Evaluator-owned hidden conformance remains unavailable.
 
 Ubi (`.ubi`, short for ubiquitous) combines familiar JavaScript-style syntax with strict types, explicit errors, and checked access to host capabilities. AI agents write code; humans must be able to understand and review it.
 
@@ -93,6 +93,8 @@ What the human checks:
 - Review interpreter independence, conformance results, fuzzing evidence, and the decisions log; sign off on the completion gate.
 
 After Milestone 1 and before Milestone 2, run a mini agent benchmark. Give an agent 3–4 small tasks within the implemented subset, the compact spec, and JSON diagnostics. Have an independent evaluator grade correctness. Record task outcomes, whether each compile/fix loop converges, iterations to convergence, and failures at a preset iteration limit. Human reviews the results and any resulting decisions. Keep the full Milestone 6 benchmark.
+
+Mini benchmark progress: all four tasks converged within the preset three-iteration limit (repair: two; imports, guarded division, early returns: one each). A separate public evaluator passed 45 expected outcomes on each backend plus an explicit-return check. Sources, attempts, evaluator, and results are in `benchmarks/m1`; evidence is recorded in `DECISIONS.md`. Hidden evaluation and human review remain pending.
 
 ## Milestone 2 — Make the language useful for shared logic
 
@@ -221,4 +223,4 @@ The compiler running in WASM and Ubi programs compiling to WASM are separate del
 - Keep the current JavaScript backend passing conformance checks before introducing another backend.
 - Avoid fixed delivery dates until the first two milestones establish implementation pace.
 - Track progress against completion gates; mark platform work blocked when required SDKs or devices are unavailable.
-- Next task: specify and implement the check/build CLI contract, run the generated M1 modules in a browser as well as Node, and fuzz the parser/checker with an external watchdog.
+- Next task: review M1 revision `03d0a34a033279b637deed7c7125bc90210aacc0` and the completed mini benchmark, and resolve the unavailable hidden evaluation before advancing through the human gate. After acceptance, start M2 with local reassignment and nominal records, extending the checker, typed IR, interpreter, JavaScript backend, and independently reviewed conformance together.

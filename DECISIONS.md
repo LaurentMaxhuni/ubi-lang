@@ -1,6 +1,6 @@
 # Ubi decisions and milestone evidence
 
-Current milestone: 1, Milestone 0 accepted by human. Compiler implementation in progress.
+Current milestone: 1, Milestone 0 accepted by human. Milestone 1 implementation ready for human gate review; pre-M2 public mini benchmark passed. Hidden evaluation remains unavailable.
 
 ## Decisions
 
@@ -75,3 +75,14 @@ Status: implementation ready for M1 human gate review. The hidden corpus and sep
 - Browser: CLI-generated `main.mjs` returned `15` for `compute(7)` in Node 22.22.1 and in Brave; the browser DOM reported `data-state="pass"` and visible result `15`.
 - Fuzzing: 10,000 deterministic Unicode/token mutations ran through parser/checker (and codegen for clean inputs). A separate PowerShell process watchdog imposed a 60-second timeout; the test completed in under one second with no panic/hang.
 - Verification: `cargo test --all-targets` passes 67 tests; `cargo clippy --all-targets -- -D warnings`, `cargo fmt --all -- --check`, and `git diff --check` pass. The hidden corpus and separate independent evaluator were not provisioned or run, so no result is claimed for them. Human review of this revision remains the Milestone 1 gate.
+
+## Pre-Milestone 2 mini agent benchmark
+
+Run date: 2026-10-01. Compiler baseline: `03d0a34a033279b637deed7c7125bc90210aacc0`.
+
+- Contracts and preset limit: `benchmarks/m1/tasks.md`; four core-profile tasks, maximum three compile/fix iterations each. One iteration is a written attempt followed by `ubi check --json`.
+- Separate solution agent wrote only task sources and `attempts.md`, without reading evaluator artifacts or grading behavior. Repair converged in two iterations after the required faulty attempt produced `UBI0020`; two-module imports, guarded division, and early returns each converged in one. All four final checks passed; no iteration-limit failures.
+- Separate evaluator derived 45 input/expected-result cases from task contracts and SPEC.md before reading solutions. Both source AST interpreter and generated JavaScript passed all 45 expectations, including boundary/overflow faults, lazy branches, signed division, and Unicode strings. The explicit-return AST check passed. The evaluator corrected its initial integer comparator to treat positive and negative zero as the same Ubi int; the initial result and rationale remain in `benchmarks/m1/evaluation.md`.
+- Reproduction: `powershell -NoProfile -File benchmarks/m1/evaluate.ps1`, or the regular Cargo test suite. Evaluation adds a test-only module; production compiler behavior is unchanged. Node 22.22.1 and Rust 1.97.1 were used.
+- Final verification: `cargo test --all-targets` passes 70 tests; Clippy with warnings denied, formatting, and `git diff --check` pass.
+- Scope: public independent benchmark evaluation, not hidden conformance, a broad agent comparison, or human gate approval. No evaluator-owned hidden corpus was provisioned. M1 gate and human review of these benchmark outcomes remain pending.

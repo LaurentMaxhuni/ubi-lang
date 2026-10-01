@@ -1,0 +1,3 @@
+export fn subtotal(quantity: int, price: int) -> int {
+    quantity * price
+}

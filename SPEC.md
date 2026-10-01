@@ -1,6 +1,6 @@
 # Ubi language specification
 
-Version: 0.2 draft. Current milestone: 1. Milestone 0 was accepted; compiler implementation is in progress. Review evidence is recorded in DECISIONS.md.
+Version: 0.2 draft. Current milestone: 1. Milestone 0 was accepted; Milestone 1 implementation is ready for human gate review. Review evidence is recorded in DECISIONS.md.
 
 ## 1. Scope and conformance
 

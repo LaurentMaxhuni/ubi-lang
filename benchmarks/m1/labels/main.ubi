@@ -1,0 +1,8 @@
+export fn label(title: string, completed: bool) -> string {
+    if (completed) {
+        return "[done] " + title;
+    } else {
+        ()
+    };
+    "[todo] " + title
+}

@@ -1,0 +1,7 @@
+export fn divideOr(numerator: int, denominator: int, fallback: int) -> int {
+    if (denominator == 0) {
+        fallback
+    } else {
+        numerator / denominator
+    }
+}

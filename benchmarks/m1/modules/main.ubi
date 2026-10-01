@@ -1,0 +1,9 @@
+import { subtotal } from "./math.ubi";
+
+export fn total(quantity: int, price: int, fee: int) -> int {
+    if (quantity <= 0) {
+        0
+    } else {
+        subtotal(quantity, price) + fee
+    }
+}
