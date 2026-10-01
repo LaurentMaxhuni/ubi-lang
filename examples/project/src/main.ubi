@@ -2,6 +2,10 @@ export fn greeting() -> string {
     "Hello from Ubi!"
 }
 
+export fn main() -> string {
+    greeting()
+}
+
 export record Task {
     id: int,
     title: string,

@@ -67,6 +67,306 @@ fn check(root: &Path, entry: &str) -> Output {
     ubi(&["check", entry, "--root", root.to_str().unwrap(), "--json"])
 }
 
+fn assert_run_success(output: Output, expected: &str) {
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        output.stderr.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(String::from_utf8(output.stdout).unwrap(), expected);
+}
+
+#[test]
+fn run_selects_exported_functions_and_accepts_primitive_and_unit_arguments() {
+    let project = TempDir::new();
+    project.write(
+        "main.ubi",
+        r#"
+export fn main() -> int { 42 }
+export fn default(x: int, flag: bool, text: string, real: float) -> string {
+  if (flag && x == 7 && real == 1.5) { text } else { "bad arguments" }
+}
+export fn isUnit(value: unit) -> bool { value == () }
+export fn nothing() -> unit { () }
+"#,
+    );
+    assert_run_success(
+        ubi(&[
+            "run",
+            "main.ubi",
+            "--root",
+            project.path().to_str().unwrap(),
+        ]),
+        "42\n",
+    );
+    assert_run_success(
+        ubi_in(
+            project.path(),
+            &[
+                "run",
+                "main.ubi",
+                "--function",
+                "default",
+                "--args",
+                "[7,true,\"雪😀\",1.5]",
+            ],
+        ),
+        "雪😀\n",
+    );
+    assert_run_success(
+        ubi_in(
+            project.path(),
+            &[
+                "run",
+                "--args",
+                "[null]",
+                "--function",
+                "isUnit",
+                "main.ubi",
+            ],
+        ),
+        "true\n",
+    );
+    assert_run_success(
+        ubi_in(
+            project.path(),
+            &["run", "main.ubi", "--function", "nothing"],
+        ),
+        "",
+    );
+    assert!(project.path().join(".ubi-build/main.mjs").is_file());
+}
+
+#[test]
+fn run_prints_json_records_and_special_floats_with_unit_null() {
+    let project = TempDir::new();
+    project.write("main.ubi", r#"
+export record Input { value: int, text: string, done: unit }
+export record Output { value: int, text: string, done: unit, nan: float, positive: float, negative: float, zero: float }
+export fn main(input: Input) -> Output {
+  Output { value: input.value + 1, text: input.text, done: input.done, nan: 0.0 / 0.0, positive: 1.0 / 0.0, negative: -1.0 / 0.0, zero: -0.0 }
+}
+export fn nan() -> float { 0.0 / 0.0 }
+export fn positive() -> float { 1.0 / 0.0 }
+export fn negative() -> float { -1.0 / 0.0 }
+export fn negativeZero() -> float { -0.0 }
+export fn positiveZero() -> float { 0.0 }
+export fn finite() -> float { 1.5 }
+"#);
+    let arguments = serde_json::json!([r#"{"value":4,"text":"😀","done":null}"#]).to_string();
+    let output = ubi_in(project.path(), &["run", "main.ubi", "--args", &arguments]);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stderr.is_empty());
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&output.stdout).unwrap(),
+        serde_json::json!({"value":5,"text":"😀","done":null,"nan":"NaN","positive":"+Infinity","negative":"-Infinity","zero":"-0"})
+    );
+    for (function, expected) in [
+        ("nan", "\"NaN\"\n"),
+        ("positive", "\"+Infinity\"\n"),
+        ("negative", "\"-Infinity\"\n"),
+        ("negativeZero", "\"-0\"\n"),
+        ("positiveZero", "0\n"),
+        ("finite", "1.5\n"),
+    ] {
+        assert_run_success(
+            ubi_in(project.path(), &["run", "main.ubi", "--function", function]),
+            expected,
+        );
+    }
+}
+
+#[test]
+fn run_uses_reachable_imports_and_config_target_selection() {
+    let project = TempDir::new();
+    project.write(
+        "app/main.ubi",
+        "import { base } from \"../lib/math.ubi\"; export fn main() -> int { base() + 1 }",
+    );
+    project.write("lib/math.ubi", "export fn base() -> int { 41 }");
+    project.write("unrelated.ubi", "invalid source must not be loaded");
+    project.write("ubi.json", &project_config("app/main.ubi", "[\"cli\"]"));
+    assert_run_success(ubi_in(project.path(), &["run"]), "42\n");
+    assert!(project.path().join(".ubi-build/cli/app/main.mjs").is_file());
+    assert!(project.path().join(".ubi-build/cli/lib/math.mjs").is_file());
+    assert!(!project.path().join(".ubi-build/cli/unrelated.mjs").exists());
+    project.write(
+        "ubi.json",
+        &project_config("app/main.ubi", "[\"web\",\"cli\"]"),
+    );
+    assert_run_success(
+        ubi(&[
+            "run",
+            "--target",
+            "web",
+            "--root",
+            project.path().to_str().unwrap(),
+        ]),
+        "42\n",
+    );
+    assert!(project.path().join(".ubi-build/web/app/main.mjs").is_file());
+    for args in [
+        vec!["run"],
+        vec!["run", "--target", "desktop"],
+        vec!["run", "app/main.ubi", "--target", "web"],
+    ] {
+        let output = ubi_in(project.path(), &args);
+        assert_eq!(output.status.code(), Some(2));
+        assert!(output.stdout.is_empty());
+        assert!(!output.stderr.is_empty());
+    }
+    project.write("ubi.json", "invalid config");
+    assert_run_success(ubi_in(project.path(), &["run", "app/main.ubi"]), "42\n");
+}
+
+#[test]
+fn run_compile_errors_and_runtime_faults_exit_one_without_normal_output() {
+    let project = TempDir::new();
+    project.write("main.ubi", "export fn main() -> int { missing }");
+    let output = ubi_in(project.path(), &["run", "main.ubi"]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let diagnostic = String::from_utf8(output.stderr).unwrap();
+    assert!(
+        diagnostic.contains("main.ubi:") && diagnostic.contains("UBI0010"),
+        "{diagnostic}"
+    );
+    assert!(!project.path().join(".ubi-build").exists());
+    project.write(
+        "main.ubi",
+        "export fn main() -> int { 1 / 0 } export fn overflow() -> int { 2147483647 + 1 }",
+    );
+    for (function, code) in [("main", "UBI-R0002"), ("overflow", "UBI-R0001")] {
+        let output = ubi_in(project.path(), &["run", "main.ubi", "--function", function]);
+        assert_eq!(output.status.code(), Some(1));
+        assert!(output.stdout.is_empty());
+        assert!(String::from_utf8(output.stderr).unwrap().contains(code));
+    }
+}
+
+#[test]
+fn run_rejects_invalid_options_arguments_and_entry_exports_as_operational_errors() {
+    let project = TempDir::new();
+    project.write("main.ubi", "export record Data { value: int } fn private() -> int { 7 } export fn main(x: int) -> int { 1 / 0 } export fn recordArg(x: Data) -> int { 1 / 0 }");
+    let bad_record = serde_json::json!([r#"{"value":true}"#]).to_string();
+    for options in [
+        vec![],
+        vec!["--args", "[true]"],
+        vec!["--args", "[2147483648]"],
+        vec!["--args", "[1,2]"],
+        vec!["--args", "{"],
+        vec!["--args", "{}"],
+        vec!["--args", "null"],
+        vec!["--args", "[NaN]"],
+        vec!["--function", "missing"],
+        vec!["--function", "private"],
+        vec!["--function", "Data"],
+        vec!["--function", "recordArg", "--args", "[{\"value\":1}]"],
+        vec!["--function", "recordArg", "--args", &bad_record],
+        vec!["--json"],
+        vec!["--out-dir", "out"],
+        vec!["--function"],
+        vec!["--args"],
+        vec!["--unknown"],
+    ] {
+        let mut args = vec!["run", "main.ubi"];
+        args.extend(options);
+        let output = ubi_in(project.path(), &args);
+        assert_eq!(
+            output.status.code(),
+            Some(2),
+            "{args:?}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(output.stdout.is_empty(), "{args:?}");
+        assert!(!output.stderr.is_empty(), "{args:?}");
+        assert!(
+            !String::from_utf8_lossy(&output.stderr).contains("UBI-R0002"),
+            "invalid input executed body: {args:?}"
+        );
+    }
+    project.write("no-main.ubi", "export fn other() -> int { 1 }");
+    assert_eq!(
+        ubi_in(project.path(), &["run", "no-main.ubi"])
+            .status
+            .code(),
+        Some(2)
+    );
+    for command in ["check", "build"] {
+        for option in [["--function", "main"], ["--args", "[1]"]] {
+            let output = ubi_in(project.path(), &[command, "main.ubi", option[0], option[1]]);
+            assert_eq!(output.status.code(), Some(2));
+            assert!(output.stdout.is_empty());
+            assert!(!output.stderr.is_empty());
+        }
+    }
+    let missing_node = Command::new(env!("CARGO_BIN_EXE_ubi"))
+        .current_dir(project.path())
+        .env("PATH", "")
+        .args(["run", "main.ubi", "--args", "[1]"])
+        .output()
+        .unwrap();
+    assert_eq!(missing_node.status.code(), Some(2));
+    assert!(missing_node.stdout.is_empty());
+    assert!(!missing_node.stderr.is_empty());
+}
+
+#[test]
+fn run_treats_unusual_paths_function_names_and_argument_text_as_data() {
+    let project = TempDir::new();
+    project.write(
+        "space # & ; λ/entry file.ubi",
+        "export fn default(text: string) -> string { text }",
+    );
+    let text = "quote: \"; $(echo SHELL_INJECTION) & echo SHELL_INJECTION; 雪😀\nsecond line";
+    let arguments = serde_json::json!([text]).to_string();
+    assert_run_success(
+        ubi_in(
+            project.path(),
+            &[
+                "run",
+                "space # & ; λ/entry file.ubi",
+                "--function",
+                "default",
+                "--args",
+                &arguments,
+            ],
+        ),
+        &format!("{text}\n"),
+    );
+    for function in [
+        "default; echo SHELL_INJECTION",
+        "default & echo SHELL_INJECTION",
+        "$(echo SHELL_INJECTION)",
+    ] {
+        let output = ubi_in(
+            project.path(),
+            &[
+                "run",
+                "space # & ; λ/entry file.ubi",
+                "--function",
+                function,
+                "--args",
+                &arguments,
+            ],
+        );
+        assert_eq!(output.status.code(), Some(2));
+        assert!(output.stdout.is_empty());
+        assert!(!output.stderr.is_empty());
+    }
+}
+
 #[test]
 fn check_loads_only_reachable_imports_and_emits_a_json_envelope() {
     let project = TempDir::new();

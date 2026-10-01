@@ -2,7 +2,7 @@
 
 User direction, 2026-10-01: set aside milestone gates for the current task.
 Current work: first M2 slice complete: local reassignment and non-generic
-records. Project config and Windows registration are complete. User-directed work continues without
+records. Project config, Windows registration, and Node-backed `ubi run` are complete. User-directed work continues without
 reopening the historical milestone gates.
 Milestone evidence below remains historical; unrun checks are not marked passed.
 

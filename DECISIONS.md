@@ -38,6 +38,7 @@ is unchanged.
 | D016 | Register `.ubi` source files per user with an editor open command; prefer installed VS Code, fall back to Notepad, allow explicit executable selection. Preserve existing default choices. | Gives Windows a named file type, icon, and Open With integration without machine-wide changes or executing arbitrary source on opening. | Dedicated editor or installer work. |
 | D017 | Versioned `ubi.json` declares project name, shared entry, and one or more web/mobile/desktop/cli targets. Omitted CLI entry loads the config; multi-target projects require explicit selection, and build outputs are separated by target. | Supports shared logic across platforms without forcing a project into one app kind or implying finished host packaging. Strict typed JSON parsing uses Serde rather than a custom parser; compiler library semantics remain unchanged. | Platform-specific entries and packaging options when their hosts exist. |
 | D018 | Land M2 in runnable slices: local rebinding and non-generic nominal records first. Record host arguments use serialized JSON; returned records are frozen field objects. Runtime record depth is capped at 32. | Enables shared data logic while bounding recursive work and avoiding inspection of arbitrary live host objects/getters. Records keep plain-copy update semantics and source/module nominal identity. | Generic/collection slices and richer serialized host codecs. |
+| D019 | `ubi run` builds fresh ESM and invokes an exported function with Node.js from PATH, defaulting to `main`. Optional function selection and JSON host arguments reuse existing export validation. | Provides direct execution without a second backend, shell interpolation, or introducing ambient host capabilities into Ubi. | Application hosts and richer CLI argument conventions. |
 
 ## Milestone 0 evidence
 
@@ -122,3 +123,12 @@ Run date: 2026-10-01. SPEC.md 0.3 specifies this partial language expansion.
 - `examples/project` now creates and completes a Task. Generated web modules passed a browser check for immutable updates, Unicode, frozen results, and rejection of live host objects without reading getters. The browser displayed `PASS: shared Ubi task records, immutable updates, and host validation.`
 - `cargo test --all-targets`: 91 tests pass. Fuzz coverage includes valid record/rebinding seeds and 10,000 deterministic mutations, completing in under one second under a separate 60-second watchdog. Windows symlink scenarios retain the previously recorded host limitation.
 - Clippy with warnings denied, formatting, and whitespace checks pass. Lists, enums, generics, matching, closures, and the full task-list application remain future work; no full M2 completion gate is claimed.
+
+## CLI execution evidence
+
+User-directed `ubi run`, 2026-10-01. The existing build graph and containment
+checks produce fresh modules before Node invokes an exported function.
+
+- Six independently authored CLI groups cover default/selected exports, primitive/unit/record arguments, strings and JSON results, special floats, config targets and imports, compile/runtime faults, invalid arguments/options/exports, missing Node, and shell-looking paths/names/input treated as data. An initial positive-zero expectation was corrected after reviewing the clarified output contract: positive zero prints JSON 0; negative zero uses its tag.
+- The example project runs without function selection and prints `Hello from Ubi!`; selecting `createTask` with JSON arguments prints the expected task record.
+- `cargo test --all-targets`: 97 tests pass. Clippy with warnings denied, formatting, and whitespace checks pass. Previously documented Windows symlink test limitations remain. Node.js on PATH is required; this command adds no host capabilities to Ubi source.

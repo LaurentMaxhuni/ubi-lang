@@ -203,11 +203,29 @@ The package provides these commands (options may appear in either order after th
 ```text
 ubi check [entry.ubi] [--root <project-dir>] [--target <target>] [--json]
 ubi build [entry.ubi] [--root <project-dir>] [--target <target>] [--out-dir <directory>] [--json]
+ubi run [entry.ubi] [--root <project-dir>] [--target <target>] [--function <name>] [--args <JSON-array>]
 ```
 
 `--root` defaults to the current working directory. The entry is a canonical root-relative source ID ending in `.ubi`, using `/` separators; absolute paths, empty segments, `.`/`..` segments, backslashes, and Unicode control characters are rejected. The CLI canonicalizes the root and each file it reads. Every resolved file must remain within the canonical root, including after symlink resolution. It loads only the transitive named-import graph reachable from the entry; unrelated files under the root are not inputs. Missing, nonportable, or out-of-root imported files are reported as `UBI0012` at the importing path. Other root/entry/read failures are operational errors.
 
 `check` analyzes the reachable graph and writes diagnostics without creating artifacts. `build` emits one deterministic ESM file for every reachable source: replace that source ID's `.ubi` suffix with `.mjs`, preserve its relative directories under the output directory, and rewrite imports to the corresponding `.mjs` files. Explicit-entry builds default to `<root>/.ubi-build`; config-driven builds use section 13's target directory. A relative `--out-dir` is resolved from the process working directory. Build creates needed directories and writes only its generated `.mjs` files; it does not clean the directory or modify other files there. It refuses an artifact symlink or a parent symlink that would write outside the canonical output directory. `.mjs` makes artifacts directly importable by Node and browsers without package metadata.
+
+`run` builds the same reachable graph into the default build directory, then invokes
+an exported entry-module function using `node` from PATH. The function defaults to
+`main`; `--function` selects another export. Arguments default to none; `--args`
+must be a JSON array of host arguments. Record arguments are JSON strings as in
+section 14; top-level JSON null represents unit. These options apply only to
+`run`, which rejects `--json` and `--out-dir`. Entry/config/target selection follows
+check/build. No source is executed if compilation fails. Node is launched directly
+without a shell; source paths, function names, and argument text are data.
+
+Successful invocations exit 0. Unit returns print nothing; string returns print
+the string and a newline; other returns print JSON and a newline. JSON output
+encodes nested unit as null and float NaN/infinities/negative zero using section 14's
+tags. Runtime faults print their stable code/message on stderr and exit 1.
+Malformed arguments, missing/non-function exports, host argument validation
+failures, missing Node, and other operational errors exit 2 with stderr diagnostics.
+Compiler errors retain exit 1 and existing human diagnostic formatting.
 
 Exit status `0` means success, `1` means the reachable graph has compiler errors, and `2` means invalid command/input, root or entry access failure, other source I/O failure, or artifact write failure. The CLI enforces source-byte, project-byte, and module-count budgets before reading additional input; exceeding those filesystem input budgets is an operational error that mentions `UBI0090`, writes to stderr (even with `--json`), and exits `2`. Parser/token/nesting resource diagnostics use the schema-v1 envelope and exit `1`. With `--json`, successful checks/builds and compiler diagnostics use the schema-v1 envelope from section 9 on stdout, with no human text mixed in; a compiler-error result exits `1`. Usage and operational errors are human-readable on stderr (also when `--json` is present) and exit `2`. Without `--json`, diagnostics are written to stderr as `<sourceId>:<start>-<end>: <severity>[<code>]: <message>`.
 
@@ -253,7 +271,7 @@ names, invalid source IDs, and empty/duplicate/unknown targets. Targets are exac
 section 10's canonical root-relative `.ubi` rules and source containment checks.
 The config must be a regular file whose canonical path stays inside the root.
 
-When no explicit entry is supplied, `check` and `build` load `<root>/ubi.json`.
+When no explicit entry is supplied, `check`, `build`, and `run` load `<root>/ubi.json`.
 `--target` selects a declared target; a project with one target selects it
 automatically. Multiple targets require `--target`; unrecognized or undeclared
 selections are operational errors. Explicit entry mode remains compatible and

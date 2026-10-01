@@ -32,6 +32,36 @@ cargo run -- check main.ubi --root path/to/project
 cargo run -- build main.ubi --root path/to/project
 ```
 
+## Run a program
+
+Define an exported entry function in `main.ubi`:
+
+```ubi
+export fn main() -> string {
+    "Hello from Ubi!"
+}
+```
+
+Compile and execute it with Node.js installed on PATH:
+
+```powershell
+cargo run -- run main.ubi
+```
+
+The command prints `Hello from Ubi!`. After installing the CLI with
+`cargo install --path .`, use `ubi run main.ubi` directly.
+Select another exported function or pass JSON arguments:
+
+```powershell
+cargo run -- run --root examples/project --target cli --function greeting
+cargo run -- run --root examples/project --target cli --function createTask --args '[1,"Try Ubi"]'
+```
+
+`run` builds fresh modules before invoking the function. Config selection works
+like `build`; omit the entry to use `ubi.json`. Strings print as text, other
+values print as JSON, and unit prints nothing. Record inputs use serialized JSON
+strings inside the argument array. Compiler/runtime failures exit nonzero.
+
 ## Project config
 
 Put `ubi.json` in an application's root to declare where its shared logic runs:

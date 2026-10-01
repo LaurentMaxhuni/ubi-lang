@@ -13,6 +13,7 @@ use ubi_lang::{
 enum Command {
     Check,
     Build,
+    Run,
 }
 
 #[derive(Debug)]
@@ -23,6 +24,8 @@ struct Arguments {
     root: Option<PathBuf>,
     out_dir: Option<PathBuf>,
     json: bool,
+    function: Option<String>,
+    call_args: Option<String>,
 }
 
 pub(crate) fn run(
@@ -87,7 +90,7 @@ fn run_inner(
             let status = report_check(&compiler, &check, arguments.json, stdout, stderr)?;
             Ok(status)
         }
-        Command::Build => {
+        Command::Build | Command::Run => {
             let build = compiler.build();
             if has_errors(&build.diagnostics) {
                 return report_build(&compiler, &build, arguments.json, stdout, stderr);
@@ -105,6 +108,34 @@ fn run_inner(
                 .as_ref()
                 .ok_or_else(|| "compiler produced no JavaScript output".to_owned())?;
             write_artifacts(&out_dir, files)?;
+            if arguments.command == Command::Run {
+                report_build(&compiler, &build, false, stdout, stderr)?;
+                let module = fs::canonicalize(
+                    out_dir.join(entry.strip_suffix(".ubi").unwrap().to_owned() + ".mjs"),
+                )
+                .map_err(|error| format!("cannot open generated entry: {error}"))?;
+                let output = std::process::Command::new("node")
+                    .arg("--eval")
+                    .arg(NODE_RUNNER)
+                    .arg("--")
+                    .arg(module)
+                    .arg(arguments.function.as_deref().unwrap_or("main"))
+                    .arg(arguments.call_args.as_deref().unwrap_or("[]"))
+                    .output()
+                    .map_err(|error| format!("cannot launch Node.js; install Node.js and ensure `node` is on PATH: {error}"))?;
+                stdout
+                    .write_all(&output.stdout)
+                    .map_err(|error| format!("cannot write run output: {error}"))?;
+                stderr
+                    .write_all(&output.stderr)
+                    .map_err(|error| format!("cannot write run errors: {error}"))?;
+                return Ok(match output.status.code() {
+                    Some(0) => 0,
+                    Some(2) => 2,
+                    Some(1) => 1,
+                    _ => 2,
+                });
+            }
             report_build(&compiler, &build, arguments.json, stdout, stderr)
         }
     }
@@ -123,8 +154,8 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     let command = match args.next().as_deref() {
         Some("check") => Command::Check,
         Some("build") => Command::Build,
-        Some(_) => return Err("expected `check` or `build`".to_owned()),
-        None => return Err("expected `check` or `build`".to_owned()),
+        Some("run") => Command::Run,
+        _ => return Err("expected `check`, `build`, or `run`".to_owned()),
     };
 
     let mut entry = None;
@@ -132,8 +163,34 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     let mut root = None;
     let mut out_dir = None;
     let mut json = false;
+    let mut function = None;
+    let mut call_args = None;
     while let Some(argument) = args.next() {
         match argument.as_str() {
+            "--function" | "--args" if command == Command::Run => {
+                let slot = if argument == "--function" {
+                    &mut function
+                } else {
+                    &mut call_args
+                };
+                if slot.is_some() {
+                    return Err(format!("`{argument}` may be specified only once"));
+                }
+                let value = args
+                    .next()
+                    .ok_or_else(|| format!("`{argument}` needs a value"))?;
+                if argument == "--args" {
+                    let parsed: serde_json::Value = serde_json::from_str(&value)
+                        .map_err(|error| format!("invalid --args JSON array: {error}"))?;
+                    if !parsed.is_array() {
+                        return Err("`--args` must be a JSON array".to_owned());
+                    }
+                } else if value.is_empty() {
+                    return Err("`--function` needs a nonempty name".to_owned());
+                }
+                *slot = Some(value);
+            }
+            "--function" | "--args" => return Err(format!("`{argument}` is valid only for `run`")),
             "--json" if !json => json = true,
             "--json" => return Err("`--json` may be specified only once".to_owned()),
             "--target" => {
@@ -178,6 +235,9 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     if entry.is_some() && target.is_some() {
         return Err("`--target` requires project config mode; omit the entry source ID".to_owned());
     }
+    if command == Command::Run && json {
+        return Err("`--json` is not supported by `run`".to_owned());
+    }
     Ok(Arguments {
         command,
         entry,
@@ -185,8 +245,42 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
         root,
         out_dir,
         json,
+        function,
+        call_args,
     })
 }
+
+const NODE_RUNNER: &str = r#"
+(async () => {
+  const [file, name, text] = process.argv.slice(1);
+  try {
+    const module = await import(require('node:url').pathToFileURL(file).href);
+    if (!Object.prototype.hasOwnProperty.call(module, name) || typeof module[name] !== 'function') {
+      console.error(`ubi: exported function ${JSON.stringify(name)} not found; use export fn main() or --function <name>`);
+      process.exitCode = 2;
+      return;
+    }
+    const args = JSON.parse(text).map(value => value === null ? undefined : value);
+    const value = module[name](...args);
+    if (value !== undefined) {
+      console.log(typeof value === 'string' ? value : JSON.stringify(value, (_, item) => {
+        if (item === undefined) return null;
+        if (typeof item === 'number') {
+          if (Number.isNaN(item)) return 'NaN';
+          if (item === Infinity) return '+Infinity';
+          if (item === -Infinity) return '-Infinity';
+          if (Object.is(item, -0)) return '-0';
+        }
+        return item;
+      }));
+    }
+  } catch (error) {
+    const fault = error && typeof error.code === 'string' && error.code.startsWith('UBI-R');
+    console.error(`ubi: ${fault ? error.code + ': ' : ''}${error && error.message ? error.message : String(error)}`);
+    process.exitCode = fault ? 1 : 2;
+  }
+})();
+"#;
 
 pub(crate) fn valid_source_id(id: &str) -> bool {
     id.ends_with(".ubi")
