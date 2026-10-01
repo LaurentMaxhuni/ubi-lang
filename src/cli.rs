@@ -18,7 +18,8 @@ enum Command {
 #[derive(Debug)]
 struct Arguments {
     command: Command,
-    entry: String,
+    entry: Option<String>,
+    target: Option<String>,
     root: Option<PathBuf>,
     out_dir: Option<PathBuf>,
     json: bool,
@@ -59,23 +60,25 @@ fn run_inner(
             root.display()
         ));
     }
-    if !valid_source_id(&arguments.entry) {
+    let (entry, target) = match &arguments.entry {
+        Some(entry) => (entry.clone(), None),
+        None => {
+            let (entry, target) = crate::project::select(&root, arguments.target.as_deref())?;
+            (entry, Some(target))
+        }
+    };
+    if !valid_source_id(&entry) {
         return Err(format!(
             "entry must be a canonical root-relative .ubi source ID: {}",
-            arguments.entry
+            entry
         ));
     }
 
     let mut compiler = Compiler::new();
     let mut source_budget = SourceBudget::default();
-    let entry_bytes =
-        load_source(&root, &arguments.entry, true, &mut source_budget)?.ok_or_else(|| {
-            format!(
-                "entry source not found within project root: {}",
-                arguments.entry
-            )
-        })?;
-    add_source(&mut compiler, &arguments.entry, entry_bytes)?;
+    let entry_bytes = load_source(&root, &entry, true, &mut source_budget)?
+        .ok_or_else(|| format!("entry source not found within project root: {}", entry))?;
+    add_source(&mut compiler, &entry, entry_bytes)?;
     load_import_graph(&root, &mut compiler, &mut source_budget)?;
 
     match arguments.command {
@@ -92,7 +95,10 @@ fn run_inner(
             let out_dir = match arguments.out_dir.as_deref() {
                 Some(out_dir) if out_dir.is_absolute() => out_dir.to_path_buf(),
                 Some(out_dir) => working_directory.join(out_dir),
-                None => root.join(".ubi-build"),
+                None => match target {
+                    Some(target) => root.join(".ubi-build").join(target),
+                    None => root.join(".ubi-build"),
+                },
             };
             let files = build
                 .javascript
@@ -122,6 +128,7 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     };
 
     let mut entry = None;
+    let mut target = None;
     let mut root = None;
     let mut out_dir = None;
     let mut json = false;
@@ -129,6 +136,20 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
         match argument.as_str() {
             "--json" if !json => json = true,
             "--json" => return Err("`--json` may be specified only once".to_owned()),
+            "--target" => {
+                if target.is_some() {
+                    return Err("`--target` may be specified only once".to_owned());
+                }
+                let platform = args
+                    .next()
+                    .ok_or_else(|| "`--target` needs a target".to_owned())?;
+                if !crate::project::valid_target(&platform) {
+                    return Err(format!(
+                        "unknown target: {platform}; expected web, mobile, desktop, or cli"
+                    ));
+                }
+                target = Some(platform);
+            }
             "--root" => {
                 if root.is_some() {
                     return Err("`--root` may be specified only once".to_owned());
@@ -154,16 +175,20 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
         }
     }
 
+    if entry.is_some() && target.is_some() {
+        return Err("`--target` requires project config mode; omit the entry source ID".to_owned());
+    }
     Ok(Arguments {
         command,
-        entry: entry.ok_or_else(|| "expected an entry source ID".to_owned())?,
+        entry,
+        target,
         root,
         out_dir,
         json,
     })
 }
 
-fn valid_source_id(id: &str) -> bool {
+pub(crate) fn valid_source_id(id: &str) -> bool {
     id.ends_with(".ubi")
         && !id.starts_with('/')
         && !id.contains('\\')

@@ -196,13 +196,13 @@ Select lexical/unsupported/parse errors before name/type errors for the same off
 The package provides these commands (options may appear in either order after the command):
 
 ```text
-ubi check <entry.ubi> [--root <project-dir>] [--json]
-ubi build <entry.ubi> [--root <project-dir>] [--out-dir <directory>] [--json]
+ubi check [entry.ubi] [--root <project-dir>] [--target <target>] [--json]
+ubi build [entry.ubi] [--root <project-dir>] [--target <target>] [--out-dir <directory>] [--json]
 ```
 
 `--root` defaults to the current working directory. The entry is a canonical root-relative source ID ending in `.ubi`, using `/` separators; absolute paths, empty segments, `.`/`..` segments, backslashes, and Unicode control characters are rejected. The CLI canonicalizes the root and each file it reads. Every resolved file must remain within the canonical root, including after symlink resolution. It loads only the transitive named-import graph reachable from the entry; unrelated files under the root are not inputs. Missing, nonportable, or out-of-root imported files are reported as `UBI0012` at the importing path. Other root/entry/read failures are operational errors.
 
-`check` analyzes the reachable graph and writes diagnostics without creating artifacts. `build` emits one deterministic ESM file for every reachable source: replace that source ID's `.ubi` suffix with `.mjs`, preserve its relative directories under the output directory, and rewrite imports to the corresponding `.mjs` files. The output directory defaults to `<root>/.ubi-build`; a relative `--out-dir` is resolved from the process working directory. Build creates needed directories and writes only its generated `.mjs` files; it does not clean the directory or modify other files there. It refuses an artifact symlink or a parent symlink that would write outside the canonical output directory. `.mjs` makes artifacts directly importable by Node and browsers without package metadata.
+`check` analyzes the reachable graph and writes diagnostics without creating artifacts. `build` emits one deterministic ESM file for every reachable source: replace that source ID's `.ubi` suffix with `.mjs`, preserve its relative directories under the output directory, and rewrite imports to the corresponding `.mjs` files. Explicit-entry builds default to `<root>/.ubi-build`; config-driven builds use section 13's target directory. A relative `--out-dir` is resolved from the process working directory. Build creates needed directories and writes only its generated `.mjs` files; it does not clean the directory or modify other files there. It refuses an artifact symlink or a parent symlink that would write outside the canonical output directory. `.mjs` makes artifacts directly importable by Node and browsers without package metadata.
 
 Exit status `0` means success, `1` means the reachable graph has compiler errors, and `2` means invalid command/input, root or entry access failure, other source I/O failure, or artifact write failure. The CLI enforces source-byte, project-byte, and module-count budgets before reading additional input; exceeding those filesystem input budgets is an operational error that mentions `UBI0090`, writes to stderr (even with `--json`), and exits `2`. Parser/token/nesting resource diagnostics use the schema-v1 envelope and exit `1`. With `--json`, successful checks/builds and compiler diagnostics use the schema-v1 envelope from section 9 on stdout, with no human text mixed in; a compiler-error result exits `1`. Usage and operational errors are human-readable on stderr (also when `--json` is present) and exit `2`. Without `--json`, diagnostics are written to stderr as `<sourceId>:<start>-<end>: <severity>[<code>]: <message>`.
 
@@ -226,3 +226,43 @@ Windows UserChoice is preserved; Windows' Open With UI can select the editor.
 Notify the Shell after registration. `-WhatIf` previews without registry writes.
 No administrator privileges, compiler installation, or language semantics change
 is required.
+
+## 13. Project configuration
+
+An application project declares its shared source entry and intended platforms in
+`ubi.json` at its project root:
+
+```json
+{
+  "schemaVersion": 1,
+  "name": "hello-ubi",
+  "entry": "src/main.ubi",
+  "targets": ["web", "mobile", "desktop", "cli"]
+}
+```
+
+All four fields are required. The file is strict UTF-8 JSON, limited to 64 KiB;
+reject unknown/duplicate fields, unsupported schema versions, blank/control-containing
+names, invalid source IDs, and empty/duplicate/unknown targets. Targets are exactly
+`web`, `mobile`, `desktop`, and `cli`, with case-sensitive spelling. Entry paths use
+section 10's canonical root-relative `.ubi` rules and source containment checks.
+The config must be a regular file whose canonical path stays inside the root.
+
+When no explicit entry is supplied, `check` and `build` load `<root>/ubi.json`.
+`--target` selects a declared target; a project with one target selects it
+automatically. Multiple targets require `--target`; unrecognized or undeclared
+selections are operational errors. Explicit entry mode remains compatible and
+does not read the config; combining an explicit entry with `--target` is an error.
+The project root still defaults to the working directory; no parent search occurs.
+
+Config-driven builds default to `<root>/.ubi-build/<target>/`, preserving module
+layout. `--out-dir` overrides this directory with section 10's existing semantics.
+Checks create no artifacts. Config/target failures exit 2 on stderr even with
+`--json`, before source compilation or artifact creation; successful compilation
+and source errors retain the existing diagnostic envelope and exit statuses.
+
+Targets declare application intent and choose output directories. They currently
+compile the same shared source to JavaScript ES modules; declaring `mobile` or
+`desktop` does not generate packages, launch hosts, grant capabilities, or enable
+additional language features. Platform-specific hosts/packagers remain separate
+work. The compiler library remains independent of filesystem/project config.

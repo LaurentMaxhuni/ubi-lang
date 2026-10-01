@@ -408,3 +408,345 @@ fn assert_json_parses(json: &str) {
         String::from_utf8_lossy(&result.stderr)
     );
 }
+
+fn project_config(entry: &str, targets: &str) -> String {
+    format!(
+        "{{\"schemaVersion\":1,\"name\":\"contract-test\",\"entry\":\"{entry}\",\"targets\":{targets}}}"
+    )
+}
+
+fn assert_project_operational_error(project: &TempDir, output: Output, case: &str) {
+    assert_eq!(output.status.code(), Some(2), "{case}: {output:?}");
+    assert!(output.stdout.is_empty(), "{case}: {output:?}");
+    assert!(!output.stderr.is_empty(), "{case}: {output:?}");
+    assert!(!project.path().join(".ubi-build").exists(), "{case}");
+}
+
+#[test]
+fn project_single_target_check_and_build_load_config_from_root_or_cwd() {
+    for command in ["check", "build"] {
+        for explicit_root in [false, true] {
+            let project = TempDir::new();
+            let cwd = TempDir::new();
+            project.write("ubi.json", &project_config("src/main.ubi", "[\"cli\"]"));
+            project.write("src/main.ubi", "export fn answer() -> int { 42 }");
+            let output = if explicit_root {
+                ubi_in(
+                    cwd.path(),
+                    &[
+                        command,
+                        "--root",
+                        project.path().to_str().unwrap(),
+                        "--json",
+                    ],
+                )
+            } else {
+                ubi_in(project.path(), &[command, "--json"])
+            };
+            assert_eq!(output.status.code(), Some(0), "{output:?}");
+            assert!(output.stderr.is_empty(), "{output:?}");
+            let json = std::str::from_utf8(&output.stdout).unwrap();
+            assert!(json.contains("\"schemaVersion\":1"), "{json}");
+            assert!(json.contains("\"id\":\"src/main.ubi\""), "{json}");
+            assert_json_parses(json);
+            assert_eq!(
+                project.path().join(".ubi-build/cli/src/main.mjs").is_file(),
+                command == "build"
+            );
+            assert!(!cwd.path().join(".ubi-build").exists());
+        }
+    }
+}
+
+#[test]
+fn project_all_targets_emit_the_same_esm_and_preserve_module_layout() {
+    let project = TempDir::new();
+    project.write(
+        "ubi.json",
+        &project_config("src/main.ubi", "[\"web\",\"mobile\",\"desktop\",\"cli\"]"),
+    );
+    project.write(
+        "src/main.ubi",
+        "import { base } from \"../lib/math.ubi\"; export fn answer() -> int { base() + 1 }",
+    );
+    project.write("lib/math.ubi", "export fn base() -> int { 41 }");
+    let mut previous = None;
+    for target in ["web", "mobile", "desktop", "cli"] {
+        let output = ubi_in(project.path(), &["build", "--json", "--target", target]);
+        assert_eq!(output.status.code(), Some(0), "{target}: {output:?}");
+        assert!(output.stderr.is_empty());
+        assert_json_parses(std::str::from_utf8(&output.stdout).unwrap());
+        let directory = project.path().join(".ubi-build").join(target);
+        let main = fs::read_to_string(directory.join("src/main.mjs")).unwrap();
+        let library = fs::read_to_string(directory.join("lib/math.mjs")).unwrap();
+        assert!(main.contains("../lib/math.mjs"), "{main}");
+        assert!(main.contains("export"), "{main}");
+        if let Some(expected) = &previous {
+            assert_eq!(&(main.clone(), library.clone()), expected);
+        }
+        previous = Some((main, library));
+    }
+}
+
+#[test]
+fn project_output_override_is_relative_to_process_cwd_and_preserves_user_files() {
+    let project = TempDir::new();
+    let cwd = TempDir::new();
+    project.write("ubi.json", &project_config("src/main.ubi", "[\"desktop\"]"));
+    project.write("src/main.ubi", "export fn answer() -> int { 42 }");
+    cwd.write("generated/keep.txt", "preserve");
+    let output = ubi_in(
+        cwd.path(),
+        &[
+            "build",
+            "--root",
+            project.path().to_str().unwrap(),
+            "--out-dir",
+            "generated",
+            "--json",
+        ],
+    );
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert!(cwd.path().join("generated/src/main.mjs").is_file());
+    assert_eq!(
+        fs::read_to_string(cwd.path().join("generated/keep.txt")).unwrap(),
+        "preserve"
+    );
+    assert!(!project.path().join(".ubi-build").exists());
+    assert!(!project.path().join("generated").exists());
+}
+
+#[test]
+fn project_rejects_invalid_configs_before_compilation_or_artifact_creation() {
+    let valid = project_config("main.ubi", "[\"web\"]");
+    let cases = [
+        ("malformed", "{".to_owned()),
+        ("non-object", "[]".to_owned()),
+        ("missing fields", "{\"schemaVersion\":1}".to_owned()),
+        (
+            "unknown field",
+            valid.replace("\"name\":", "\"extra\":0,\"name\":"),
+        ),
+        (
+            "duplicate field",
+            valid.replace(
+                "\"schemaVersion\":1",
+                "\"schemaVersion\":1,\"schemaVersion\":1",
+            ),
+        ),
+        (
+            "unsupported schema",
+            valid.replace("\"schemaVersion\":1", "\"schemaVersion\":2"),
+        ),
+        (
+            "wrong schema type",
+            valid.replace("\"schemaVersion\":1", "\"schemaVersion\":\"1\""),
+        ),
+        ("blank name", valid.replace("contract-test", "  ")),
+        ("control name", valid.replace("contract-test", "bad\\nname")),
+        ("empty targets", project_config("main.ubi", "[]")),
+        (
+            "duplicate targets",
+            project_config("main.ubi", "[\"web\",\"web\"]"),
+        ),
+        ("unknown target", project_config("main.ubi", "[\"server\"]")),
+        (
+            "case-sensitive target",
+            project_config("main.ubi", "[\"Web\"]"),
+        ),
+        ("wrong targets type", project_config("main.ubi", "\"web\"")),
+        ("trailing content", format!("{valid} false")),
+    ];
+    for (case, config) in cases {
+        for command in ["check", "build"] {
+            let project = TempDir::new();
+            project.write("ubi.json", &config);
+            project.write("main.ubi", "export fn answer() -> int { missing }");
+            let output = ubi_in(project.path(), &[command, "--json"]);
+            assert_project_operational_error(&project, output, case);
+        }
+    }
+}
+
+#[test]
+fn project_rejects_noncanonical_entry_paths() {
+    for entry in [
+        "",
+        "/main.ubi",
+        "C:/main.ubi",
+        "../main.ubi",
+        "./main.ubi",
+        "src//main.ubi",
+        "src/../main.ubi",
+        "src\\\\main.ubi",
+        "main.js",
+        "bad\\n.ubi",
+        "bad:name.ubi",
+    ] {
+        let project = TempDir::new();
+        project.write("ubi.json", &project_config(entry, "[\"web\"]"));
+        project.write("main.ubi", "export fn answer() -> int { 42 }");
+        let output = ubi_in(project.path(), &["build", "--json"]);
+        assert_project_operational_error(&project, output, entry);
+    }
+}
+
+#[test]
+fn project_config_requires_regular_utf8_file_with_64_kib_limit() {
+    for case in [
+        "missing",
+        "directory",
+        "invalid utf8",
+        "over limit",
+        "missing entry",
+    ] {
+        let project = TempDir::new();
+        match case {
+            "directory" => fs::create_dir(project.path().join("ubi.json")).unwrap(),
+            "invalid utf8" => project.write_bytes("ubi.json", &[0xff]),
+            "over limit" => {
+                let mut config = project_config("main.ubi", "[\"cli\"]").into_bytes();
+                config.resize(65_537, b' ');
+                project.write_bytes("ubi.json", &config);
+            }
+            "missing entry" => {
+                project.write("ubi.json", &project_config("missing.ubi", "[\"cli\"]"))
+            }
+            _ => {}
+        }
+        project.write("main.ubi", "export fn answer() -> int { 42 }");
+        let output = ubi_in(project.path(), &["build", "--json"]);
+        assert_project_operational_error(&project, output, case);
+    }
+    let project = TempDir::new();
+    let mut config = project_config("main.ubi", "[\"cli\"]").into_bytes();
+    config.resize(65_536, b' ');
+    project.write_bytes("ubi.json", &config);
+    project.write("main.ubi", "export fn answer() -> int { 42 }");
+    let output = ubi_in(project.path(), &["check", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "64 KiB boundary: {output:?}");
+}
+
+#[test]
+fn project_target_selection_errors_are_operational() {
+    for (targets, selection) in [
+        ("[\"web\",\"cli\"]", None),
+        ("[\"web\"]", Some("cli")),
+        ("[\"web\"]", Some("server")),
+        ("[\"web\"]", Some("Web")),
+    ] {
+        for command in ["check", "build"] {
+            let project = TempDir::new();
+            project.write("ubi.json", &project_config("main.ubi", targets));
+            project.write("main.ubi", "export fn answer() -> int { missing }");
+            let mut args = vec![command, "--json"];
+            if let Some(target) = selection {
+                args.extend(["--target", target]);
+            }
+            let output = ubi_in(project.path(), &args);
+            assert_project_operational_error(&project, output, targets);
+        }
+    }
+}
+
+#[test]
+fn project_does_not_search_parent_directory_for_config() {
+    let project = TempDir::new();
+    project.write("ubi.json", &project_config("main.ubi", "[\"cli\"]"));
+    project.write("main.ubi", "export fn answer() -> int { 42 }");
+    fs::create_dir(project.path().join("child")).unwrap();
+    let output = ubi_in(&project.path().join("child"), &["build", "--json"]);
+    assert_project_operational_error(&project, output, "no parent search");
+    assert!(!project.path().join("child/.ubi-build").exists());
+}
+
+#[test]
+fn explicit_entry_ignores_config_and_rejects_target_option() {
+    for command in ["check", "build"] {
+        let project = TempDir::new();
+        project.write("ubi.json", "invalid config");
+        project.write("main.ubi", "export fn answer() -> int { 42 }");
+        let output = ubi_in(project.path(), &[command, "main.ubi", "--json"]);
+        assert_eq!(output.status.code(), Some(0), "{output:?}");
+        assert_json_parses(std::str::from_utf8(&output.stdout).unwrap());
+        assert_eq!(
+            project.path().join(".ubi-build/main.mjs").is_file(),
+            command == "build"
+        );
+        assert!(!project.path().join(".ubi-build/cli").exists());
+
+        let fresh = TempDir::new();
+        fresh.write("main.ubi", "export fn answer() -> int { 42 }");
+        let output = ubi_in(
+            fresh.path(),
+            &[command, "--target", "web", "main.ubi", "--json"],
+        );
+        assert_project_operational_error(&fresh, output, "explicit entry plus target");
+    }
+}
+
+#[test]
+fn project_source_errors_retain_diagnostic_envelope_and_exit_one() {
+    for command in ["check", "build"] {
+        let project = TempDir::new();
+        project.write("ubi.json", &project_config("src/main.ubi", "[\"mobile\"]"));
+        project.write("src/main.ubi", "export fn answer() -> int { missing }");
+        let output = ubi_in(project.path(), &[command, "--json"]);
+        assert_eq!(output.status.code(), Some(1), "{output:?}");
+        assert!(output.stderr.is_empty(), "{output:?}");
+        let json = std::str::from_utf8(&output.stdout).unwrap();
+        assert!(json.contains("\"schemaVersion\":1"), "{json}");
+        assert!(json.contains("\"offsetUnit\":\"utf8-byte\""), "{json}");
+        assert!(json.contains("\"sourceId\":\"src/main.ubi\""), "{json}");
+        assert!(json.contains("\"code\":\"UBI0010\""), "{json}");
+        assert_json_parses(json);
+        assert!(!project.path().join(".ubi-build").exists());
+    }
+}
+
+#[test]
+fn project_config_and_entry_symlinks_must_stay_inside_root() {
+    for linked_config in [true, false] {
+        let project = TempDir::new();
+        let outside = TempDir::new();
+        let config = project_config("main.ubi", "[\"cli\"]");
+        let (source, destination) = if linked_config {
+            outside.write("ubi.json", &config);
+            project.write("main.ubi", "export fn answer() -> int { 42 }");
+            (
+                outside.path().join("ubi.json"),
+                project.path().join("ubi.json"),
+            )
+        } else {
+            project.write("ubi.json", &config);
+            outside.write("main.ubi", "export fn answer() -> int { 42 }");
+            (
+                outside.path().join("main.ubi"),
+                project.path().join("main.ubi"),
+            )
+        };
+        if let Err(error) = symlink_file(source, destination) {
+            eprintln!("SKIP project symlink containment (config={linked_config}): {error}");
+            continue;
+        }
+        let output = ubi_in(project.path(), &["build", "--json"]);
+        assert_project_operational_error(&project, output, "symlink escapes root");
+        assert!(!outside.path().join(".ubi-build").exists());
+    }
+
+    let project = TempDir::new();
+    project.write("config.json", &project_config("main.ubi", "[\"cli\"]"));
+    project.write("actual.ubi", "export fn answer() -> int { 42 }");
+    for (source, destination) in [("config.json", "ubi.json"), ("actual.ubi", "main.ubi")] {
+        if let Err(error) = symlink_file(
+            project.path().join(source),
+            project.path().join(destination),
+        ) {
+            eprintln!("SKIP in-root project symlink acceptance: {error}");
+            return;
+        }
+    }
+    let output = ubi_in(project.path(), &["build", "--json"]);
+    assert_eq!(output.status.code(), Some(0), "{output:?}");
+    assert!(project.path().join(".ubi-build/cli/main.mjs").is_file());
+}

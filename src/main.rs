@@ -1,4 +1,5 @@
 mod cli;
+mod project;
 
 use std::io;
 use std::process::ExitCode;
