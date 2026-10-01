@@ -62,6 +62,31 @@ like `build`; omit the entry to use `ubi.json`. Strings print as text, other
 values print as JSON, and unit prints nothing. Record inputs use serialized JSON
 strings inside the argument array. Compiler/runtime failures exit nonzero.
 
+## Develop a web app
+
+Start the clickable task demo:
+
+```powershell
+cargo run -- dev --root examples/project
+```
+
+Open `http://127.0.0.1:3000/` in your browser. Add a task and complete it;
+both operations call compiled Ubi functions. Edits to `.ubi`, HTML, CSS, and
+JavaScript rebuild and reload the page. Compilation errors appear in the page;
+fixing them restores the app. Press Ctrl+C to stop. Use `--port 3001` if needed.
+Node.js is not required for `dev`.
+
+For your own project, put the interface in `web/index.html`, with CSS/JavaScript
+alongside it. Import generated Ubi modules using
+`/__ubi/modules/<source-path>.mjs`. For example, `src/main.ubi` becomes
+`/__ubi/modules/src/main.mjs`. Run `ubi dev` after installing the updated CLI,
+or `cargo run -- dev main.ubi` for an explicit entry.
+
+The server listens only on localhost and serves public web assets and current
+generated modules. The demo's list lives in browser memory and resets on reload;
+Ubi creates/updates each record, while collection support remains future work.
+Config changes require restarting the server.
+
 ## Project config
 
 Put `ubi.json` in an application's root to declare where its shared logic runs:

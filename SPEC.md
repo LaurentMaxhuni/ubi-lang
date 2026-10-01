@@ -204,6 +204,7 @@ The package provides these commands (options may appear in either order after th
 ubi check [entry.ubi] [--root <project-dir>] [--target <target>] [--json]
 ubi build [entry.ubi] [--root <project-dir>] [--target <target>] [--out-dir <directory>] [--json]
 ubi run [entry.ubi] [--root <project-dir>] [--target <target>] [--function <name>] [--args <JSON-array>]
+ubi dev [entry.ubi] [--root <project-dir>] [--target web] [--port <0-65535>]
 ```
 
 `--root` defaults to the current working directory. The entry is a canonical root-relative source ID ending in `.ubi`, using `/` separators; absolute paths, empty segments, `.`/`..` segments, backslashes, and Unicode control characters are rejected. The CLI canonicalizes the root and each file it reads. Every resolved file must remain within the canonical root, including after symlink resolution. It loads only the transitive named-import graph reachable from the entry; unrelated files under the root are not inputs. Missing, nonportable, or out-of-root imported files are reported as `UBI0012` at the importing path. Other root/entry/read failures are operational errors.
@@ -226,6 +227,29 @@ tags. Runtime faults print their stable code/message on stderr and exit 1.
 Malformed arguments, missing/non-function exports, host argument validation
 failures, missing Node, and other operational errors exit 2 with stderr diagnostics.
 Compiler errors retain exit 1 and existing human diagnostic formatting.
+
+`dev` serves a web project on IPv4 loopback, port 3000 by default; port 0 selects
+an available port. Config mode selects the declared web target automatically.
+Other target kinds and run/build-only options are rejected. The project needs
+`web/index.html`. Initial compile errors exit 1; setup/I/O errors exit 2.
+The server prints its URL and runs until interrupted. It requires no Node.js.
+
+Only public web assets under `<root>/web` and the current compiler's generated
+modules are served. Import generated modules from `/__ubi/modules/<source-path>.mjs`.
+The server supports GET/HEAD, correct MIME types, no-cache responses, 8 KiB
+request headers, 200ms socket read/write timeouts, a 500ms total header-read limit,
+and an 8 MiB public-asset limit. It refuses traversal, hidden paths, out-of-web-root
+symlinks, and non-loopback Host headers. It never serves source/config files or
+arbitrary build-directory files. A developer script injected into index.html polls
+`/__ubi/status` for revision/error state; errors appear as text in an overlay.
+
+Every 500ms, the server checks regular .ubi files and public web assets for metadata
+changes, including creations/deletions, and rebuilds the reachable graph when
+changes occur. Watch traversal skips symlinks and hidden directories, target, and
+node_modules, with a 4096-entry limit. Config changes require restarting dev.
+Successful rebuilds reload the page; failed rebuilds keep the server alive, report
+diagnostics, and block generated-module requests with 503 until recovery. Web asset
+edits also reload the page. This initial reload resets in-memory browser state.
 
 Exit status `0` means success, `1` means the reachable graph has compiler errors, and `2` means invalid command/input, root or entry access failure, other source I/O failure, or artifact write failure. The CLI enforces source-byte, project-byte, and module-count budgets before reading additional input; exceeding those filesystem input budgets is an operational error that mentions `UBI0090`, writes to stderr (even with `--json`), and exits `2`. Parser/token/nesting resource diagnostics use the schema-v1 envelope and exit `1`. With `--json`, successful checks/builds and compiler diagnostics use the schema-v1 envelope from section 9 on stdout, with no human text mixed in; a compiler-error result exits `1`. Usage and operational errors are human-readable on stderr (also when `--json` is present) and exit `2`. Without `--json`, diagnostics are written to stderr as `<sourceId>:<start>-<end>: <severity>[<code>]: <message>`.
 
@@ -271,7 +295,8 @@ names, invalid source IDs, and empty/duplicate/unknown targets. Targets are exac
 section 10's canonical root-relative `.ubi` rules and source containment checks.
 The config must be a regular file whose canonical path stays inside the root.
 
-When no explicit entry is supplied, `check`, `build`, and `run` load `<root>/ubi.json`.
+When no explicit entry is supplied, `check`, `build`, `run`, and `dev` load `<root>/ubi.json`.
+`dev` selects web by default; other commands follow the selection rules below.
 `--target` selects a declared target; a project with one target selects it
 automatically. Multiple targets require `--target`; unrecognized or undeclared
 selections are operational errors. Explicit entry mode remains compatible and

@@ -1,0 +1,28 @@
+:root { color-scheme: light; --paper:#f5f1e8; --ink:#25312b; --green:#38664c; --clay:#b54729; --line:#d4ddd1; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--paper); color:var(--ink); font:16px/1.6 "Segoe UI", sans-serif; }
+main { width:min(760px, 100%); margin:auto; padding:40px 28px; }
+header { display:flex; align-items:center; justify-content:space-between; gap:24px; border-bottom:1px solid var(--line); padding-bottom:24px; }
+.wordmark { color:var(--ink); font:bold 44px/1 Georgia, serif; text-decoration:none; }
+.wordmark span { color:var(--clay); }
+header p { font-size:14px; margin:0; }
+section { padding:56px 0 40px; }
+h1 { font:normal clamp(36px, 6vw, 52px)/1.15 Georgia, serif; letter-spacing:-1.5px; margin:0 0 36px; }
+label { display:block; font-weight:600; margin-bottom:8px; }
+.input-row { display:flex; gap:12px; }
+input { flex:1; min-width:0; background:#fffdf8; color:var(--ink); border:1px solid #8b998b; border-radius:4px; padding:14px; font:inherit; }
+button { cursor:pointer; background:var(--green); color:#fff; border:1px solid var(--green); border-radius:4px; padding:12px 20px; font:600 15px/1.6 "Segoe UI", sans-serif; }
+button:hover { background:#28523b; }
+button:disabled { cursor:default; background:transparent; color:var(--green); border-color:var(--line); }
+:focus-visible { outline:3px solid var(--clay); outline-offset:3px; }
+#status { font-size:14px; margin:20px 0; }
+#tasks { list-style:none; padding:0; margin:0; }
+#tasks li { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:20px 0; border-bottom:1px solid var(--line); }
+.task-title { overflow-wrap:anywhere; min-width:0; }
+.completed .task-title { text-decoration:line-through; color:#536157; }
+#tasks button { flex-shrink:0; padding:8px 14px; }
+#empty { border-top:1px solid var(--line); padding-top:24px; color:#536157; }
+#error { background:#fbe4db; padding:12px; color:#8c301b; }
+footer { display:flex; justify-content:space-between; gap:20px; font-size:12px; color:#536157; border-top:1px solid var(--line); padding-top:20px; }
+[hidden] { display:none !important; }
+@media(max-width:520px) { main { padding:24px 20px; } header { align-items:flex-start; } header p { max-width:160px; text-align:right; } section { padding-top:40px; } .input-row { flex-direction:column; } footer { flex-direction:column; gap:4px; } }

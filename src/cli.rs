@@ -14,6 +14,7 @@ enum Command {
     Check,
     Build,
     Run,
+    Dev,
 }
 
 #[derive(Debug)]
@@ -26,6 +27,7 @@ struct Arguments {
     json: bool,
     function: Option<String>,
     call_args: Option<String>,
+    port: u16,
 }
 
 pub(crate) fn run(
@@ -66,7 +68,11 @@ fn run_inner(
     let (entry, target) = match &arguments.entry {
         Some(entry) => (entry.clone(), None),
         None => {
-            let (entry, target) = crate::project::select(&root, arguments.target.as_deref())?;
+            let selected = arguments
+                .target
+                .as_deref()
+                .or((arguments.command == Command::Dev).then_some("web"));
+            let (entry, target) = crate::project::select(&root, selected)?;
             (entry, Some(target))
         }
     };
@@ -77,12 +83,10 @@ fn run_inner(
         ));
     }
 
-    let mut compiler = Compiler::new();
-    let mut source_budget = SourceBudget::default();
-    let entry_bytes = load_source(&root, &entry, true, &mut source_budget)?
-        .ok_or_else(|| format!("entry source not found within project root: {}", entry))?;
-    add_source(&mut compiler, &entry, entry_bytes)?;
-    load_import_graph(&root, &mut compiler, &mut source_budget)?;
+    if arguments.command == Command::Dev {
+        return crate::dev::serve(&root, &entry, arguments.port, stdout, stderr);
+    }
+    let compiler = load_compiler(&root, &entry)?;
 
     match arguments.command {
         Command::Check => {
@@ -90,6 +94,7 @@ fn run_inner(
             let status = report_check(&compiler, &check, arguments.json, stdout, stderr)?;
             Ok(status)
         }
+        Command::Dev => unreachable!(),
         Command::Build | Command::Run => {
             let build = compiler.build();
             if has_errors(&build.diagnostics) {
@@ -155,7 +160,8 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
         Some("check") => Command::Check,
         Some("build") => Command::Build,
         Some("run") => Command::Run,
-        _ => return Err("expected `check`, `build`, or `run`".to_owned()),
+        Some("dev") => Command::Dev,
+        _ => return Err("expected `check`, `build`, `run`, or `dev`".to_owned()),
     };
 
     let mut entry = None;
@@ -165,8 +171,20 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     let mut json = false;
     let mut function = None;
     let mut call_args = None;
+    let mut port = None;
     while let Some(argument) = args.next() {
         match argument.as_str() {
+            "--port" if command == Command::Dev => {
+                if port.is_some() {
+                    return Err("`--port` may be specified only once".to_owned());
+                }
+                port = Some(
+                    args.next()
+                        .ok_or("`--port` needs a number")?
+                        .parse::<u16>()
+                        .map_err(|_| "`--port` must be between 0 and 65535")?,
+                );
+            }
             "--function" | "--args" if command == Command::Run => {
                 let slot = if argument == "--function" {
                     &mut function
@@ -235,8 +253,11 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     if entry.is_some() && target.is_some() {
         return Err("`--target` requires project config mode; omit the entry source ID".to_owned());
     }
-    if command == Command::Run && json {
-        return Err("`--json` is not supported by `run`".to_owned());
+    if matches!(command, Command::Run | Command::Dev) && json {
+        return Err("`--json` is supported only by `check` and `build`".to_owned());
+    }
+    if command == Command::Dev && target.as_deref().is_some_and(|value| value != "web") {
+        return Err("`dev` supports only the web target".to_owned());
     }
     Ok(Arguments {
         command,
@@ -247,7 +268,18 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
         json,
         function,
         call_args,
+        port: port.unwrap_or(3000),
     })
+}
+
+pub(crate) fn load_compiler(root: &Path, entry: &str) -> Result<Compiler, String> {
+    let mut compiler = Compiler::new();
+    let mut budget = SourceBudget::default();
+    let bytes = load_source(root, entry, true, &mut budget)?
+        .ok_or_else(|| format!("entry source not found within project root: {entry}"))?;
+    add_source(&mut compiler, entry, bytes)?;
+    load_import_graph(root, &mut compiler, &mut budget)?;
+    Ok(compiler)
 }
 
 const NODE_RUNNER: &str = r#"
