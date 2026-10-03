@@ -142,3 +142,18 @@ User-directed `ubi dev` and clickable example, 2026-10-01.
 - Six independently authored integration groups cover startup without Node, port selection, imports, GET/HEAD/MIME/cache behavior, edits/creations/deletions, failed builds and recovery, invalid options, private paths, traversal, Host validation, methods, and published request/asset budgets. The external reload-script fixture was reviewed against the contract before accepting it alongside inline injection. Windows denied symlink creation (1314), so those containment scenarios remain unverified on this host.
 - Browser testing created/completed tasks with Ubi functions, submitted by keyboard, displayed UBI0010 after a deliberate source error, and automatically recovered after restoring source. Desktop and 380px layouts were inspected; the narrow layout has no horizontal overflow. The demo stores its collection in browser JavaScript because Ubi lists remain future work; tasks reset on reload.
 - `cargo test --all-targets`: 103 tests pass; Clippy with warnings denied, formatting, and whitespace checks pass. No new dependencies or Ubi language semantics were introduced.
+
+## Programming foundations direction, 2026-10-03
+
+User authorized the first four foundation groups: lists/Option/match, loops/ranges,
+closures/collection helpers, strings/math/conversions. The task list is only a
+historical example and is not the current implementation target. Maps, Result,
+filesystem, classes, tuples, and host features remain later work.
+
+D021: keep immutable lists and explicit local rebinding; lazy end-exclusive int
+ranges avoid allocations; loops and callbacks share deterministic runtime limits.
+Built-in List/Option inference is sufficient without generic user declarations.
+Snapshots make closure capture stable. Use records for named data; defer richer
+abstractions. ASCII trim and strict decimal parsing avoid host-specific coercion;
+float string formatting and Unicode casing are deferred until portable contracts
+are needed. Specify pure utilities in SPEC section 15 before implementation.

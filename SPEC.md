@@ -1,6 +1,6 @@
 # Ubi language specification
 
-Version: 0.3 draft. Current work: Milestone 2 shared logic, delivered in slices under user direction. Milestone 1 evidence remains recorded in DECISIONS.md.
+Version: 0.4 draft. Current work: programming foundations (lists, Option/match, loops, closures, and pure utilities), delivered under user direction. Milestone 1 evidence remains recorded in DECISIONS.md.
 
 ## 1. Scope and conformance
 
@@ -335,3 +335,113 @@ Record nesting is limited to 32 record levels at runtime. Constructing/updating 
 value beyond this limit faults with `UBI-R0005`; inbound arguments exceeding it
 are rejected as host validation failures before execution. This bounds recursive
 copy/equality/decoding work in both backends without permitting shared mutation.
+
+## 15. Programming foundations (2026-10-03)
+
+This user-directed slice supersedes the earlier unsupported-feature notes for
+lists, built-in Option, matching, loops, and closures only. User-defined enums,
+generic declarations, Result/propagation, maps, tuples, classes, host I/O, and
+async remain deferred. Existing task examples are not acceptance criteria.
+
+### Types, lists, and Option
+
+`List<T>` and `Option<T>` accept exactly one type argument, including nested
+applications and records. No implicit coercion. List literals evaluate elements
+left to right and require identical element types; empty literals need an
+expected type from an annotation, function result, or call parameter.
+`Option.Some(value)` constructs a present value; `Option.None` needs an expected
+Option type. Indexing lists and Unicode scalar strings returns Option; negative
+or out-of-bounds indices return None. Values and returned aggregates stay
+immutable; append/set copy rather than mutate. Recursive host validation uses
+serialized JSON for aggregate arguments, as for records; lists encode as arrays,
+Options as `{ "tag": "Some", "value": ... }` or `{ "tag": "None" }`. Reject
+extra/missing fields, invalid tags, wrong element types, and nesting over 32
+aggregate levels. Returned aggregate containers are recursively frozen. Record
+limits extend to every aggregate. Equality is structural, with existing NaN
+semantics; function values and aggregates containing functions are not equatable.
+
+`match (subject) { pattern => value, ... }` supports bindings, `_`, int/string/bool
+literals, and nested `Option.Some(pattern)`/`Option.None` patterns, with optional
+`if (bool)` guards. Subject evaluates once; first matching unguarded or true-guard
+arm executes. Bindings are immutable and scoped to that arm. All completing arms
+have identical types. Coverage is exhaustive; guarded arms do not establish
+coverage. Some coverage requires exhaustive payload coverage. Other types need a
+catch-all. Duplicate pattern bindings are rejected. `UBI0020` reports type,
+callback, loop-placement, and coverage errors; unresolved names use `UBI0010`.
+
+### Iteration
+
+Statements: `for (name in expression) { ... }`, `while (condition) { ... }`,
+`break;`, `continue;`. A trailing semicolon after a loop is optional. Loop bodies
+must complete with unit (or transfer control); `while` conditions require bool.
+`for` accepts List, string (one scalar string per iteration), and `range(start,
+end)`; range uses int endpoints, ascending end-exclusive iteration, and is empty
+when start >= end. Range is an opaque iteration value, not a list or exportable
+value. It allocates no element buffer. Iterable evaluates once; list/string
+iterations use that immutable snapshot. Loop variable is immutable and scoped to
+the iteration. Break/continue target the innermost loop and cannot cross a
+function/closure boundary. Return inside a loop returns from its function.
+Each condition/iteration consumes a runtime step even for empty bodies, within
+the existing million-step limit. Each loop body has a fresh lexical scope.
+`if (condition) { ... }` without else is permitted as a statement/unit expression;
+its completing branch must be unit. Existing value-producing if still needs else.
+
+### Closures and collection helpers
+
+`(x: int) => expression` and `(x: int) => { ... }` create pure functions with
+explicit parameter types and inferred return types. Local inferred function
+bindings can be called; named functions can be used as callbacks. Captures are
+snapshots at construction, including mutable locals; captured names cannot be
+reassigned. Closure-local mutable bindings can be reassigned. Return exits only
+the closure. Function values cannot occur in exported signatures, records,
+lists, or Options. User-written function type annotations remain deferred.
+Callbacks participate in shared runtime step and 32-call-frame limits.
+
+Prelude signatures (T/U denote built-in inference, not user generic syntax):
+
+- `length(string | List<T>) -> int`
+- `append(List<T>, T) -> List<T>`
+- `set(List<T>, int, T) -> Option<List<T>>`
+- `map(List<T>, (T) -> U) -> List<U>`
+- `filter(List<T>, (T) -> bool) -> List<T>`
+- `find(List<T>, (T) -> bool) -> Option<T>`
+- `fold(List<T>, U, (U, T) -> U) -> U`
+
+Callbacks execute left to right, once per visited element; find stops at the
+first true result. Empty fold returns its initial value. First fault stops all
+further work. Callback and argument evaluation precede traversal.
+
+### Strings, math, and conversions
+
+Pure prelude functions, reserved against user declaration/import:
+
+- `contains`, `startsWith`, `endsWith`: `(string, string) -> bool`.
+- `trim(string) -> string`: trim ASCII space/tab/CR/LF only.
+- `split(string, string) -> List<string>`: literal non-overlapping separator;
+  preserve empty fields; empty separator splits scalars (empty text yields []).
+- `join(List<string>, string) -> string`.
+- `replace(string, string, string) -> string`: replace all non-overlapping matches;
+  empty search inserts replacement at scalar boundaries, including both ends.
+- `slice(string, int, int) -> string`: scalar indices, clamp to [0,length];
+  end-exclusive; return empty when end <= start.
+- `abs`, `min`, `max`, `clamp` accept homogeneous int or float operands and return
+  that type. clamp requires low <= high, otherwise fatal UBI-R0003. Integer abs
+  of minimum int faults UBI-R0001. Float min/max propagate NaN and preserve
+  IEEE signed-zero choices; clamp propagates NaN.
+- `floor`, `ceil`, `round`, `sqrt`, `sin`, `cos`, `tan`, `log`, `exp`:
+  `(float) -> float`; `pow(float, float) -> float`. Round ties away from zero;
+  preserve signed zero. Domain errors yield IEEE NaN/infinity. Transcendental
+  results may differ in their last bits across hosts; tests use numeric tolerance.
+- `toFloat(int) -> float`; `toInt(float) -> Option<int>` truncates toward zero,
+  returning None for non-finite/out-of-range truncated values.
+- `parseInt(string) -> Option<int>`: full ASCII decimal text with optional +/-;
+  no whitespace, separators, radix prefixes, or partial parsing; checked i32.
+- `parseFloat(string) -> Option<float>`: full decimal text, optional sign,
+  optional decimal point with digits on both sides, optional e/E exponent with
+  optional sign and digits. Integer-shaped text is valid; non-finite result is
+  None. No whitespace, Infinity/NaN strings, or partial parsing.
+- `toString(int | bool | string) -> string`: decimal int, lowercase bool, or
+  unchanged string. Float formatting is deferred rather than host-dependent.
+
+Prelude overloads resolve from established argument types; no truthiness,
+implicit conversion, ambient host access, or dynamic dispatch is introduced.
