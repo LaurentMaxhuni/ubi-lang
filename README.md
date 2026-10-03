@@ -3,8 +3,10 @@
 Ubi source files use `.ubi`. The Rust compiler checks source and emits JavaScript
 ES modules; supported language behavior is documented in [SPEC.md](SPEC.md).
 
-Current shared-logic support includes local rebinding with `let mut` and nominal
-records. Record fields stay immutable; updates create new values:
+Current support includes typed variables/functions, records, immutable lists,
+`Option` and exhaustive matching, loops/ranges, snapshot closures, collection
+helpers, and pure string/math/conversion utilities. Record fields and collection
+elements stay immutable; updates create new values:
 
 ```ubi
 record Task { title: string, completed: bool }
@@ -23,14 +25,59 @@ const done = completeTask(JSON.stringify(task));
 // task.completed remains false; done.completed is true.
 ```
 
-Primitive arguments still pass directly. See [record host encoding](SPEC.md#14-record-host-representation-and-runtime-limits)
-for unit/special-float serialization. Lists, enums, generics, closures, async, and
-host capabilities remain future slices.
+Primitive arguments pass directly. Record, list, and Option arguments use
+serialized JSON; returned aggregates are frozen. See [host encoding](SPEC.md#15-programming-foundations-2026-10-03)
+for validation and representation. User-defined enums/generics, Result, maps,
+classes, tuples, async, and host capabilities remain future slices.
 
 ```powershell
 cargo run -- check main.ubi --root path/to/project
 cargo run -- build main.ubi --root path/to/project
 ```
+
+## Programming foundations
+
+Run the [foundation example](examples/foundations/README.md):
+
+```powershell
+cargo run -- run main.ubi --root examples/foundations
+```
+
+```ubi
+export fn main() -> int {
+    let values = [1, 2, 3, 4];
+    let doubled = map(values, (value: int) => value * 2);
+    let selected = filter(doubled, (value: int) => value > 4);
+    let mut total = 0;
+    for (value in selected) {
+        total = total + value;
+    }
+    total
+}
+```
+
+The result is `14`. Indexing returns `Option<T>`; handle both outcomes:
+
+```ubi
+fn firstOrZero(values: List<int>) -> int {
+    match (values[0]) {
+        Option.Some(value) => value,
+        Option.None => 0,
+    }
+}
+```
+
+Use `let values: List<int> = [];` for an empty list. `append` and `set` create new
+lists; `map`, `filter`, `find`, and `fold` process them with typed callbacks.
+`for` accepts lists, Unicode scalar strings, and lazy `range(start, end)` values.
+`while`, `break`, and `continue` support ordinary iterative programs.
+
+String helpers include `length`, `contains`, `startsWith`, `endsWith`, `trim`,
+`split`, `join`, `replace`, and scalar-indexed `slice`. Math includes `abs`,
+`min`, `max`, `clamp`, rounding, square roots, powers, trig, `log`, and `exp`.
+Conversions are explicit: `toFloat`, `toInt`, `parseInt`, `parseFloat`, `toString`.
+Parsing and float-to-int conversion return Option; `toString` accepts int, bool,
+or string. See [the contracts](SPEC.md#15-programming-foundations-2026-10-03).
 
 ## Run a program
 

@@ -1,0 +1,49 @@
+// Lists are immutable; collection helpers return new values.
+fn scaledTotal(values: List<int>, scale: int) -> int {
+    let positive = filter(values, (value: int) => value > 0);
+    let scaled = map(positive, (value: int) => value * scale);
+    fold(scaled, 0, (total: int, value: int) => total + value)
+}
+
+// Indexing and parsing return Option: handle both outcomes with match.
+fn numberOr(text: string, fallback: int) -> int {
+    match (parseInt(text)) {
+        Option.Some(value) => value,
+        Option.None => fallback,
+    }
+}
+
+export fn main() -> string {
+    let mut scale = 2;
+    let savedScale = (value: int) => value * scale;
+    scale = 10; // savedScale captured 2 when constructed.
+
+    let values = [3, -2, 5];
+    let extended = append(values, 7);
+    let first = match (extended[0]) {
+        Option.Some(value) => value,
+        Option.None => 0,
+    };
+
+    let mut rangeTotal = 0;
+    for (value in range(1, 5)) {
+        rangeTotal = rangeTotal + value;
+    }
+    let mut countdown = 3;
+    while (countdown > 0) {
+        countdown = countdown - 1;
+    }
+
+    let letters = join(split("a😀b", ""), "|");
+    let label = trim("  foundations\n");
+    label + ": total=" + toString(scaledTotal(extended, 2))
+        + ", range=" + toString(rangeTotal)
+        + ", captured=" + toString(savedScale(first))
+        + ", parsed=" + toString(numberOr("42", 0))
+        + ", clamped=" + toString(clamp(15, 0, 9))
+        + ", letters=" + letters
+}
+
+export fn mathSample() -> float {
+    sqrt(9.0) + pow(2.0, 3.0) + round(-2.5) + toFloat(abs(-4))
+}

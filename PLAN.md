@@ -1,10 +1,10 @@
 # Ubi implementation plan
 
 User direction, 2026-10-01: set aside milestone gates for the current task.
-Current work: first M2 slice complete: local reassignment and non-generic
-records. Project config, Windows registration, Node-backed `ubi run`, and web
-development with `ubi dev` are complete. User-directed work continues without
-reopening the historical milestone gates.
+Current work: programming foundations: lists/Option/match, loops/ranges,
+closures/collection helpers, and strings/math/conversions. Local reassignment,
+records, project config, Node-backed `ubi run`, and web development with `ubi dev`
+are complete. User-directed work continues without reopening historical gates.
 Milestone evidence below remains historical; unrun checks are not marked passed.
 
 Status: Milestone 0 gate approved for reviewed revision `0dd23e85f93fffcd2657f3c24d944c1197fd24e3`. Milestone 1 implementation is ready for human gate review; the pre-M2 mini benchmark now has separate solution and public evaluation agents. Evaluator-owned hidden conformance remains unavailable.
@@ -15,7 +15,9 @@ Ubi (`.ubi`, short for ubiquitous) combines familiar JavaScript-style syntax wit
 
 Support websites, CLI tools, desktop applications, and mobile applications from one project. Share application logic and explicit platform interfaces. Develop shared UI and platform integrations as a separate layer on that foundation.
 
-The first reference application is a task list: create tasks, validate titles, complete tasks, filter tasks, and persist them. Its domain logic lives in the same Ubi modules on every platform. Initial interfaces and packaging use thin JavaScript hosts.
+The task list is a historical example, not the current implementation target.
+User direction, 2026-10-03: build the everyday language foundation using focused
+programming examples; maps and other host/application features follow later.
 
 A working task list proves portability; production readiness additionally requires lifecycle handling, accessibility, packaging, diagnostics, testing, and reliable platform integrations.
 
@@ -235,4 +237,6 @@ The compiler running in WASM and Ubi programs compiling to WASM are separate del
 - Keep the current JavaScript backend passing conformance checks before introducing another backend.
 - Avoid fixed delivery dates until the first two milestones establish implementation pace.
 - Track progress against completion gates; mark platform work blocked when required SDKs or devices are unavailable.
-- Next task: add lists and the minimum collection operations needed to store and filter tasks, extending the checker, typed IR, interpreter, JavaScript backend, and independent conformance together. Follow the user's direction to continue without reopening historical gates.
+- Current task: implement the first four programming foundation groups from SPEC
+  section 15 across parser, checker, typed IR, interpreter, JavaScript backend,
+  and separately authored conformance. Defer maps, Result, and host access.

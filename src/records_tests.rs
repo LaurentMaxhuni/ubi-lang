@@ -311,12 +311,7 @@ fn record_syntax_and_duplicate_field_offsets_follow_the_slice_contract() {
             a.diagnostics
         );
     }
-    for source in [
-        "record Generic<T> { x: T }",
-        "enum E { A }",
-        "fn f() { [1, 2] }",
-        "fn f() { (x: int) => x }",
-    ] {
+    for source in ["record Generic<T> { x: T }", "enum E { A }"] {
         assert!(
             analysis(&[("main.ubi", source)])
                 .diagnostics

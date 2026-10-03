@@ -179,3 +179,7 @@ mod benchmark_grade;
 #[cfg(test)]
 #[path = "records_tests.rs"]
 mod records_tests;
+
+#[cfg(test)]
+#[path = "foundations_tests.rs"]
+mod foundations_tests;

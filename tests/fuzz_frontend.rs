@@ -16,6 +16,9 @@ fn deterministic_mutations_never_crash_the_parser_or_checker() {
         "export fn f(x: int) -> int { let mut y = x; y = { let mut y = y + 1; y = y + 2; y }; if (y > 2) { return y; } else { y = 0; }; y }",
         "record Inner { value: float } record Outer { inner: Inner } export fn f() -> bool { let p = Outer { inner: Inner { value: 0.0 / 0.0 } }; let alias = p; p == alias }",
         "export record P { __proto__: int, done: unit } export fn f(p: P) -> P { let mut result: P = p; result = P { ...result, __proto__: result.__proto__ + 1 }; result }",
+        "export fn f(xs: List<Option<int>>) -> int { let mut total = 0; for (item in xs) { total = total + match (item) { Option.Some(n) if (n > 0) => n, Option.Some(n) => 0, Option.None => 0 }; } total }",
+        "export fn f() -> int { let mut n = 1; let cb = (x: int) => { let mut y = x + n; while (y < 4) { y = y + 1; } y }; n = 9; fold(map([1, 2], cb), 0, (a: int, b: int) => a + b) }",
+        "export fn f() -> string { join(filter(split(\"a😀b\", \"\"), (s: string) => contains(\"a😀\", s)), \"|\") }",
     ];
     for seed in &seeds[4..] {
         let mut compiler = Compiler::new();

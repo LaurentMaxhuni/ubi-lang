@@ -58,6 +58,7 @@ pub(crate) struct Parameter {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Type {
     pub(crate) name: String,
+    pub(crate) arguments: Vec<Type>,
     pub(crate) span: Span,
 }
 
@@ -94,6 +95,17 @@ pub(crate) enum StatementKind {
         value: Expr,
     },
     Return(Option<Expr>),
+    While {
+        condition: Expr,
+        body: Block,
+    },
+    For {
+        name: Identifier,
+        iterable: Expr,
+        body: Block,
+    },
+    Break,
+    Continue,
     Expression(Expr),
 }
 
@@ -117,6 +129,15 @@ pub(crate) enum ExprKind {
     String(String),
     Bool(bool),
     Unit,
+    List(Vec<Expr>),
+    Arrow {
+        parameters: Vec<Parameter>,
+        body: Box<Expr>,
+    },
+    Match {
+        subject: Box<Expr>,
+        arms: Vec<MatchArm>,
+    },
     Name(Identifier),
     Record {
         name: Identifier,
@@ -151,6 +172,31 @@ pub(crate) enum ExprKind {
         then_branch: Block,
         else_branch: Box<Expr>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct MatchArm {
+    pub(crate) pattern: Pattern,
+    pub(crate) guard: Option<Expr>,
+    pub(crate) body: Expr,
+    pub(crate) span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Pattern {
+    pub(crate) kind: PatternKind,
+    pub(crate) span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum PatternKind {
+    Wildcard,
+    Binding(Identifier),
+    Integer(String),
+    String(String),
+    Bool(bool),
+    Some(Box<Pattern>),
+    None,
 }
 
 pub(crate) fn parse(source_id: &str, source: &str) -> Result<Module, ParseError> {
@@ -353,6 +399,16 @@ impl Parser {
     }
 
     fn parse_type(&mut self) -> Result<Type, ParseError> {
+        if self.depth >= MAX_NESTING {
+            return Err(resource_error(self.current().span.clone()));
+        }
+        self.depth += 1;
+        let result = self.parse_type_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn parse_type_inner(&mut self) -> Result<Type, ParseError> {
         if self.at_eof() {
             return Err(self.error("Expected a type name"));
         }
@@ -369,12 +425,21 @@ impl Parser {
             }
             _ => return Err(self.error_previous("Expected a type name")),
         };
-        if self.at_symbol(Symbol::Less) {
-            return Err(self.unsupported(self.current().span.clone(), "Generic types"));
+        let mut arguments = Vec::new();
+        let mut span = token.span;
+        if self.eat_symbol(Symbol::Less).is_some() {
+            loop {
+                arguments.push(self.parse_type()?);
+                if self.eat_symbol(Symbol::Comma).is_none() || self.at_symbol(Symbol::Greater) {
+                    break;
+                }
+            }
+            span = cover(&span, &self.expect_symbol(Symbol::Greater)?.span);
         }
         Ok(Type {
             name,
-            span: token.span,
+            arguments,
+            span,
         })
     }
 
@@ -399,6 +464,26 @@ impl Parser {
         let mut child_nesting = 0;
 
         while !self.at_symbol(Symbol::RBrace) && !self.at_eof() {
+            if self.at_keyword("while") || self.at_keyword("for") {
+                let statement = self.parse_loop_statement()?;
+                child_nesting = child_nesting.max(statement_nesting(&statement));
+                statements.push(statement);
+                continue;
+            }
+            if self.at_keyword("break") || self.at_keyword("continue") {
+                let token = self.advance().clone();
+                let kind = if token.kind == TokenKind::Keyword("break".into()) {
+                    StatementKind::Break
+                } else {
+                    StatementKind::Continue
+                };
+                let end = self.expect_symbol(Symbol::Semicolon)?.span;
+                statements.push(Statement {
+                    kind,
+                    span: cover(&token.span, &end),
+                });
+                continue;
+            }
             if self.at_keyword("let") {
                 let statement = self.parse_let_statement()?;
                 child_nesting = child_nesting.max(statement_nesting(&statement));
@@ -432,6 +517,15 @@ impl Parser {
             } else if let Some(end) = self.eat_symbol(Symbol::Semicolon) {
                 let statement = Statement {
                     span: cover(&expression.span, &end.span),
+                    kind: StatementKind::Expression(expression),
+                };
+                child_nesting = child_nesting.max(statement_nesting(&statement));
+                statements.push(statement);
+            } else if matches!(expression.kind, ExprKind::If { .. })
+                && !self.at_symbol(Symbol::RBrace)
+            {
+                let statement = Statement {
+                    span: expression.span.clone(),
                     kind: StatementKind::Expression(expression),
                 };
                 child_nesting = child_nesting.max(statement_nesting(&statement));
@@ -476,6 +570,47 @@ impl Parser {
                 annotation,
                 value,
             },
+        })
+    }
+
+    fn parse_loop_statement(&mut self) -> Result<Statement, ParseError> {
+        // Block recursion also needs the parser's depth guard: empty nested loops
+        // must not bypass the expression nesting budget.
+        if self.depth >= MAX_NESTING {
+            return Err(resource_error(self.current().span.clone()));
+        }
+        self.depth += 1;
+        let result = self.parse_loop_statement_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn parse_loop_statement_inner(&mut self) -> Result<Statement, ParseError> {
+        let token = self.advance().clone();
+        self.expect_symbol(Symbol::LParen)?;
+        let header = if token.kind == TokenKind::Keyword("while".into()) {
+            (None, self.parse_expression(0)?)
+        } else {
+            let name = self.parse_identifier()?;
+            self.expect_keyword("in")?;
+            (Some(name), self.parse_expression(0)?)
+        };
+        self.expect_symbol(Symbol::RParen)?;
+        let body = self.parse_block()?;
+        let end = self
+            .eat_symbol(Symbol::Semicolon)
+            .map_or_else(|| body.span.clone(), |token| token.span);
+        let kind = match header {
+            (Some(name), iterable) => StatementKind::For {
+                name,
+                iterable,
+                body,
+            },
+            (None, condition) => StatementKind::While { condition, body },
+        };
+        Ok(Statement {
+            kind,
+            span: cover(&token.span, &end),
         })
     }
 
@@ -718,13 +853,13 @@ impl Parser {
                 self.parse_if_expression(token.span)
             }
             TokenKind::Keyword(ref keyword) if keyword == "match" => {
-                Err(self.unsupported(token.span, "Pattern matching"))
+                self.parse_match_expression(token.span)
             }
             TokenKind::Keyword(_) if is_unsupported_keyword(&token) => {
                 Err(self.unsupported(token.span, "This language feature"))
             }
             TokenKind::Symbol(Symbol::LParen) if self.arrow_follows_parentheses() => {
-                Err(self.unsupported(token.span, "Arrow functions"))
+                self.parse_arrow_expression(token.span)
             }
             TokenKind::Symbol(Symbol::LParen) => {
                 if let Some(close) = self.eat_symbol(Symbol::RParen) {
@@ -751,7 +886,21 @@ impl Parser {
                 })
             }
             TokenKind::Symbol(Symbol::LBracket) => {
-                Err(self.unsupported(token.span, "List expressions"))
+                let mut values = Vec::new();
+                while !self.at_symbol(Symbol::RBracket) {
+                    values.push(self.parse_expression(0)?);
+                    if self.eat_symbol(Symbol::Comma).is_none() {
+                        break;
+                    }
+                }
+                let end = self.expect_symbol(Symbol::RBracket)?.span;
+                let span = cover(&token.span, &end);
+                let nesting = self.nested_depth(values.iter().map(|value| value.nesting), &span)?;
+                Ok(Expr {
+                    kind: ExprKind::List(values),
+                    span,
+                    nesting,
+                })
             }
             TokenKind::Symbol(Symbol::Underscore) => {
                 Err(self.error_previous("Expected an expression"))
@@ -765,8 +914,16 @@ impl Parser {
         let condition = self.parse_expression(0)?;
         self.expect_symbol(Symbol::RParen)?;
         let then_branch = self.parse_block()?;
-        self.expect_keyword("else")?;
-        let else_branch = if self.at_keyword("if") {
+        let has_else = self.eat_keyword("else").is_some();
+        let else_branch = if !has_else {
+            let mut span = then_branch.span.clone();
+            span.start = span.end;
+            Expr {
+                kind: ExprKind::Unit,
+                span,
+                nesting: 1,
+            }
+        } else if self.at_keyword("if") {
             self.parse_expression(0)?
         } else {
             let block = self.parse_block()?;
@@ -794,6 +951,141 @@ impl Parser {
         })
     }
 
+    fn parse_arrow_expression(&mut self, start: Span) -> Result<Expr, ParseError> {
+        let mut parameters = Vec::new();
+        while !self.at_symbol(Symbol::RParen) {
+            let name = self.parse_identifier()?;
+            self.expect_symbol(Symbol::Colon)?;
+            let ty = self.parse_type()?;
+            parameters.push(Parameter {
+                span: cover(&name.span, &ty.span),
+                name,
+                ty,
+            });
+            if self.eat_symbol(Symbol::Comma).is_none() {
+                break;
+            }
+        }
+        self.expect_symbol(Symbol::RParen)?;
+        self.expect_symbol(Symbol::FatArrow)?;
+        let body = self.parse_expression(0)?;
+        let span = cover(&start, &body.span);
+        let nesting = self.nested_depth(std::iter::once(body.nesting), &span)?;
+        Ok(Expr {
+            kind: ExprKind::Arrow {
+                parameters,
+                body: Box::new(body),
+            },
+            span,
+            nesting,
+        })
+    }
+
+    fn parse_match_expression(&mut self, start: Span) -> Result<Expr, ParseError> {
+        self.expect_symbol(Symbol::LParen)?;
+        let subject = self.parse_expression(0)?;
+        self.expect_symbol(Symbol::RParen)?;
+        self.expect_symbol(Symbol::LBrace)?;
+        let mut arms = Vec::new();
+        while !self.at_symbol(Symbol::RBrace) {
+            let pattern = self.parse_pattern()?;
+            let guard = if self.eat_keyword("if").is_some() {
+                self.expect_symbol(Symbol::LParen)?;
+                let expression = self.parse_expression(0)?;
+                self.expect_symbol(Symbol::RParen)?;
+                Some(expression)
+            } else {
+                None
+            };
+            self.expect_symbol(Symbol::FatArrow)?;
+            let body = self.parse_expression(0)?;
+            arms.push(MatchArm {
+                span: cover(&pattern.span, &body.span),
+                pattern,
+                guard,
+                body,
+            });
+            if self.eat_symbol(Symbol::Comma).is_none() {
+                break;
+            }
+        }
+        if arms.is_empty() {
+            return Err(self.error("Match requires at least one arm"));
+        }
+        let end = self.expect_symbol(Symbol::RBrace)?.span;
+        let span = cover(&start, &end);
+        let nesting = self.nested_depth(
+            std::iter::once(subject.nesting).chain(arms.iter().flat_map(|arm| {
+                std::iter::once(arm.body.nesting).chain(arm.guard.iter().map(|guard| guard.nesting))
+            })),
+            &span,
+        )?;
+        Ok(Expr {
+            kind: ExprKind::Match {
+                subject: Box::new(subject),
+                arms,
+            },
+            span,
+            nesting,
+        })
+    }
+
+    fn parse_pattern(&mut self) -> Result<Pattern, ParseError> {
+        if self.depth >= MAX_NESTING {
+            return Err(resource_error(self.current().span.clone()));
+        }
+        self.depth += 1;
+        let result = self.parse_pattern_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn parse_pattern_inner(&mut self) -> Result<Pattern, ParseError> {
+        let token = self.advance().clone();
+        let mut span = token.span.clone();
+        let kind = match token.kind {
+            TokenKind::Symbol(Symbol::Underscore) => PatternKind::Wildcard,
+            TokenKind::Integer(value) => PatternKind::Integer(value),
+            TokenKind::Symbol(Symbol::Minus) => {
+                let number = self.advance().clone();
+                let TokenKind::Integer(value) = number.kind else {
+                    return Err(self.error_previous("Expected an integer pattern"));
+                };
+                span = cover(&span, &number.span);
+                PatternKind::Integer(format!("-{value}"))
+            }
+            TokenKind::String(value) => PatternKind::String(value),
+            TokenKind::Keyword(name) if name == "true" || name == "false" => {
+                PatternKind::Bool(name == "true")
+            }
+            TokenKind::Identifier(name) if name == "Option" && self.at_symbol(Symbol::Dot) => {
+                self.advance();
+                let variant = self.parse_identifier()?;
+                match variant.name.as_str() {
+                    "None" => {
+                        span = cover(&span, &variant.span);
+                        PatternKind::None
+                    }
+                    "Some" => {
+                        self.expect_symbol(Symbol::LParen)?;
+                        let inner = self.parse_pattern()?;
+                        self.eat_symbol(Symbol::Comma);
+                        let end = self.expect_symbol(Symbol::RParen)?.span;
+                        span = cover(&span, &end);
+                        PatternKind::Some(Box::new(inner))
+                    }
+                    _ => return Err(self.error_previous("Expected Option.Some or Option.None")),
+                }
+            }
+            TokenKind::Identifier(name) => PatternKind::Binding(Identifier {
+                name,
+                span: span.clone(),
+            }),
+            _ => return Err(self.error_previous("Expected a pattern")),
+        };
+        Ok(Pattern { kind, span })
+    }
+
     fn parse_arguments(&mut self) -> Result<Vec<Expr>, ParseError> {
         self.expect_symbol(Symbol::LParen)?;
         let mut arguments = Vec::new();
@@ -813,7 +1105,7 @@ impl Parser {
     }
 
     fn arrow_follows_parentheses(&self) -> bool {
-        let mut depth = 0usize;
+        let mut depth = 1usize;
         for (index, token) in self.tokens.iter().enumerate().skip(self.position) {
             match token.kind {
                 TokenKind::Symbol(Symbol::LParen) => depth += 1,
@@ -956,8 +1248,8 @@ fn is_unsupported_keyword(token: &Token) -> bool {
         TokenKind::Keyword(keyword)
             if matches!(
                 keyword.as_str(),
-                "async" | "await" | "throw" | "try" | "catch" | "class" | "while"
-                    | "for" | "break" | "continue" | "new" | "null" | "undefined"
+                "async" | "await" | "throw" | "try" | "catch" | "class"
+                    | "new" | "null" | "undefined"
                     | "any" | "as"
             )
     )
@@ -1011,6 +1303,9 @@ fn statement_nesting(statement: &Statement) -> usize {
         StatementKind::Let { value, .. } | StatementKind::Expression(value) => value.nesting,
         StatementKind::Assign { target, value } => target.nesting.max(value.nesting),
         StatementKind::Return(value) => value.as_ref().map_or(0, |expression| expression.nesting),
+        StatementKind::While { condition, body } => condition.nesting.max(body.nesting),
+        StatementKind::For { iterable, body, .. } => iterable.nesting.max(body.nesting),
+        StatementKind::Break | StatementKind::Continue => 0,
     }
 }
 

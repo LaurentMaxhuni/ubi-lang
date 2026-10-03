@@ -10,10 +10,10 @@ A conforming implementation preserves specified values, evaluation order, recove
 
 ## 2. Source and grammar
 
-Current shared-logic slice: local reassignment and non-generic records, including
-imports/exports, immutable updates, field access, and structural equality. Enums,
-lists, generic declarations, matching, propagation, and closures remain unsupported
-until their owning slices land.
+Current foundation slice adds lists, built-in Option, matching, loops, closures,
+and pure utilities to local reassignment and non-generic records. Section 15
+defines the supported subset and supersedes earlier profile restrictions.
+User-defined enums, generic declarations, and propagation remain deferred.
 
 Source is UTF-8 without a byte-order mark. Identifiers are ASCII `[A-Za-z_][A-Za-z0-9_]*`, case-sensitive. `_` alone is reserved for wildcard patterns. Keywords cannot be identifiers; lex them as a distinct token kind rather than as `IDENT`. Whitespace is exactly U+0009 tab, U+000A line feed, U+000D carriage return, and U+0020 space. Newlines have no special syntax. `//` comments end before line feed or carriage return; `/* ... */` comments are non-nesting. Unterminated comments/strings and invalid source encoding are lexical errors. Retain comments and their original byte spans for future formatting.
 
@@ -38,6 +38,9 @@ block        = "{", { statement }, [ expression ], "}" ;
 statement    = "let", [ "mut" ], name, [ ":", type ], "=", expression, ";"
              | name, "=", expression, ";"
              | "return", [ expression ], ";"
+             | "while", "(", expression, ")", block, [ ";" ]
+             | "for", "(", name, "in", expression, ")", block, [ ";" ]
+             | ( "break" | "continue" ), ";"
              | expression, ";" ;
 expression   = unary, { binary_op, unary } ; (* precedence table below *)
 unary        = ( "-" | "!" ), unary | postfix ;
@@ -349,6 +352,7 @@ async remain deferred. Existing task examples are not acceptance criteria.
 applications and records. No implicit coercion. List literals evaluate elements
 left to right and require identical element types; empty literals need an
 expected type from an annotation, function result, or call parameter.
+The right operand of equality also receives the established left operand type.
 `Option.Some(value)` constructs a present value; `Option.None` needs an expected
 Option type. Indexing lists and Unicode scalar strings returns Option; negative
 or out-of-bounds indices return None. Values and returned aggregates stay
@@ -368,6 +372,8 @@ have identical types. Coverage is exhaustive; guarded arms do not establish
 coverage. Some coverage requires exhaustive payload coverage. Other types need a
 catch-all. Duplicate pattern bindings are rejected. `UBI0020` reports type,
 callback, loop-placement, and coverage errors; unresolved names use `UBI0010`.
+Immutable assignment, including captured names and loop variables, keeps the
+existing `UBI0022` code. `if` statements may omit a separating semicolon.
 
 ### Iteration
 
@@ -434,6 +440,7 @@ Pure prelude functions, reserved against user declaration/import:
   results may differ in their last bits across hosts; tests use numeric tolerance.
 - `toFloat(int) -> float`; `toInt(float) -> Option<int>` truncates toward zero,
   returning None for non-finite/out-of-range truncated values.
+  Integer zero results are canonical positive zero at the JavaScript boundary.
 - `parseInt(string) -> Option<int>`: full ASCII decimal text with optional +/-;
   no whitespace, separators, radix prefixes, or partial parsing; checked i32.
 - `parseFloat(string) -> Option<float>`: full decimal text, optional sign,

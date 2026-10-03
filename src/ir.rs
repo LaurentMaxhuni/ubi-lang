@@ -1,10 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::analyzer::{Analysis, FunctionKey, RecordInfo, ValueType};
+use crate::analyzer::{builtin_name, Analysis, FunctionKey, RecordInfo, TypeInfo, ValueType};
 use crate::diagnostics::{Diagnostic, Severity};
 use crate::lexer::Symbol;
 use crate::parser::{
-    Block, Declaration, Expr, ExprKind as AstExprKind, Module, StatementKind as AstStatementKind,
+    Block, Declaration, Expr, ExprKind as AstExprKind, Module, Pattern, PatternKind,
+    StatementKind as AstStatementKind,
 };
 use crate::span::Span;
 
@@ -13,6 +14,7 @@ pub(crate) struct Program {
     pub(crate) modules: BTreeMap<String, ModuleIr>,
     pub(crate) functions: BTreeMap<FunctionKey, FunctionIr>,
     pub(crate) records: Vec<RecordInfo>,
+    pub(crate) types: Vec<TypeInfo>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -64,6 +66,17 @@ pub(crate) enum StatementKind {
     },
     Return(Option<ExprIr>),
     Expression(ExprIr),
+    While {
+        condition: ExprIr,
+        body: BlockIr,
+    },
+    For {
+        name: String,
+        iterable: ExprIr,
+        body: BlockIr,
+    },
+    Break,
+    Continue,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -81,6 +94,31 @@ pub(crate) enum ExprKind {
     Bool(bool),
     Unit,
     Local(String),
+    List(Vec<ExprIr>),
+    Some(Box<ExprIr>),
+    None,
+    Index {
+        object: Box<ExprIr>,
+        index: Box<ExprIr>,
+    },
+    Builtin {
+        name: String,
+        arguments: Vec<ExprIr>,
+    },
+    FunctionRef(FunctionKey),
+    Invoke {
+        callee: Box<ExprIr>,
+        arguments: Vec<ExprIr>,
+    },
+    Arrow {
+        parameters: Vec<ParameterIr>,
+        body: Box<ExprIr>,
+        captures: Vec<String>,
+    },
+    Match {
+        subject: Box<ExprIr>,
+        arms: Vec<MatchArmIr>,
+    },
     Record {
         base: Option<Box<ExprIr>>,
         fields: Vec<(String, ExprIr)>,
@@ -108,6 +146,14 @@ pub(crate) enum ExprKind {
         then_branch: Box<BlockIr>,
         else_branch: Box<ExprIr>,
     },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct MatchArmIr {
+    pub(crate) pattern: Pattern,
+    pub(crate) guard: Option<ExprIr>,
+    pub(crate) body: ExprIr,
+    pub(crate) span: Span,
 }
 
 pub(crate) fn lower(analysis: &Analysis) -> Result<Program, Diagnostic> {
@@ -152,6 +198,8 @@ pub(crate) fn lower(analysis: &Analysis) -> Result<Program, Diagnostic> {
                 module_symbols: &analysis.module_symbols,
                 expression_types: &analysis.expression_types,
                 record_keys: &analysis.record_keys,
+                types: &analysis.types,
+                captures: Vec::new(),
                 scopes: vec![function
                     .parameters
                     .iter()
@@ -188,6 +236,7 @@ pub(crate) fn lower(analysis: &Analysis) -> Result<Program, Diagnostic> {
         modules,
         functions,
         records: analysis.records.clone(),
+        types: analysis.types.clone(),
     })
 }
 
@@ -221,7 +270,9 @@ struct FunctionLowerer<'a> {
     module_symbols: &'a BTreeMap<String, BTreeMap<String, FunctionKey>>,
     expression_types: &'a BTreeMap<(FunctionKey, Span), ValueType>,
     record_keys: &'a BTreeMap<FunctionKey, usize>,
+    types: &'a [TypeInfo],
     scopes: Vec<BTreeSet<String>>,
+    captures: Vec<(usize, BTreeSet<String>)>,
 }
 
 impl FunctionLowerer<'_> {
@@ -276,6 +327,38 @@ impl FunctionLowerer<'_> {
                         value,
                     }
                 }
+                AstStatementKind::While { condition, body } => {
+                    let condition = self.lower_expr(condition)?;
+                    completes = condition.ty != ValueType::Never;
+                    StatementKind::While {
+                        condition,
+                        body: self.lower_block(body)?,
+                    }
+                }
+                AstStatementKind::For {
+                    name,
+                    iterable,
+                    body,
+                } => {
+                    let iterable = self.lower_expr(iterable)?;
+                    completes = iterable.ty != ValueType::Never;
+                    self.scopes.push(BTreeSet::from([name.name.clone()]));
+                    let body = self.lower_block(body)?;
+                    self.scopes.pop();
+                    StatementKind::For {
+                        name: name.name.clone(),
+                        iterable,
+                        body,
+                    }
+                }
+                AstStatementKind::Break => {
+                    completes = false;
+                    StatementKind::Break
+                }
+                AstStatementKind::Continue => {
+                    completes = false;
+                    StatementKind::Continue
+                }
             };
             statements.push(StatementIr {
                 kind,
@@ -321,10 +404,79 @@ impl FunctionLowerer<'_> {
             AstExprKind::Bool(value) => ExprKind::Bool(*value),
             AstExprKind::Unit => ExprKind::Unit,
             AstExprKind::Name(name) => {
-                if !self.is_local(&name.name) {
-                    return Err(invariant(&name.span));
+                if self.is_local(&name.name) {
+                    self.capture(&name.name);
+                    ExprKind::Local(name.name.clone())
+                } else {
+                    ExprKind::FunctionRef(self.function_key(&name.name, &name.span)?)
                 }
-                ExprKind::Local(name.name.clone())
+            }
+            AstExprKind::List(elements) => ExprKind::List(
+                elements
+                    .iter()
+                    .map(|element| self.lower_expr(element))
+                    .collect::<Result<_, _>>()?,
+            ),
+            AstExprKind::Arrow { parameters, body } => {
+                let ValueType::Function(index) = ty else {
+                    return Err(invariant(&expression.span));
+                };
+                let Some(TypeInfo::Function {
+                    parameters: parameter_types,
+                    ..
+                }) = self.types.get(index)
+                else {
+                    return Err(invariant(&expression.span));
+                };
+                let lowered_parameters = parameters
+                    .iter()
+                    .zip(parameter_types)
+                    .map(|(parameter, ty)| ParameterIr {
+                        name: parameter.name.name.clone(),
+                        ty: *ty,
+                        span: parameter.span.clone(),
+                    })
+                    .collect();
+                self.captures.push((self.scopes.len(), BTreeSet::new()));
+                self.scopes.push(
+                    parameters
+                        .iter()
+                        .map(|parameter| parameter.name.name.clone())
+                        .collect(),
+                );
+                let body = Box::new(self.lower_expr(body)?);
+                self.scopes.pop();
+                let captures = self.captures.pop().unwrap().1.into_iter().collect();
+                ExprKind::Arrow {
+                    parameters: lowered_parameters,
+                    body,
+                    captures,
+                }
+            }
+            AstExprKind::Match { subject, arms } => {
+                let subject = Box::new(self.lower_expr(subject)?);
+                let arms = arms
+                    .iter()
+                    .map(|arm| {
+                        let mut bindings = BTreeSet::new();
+                        pattern_bindings(&arm.pattern, &mut bindings);
+                        self.scopes.push(bindings);
+                        let guard = arm
+                            .guard
+                            .as_ref()
+                            .map(|guard| self.lower_expr(guard))
+                            .transpose()?;
+                        let body = self.lower_expr(&arm.body)?;
+                        self.scopes.pop();
+                        Ok(MatchArmIr {
+                            pattern: arm.pattern.clone(),
+                            guard,
+                            body,
+                            span: arm.span.clone(),
+                        })
+                    })
+                    .collect::<Result<_, Diagnostic>>()?;
+                ExprKind::Match { subject, arms }
             }
             AstExprKind::Unary { operator, operand } => {
                 let direct_negative = if *operator == Symbol::Minus {
@@ -362,21 +514,45 @@ impl FunctionLowerer<'_> {
                 right: Box::new(self.lower_expr(right)?),
             },
             AstExprKind::Call { callee, arguments } => {
-                let AstExprKind::Name(name) = &callee.kind else {
-                    return Err(invariant(&callee.span));
-                };
-                let target = self
-                    .module_symbols
-                    .get(self.module_id)
-                    .and_then(|symbols| symbols.get(&name.name))
-                    .cloned()
-                    .ok_or_else(|| invariant(&name.span))?;
-                ExprKind::Call {
-                    target,
-                    arguments: arguments
-                        .iter()
-                        .map(|argument| self.lower_expr(argument))
-                        .collect::<Result<_, _>>()?,
+                if option_member(callee, "Some") {
+                    let Some(value) = arguments.first() else {
+                        return Err(invariant(&expression.span));
+                    };
+                    ExprKind::Some(Box::new(self.lower_expr(value)?))
+                } else if let AstExprKind::Name(name) = &callee.kind {
+                    if !self.is_local(&name.name) {
+                        let arguments = arguments
+                            .iter()
+                            .map(|argument| self.lower_expr(argument))
+                            .collect::<Result<_, _>>()?;
+                        if builtin_name(&name.name) {
+                            ExprKind::Builtin {
+                                name: name.name.clone(),
+                                arguments,
+                            }
+                        } else {
+                            ExprKind::Call {
+                                target: self.function_key(&name.name, &name.span)?,
+                                arguments,
+                            }
+                        }
+                    } else {
+                        ExprKind::Invoke {
+                            callee: Box::new(self.lower_expr(callee)?),
+                            arguments: arguments
+                                .iter()
+                                .map(|argument| self.lower_expr(argument))
+                                .collect::<Result<_, _>>()?,
+                        }
+                    }
+                } else {
+                    ExprKind::Invoke {
+                        callee: Box::new(self.lower_expr(callee)?),
+                        arguments: arguments
+                            .iter()
+                            .map(|argument| self.lower_expr(argument))
+                            .collect::<Result<_, _>>()?,
+                    }
                 }
             }
             AstExprKind::Block(block) => ExprKind::Block(Box::new(self.lower_block(block)?)),
@@ -400,6 +576,7 @@ impl FunctionLowerer<'_> {
                         .collect::<Result<_, Diagnostic>>()?,
                 }
             }
+            AstExprKind::Member { .. } if option_member(expression, "None") => ExprKind::None,
             AstExprKind::Member { object, name } => ExprKind::Member {
                 object: Box::new(self.lower_expr(object)?),
                 name: name.name.clone(),
@@ -413,9 +590,11 @@ impl FunctionLowerer<'_> {
                 then_branch: Box::new(self.lower_block(then_branch)?),
                 else_branch: Box::new(self.lower_expr(else_branch)?),
             },
-            AstExprKind::Index { .. } | AstExprKind::Propagate(_) => {
-                return Err(invariant(&expression.span))
-            }
+            AstExprKind::Index { object, index } => ExprKind::Index {
+                object: Box::new(self.lower_expr(object)?),
+                index: Box::new(self.lower_expr(index)?),
+            },
+            AstExprKind::Propagate(_) => return Err(invariant(&expression.span)),
         };
         Ok(ExprIr {
             kind,
@@ -427,6 +606,39 @@ impl FunctionLowerer<'_> {
     fn is_local(&self, name: &str) -> bool {
         self.scopes.iter().rev().any(|scope| scope.contains(name))
     }
+
+    fn function_key(&self, name: &str, span: &Span) -> Result<FunctionKey, Diagnostic> {
+        self.module_symbols
+            .get(self.module_id)
+            .and_then(|symbols| symbols.get(name))
+            .cloned()
+            .ok_or_else(|| invariant(span))
+    }
+
+    fn capture(&mut self, name: &str) {
+        if let Some(index) = self.scopes.iter().rposition(|scope| scope.contains(name)) {
+            for (floor, captures) in &mut self.captures {
+                if index < *floor {
+                    captures.insert(name.to_owned());
+                }
+            }
+        }
+    }
+}
+
+fn pattern_bindings(pattern: &Pattern, bindings: &mut BTreeSet<String>) {
+    match &pattern.kind {
+        PatternKind::Binding(name) => {
+            bindings.insert(name.name.clone());
+        }
+        PatternKind::Some(inner) => pattern_bindings(inner, bindings),
+        _ => {}
+    }
+}
+
+fn option_member(expression: &Expr, member: &str) -> bool {
+    matches!(&expression.kind, AstExprKind::Member { object, name }
+        if name.name == member && matches!(&object.kind, AstExprKind::Name(name) if name.name == "Option"))
 }
 
 fn invariant(span: &Span) -> Diagnostic {

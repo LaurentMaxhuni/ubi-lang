@@ -106,6 +106,7 @@ const KEYWORDS: &[&str] = &[
     "class",
     "while",
     "for",
+    "in",
     "break",
     "continue",
     "new",

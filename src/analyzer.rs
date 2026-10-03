@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use crate::diagnostics::{sort_diagnostics, Diagnostic, RelatedDiagnostic};
 use crate::parser::{
-    Block, Declaration, Expr, ExprKind, Function, Identifier, Module, ParseError, StatementKind,
-    Type,
+    Block, Declaration, Expr, ExprKind, Function, Identifier, MatchArm, Module, Parameter,
+    ParseError, Pattern, PatternKind, StatementKind, Type,
 };
 use crate::source::{resolve_import_id, SourceSet};
 use crate::span::Span;
@@ -18,6 +18,10 @@ pub(crate) enum ValueType {
     String,
     Unit,
     Record(usize),
+    List(usize),
+    Option(usize),
+    Function(usize),
+    Range,
     Never,
     Error,
 }
@@ -31,10 +35,77 @@ impl ValueType {
             Self::String => "string",
             Self::Unit => "unit",
             Self::Record(_) => "record",
+            Self::List(_) => "List",
+            Self::Option(_) => "Option",
+            Self::Function(_) => "function",
+            Self::Range => "range",
             Self::Never => "never",
             Self::Error => "<error>",
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum TypeInfo {
+    List(ValueType),
+    Option(ValueType),
+    Function {
+        parameters: Vec<ValueType>,
+        return_type: ValueType,
+    },
+}
+
+fn intern_type(types: &mut Vec<TypeInfo>, info: TypeInfo) -> ValueType {
+    let id = types.iter().position(|ty| *ty == info).unwrap_or_else(|| {
+        types.push(info.clone());
+        types.len() - 1
+    });
+    match info {
+        TypeInfo::List(_) => ValueType::List(id),
+        TypeInfo::Option(_) => ValueType::Option(id),
+        TypeInfo::Function { .. } => ValueType::Function(id),
+    }
+}
+
+pub(crate) fn builtin_name(name: &str) -> bool {
+    matches!(
+        name,
+        "range"
+            | "length"
+            | "append"
+            | "set"
+            | "map"
+            | "filter"
+            | "find"
+            | "fold"
+            | "contains"
+            | "startsWith"
+            | "endsWith"
+            | "trim"
+            | "split"
+            | "join"
+            | "replace"
+            | "slice"
+            | "abs"
+            | "min"
+            | "max"
+            | "clamp"
+            | "floor"
+            | "ceil"
+            | "round"
+            | "sqrt"
+            | "sin"
+            | "cos"
+            | "tan"
+            | "log"
+            | "exp"
+            | "pow"
+            | "toFloat"
+            | "toInt"
+            | "parseInt"
+            | "parseFloat"
+            | "toString"
+    )
 }
 
 #[derive(Debug, Clone)]
@@ -52,6 +123,7 @@ struct ModuleEdges {
 }
 
 pub(crate) struct Analysis {
+    pub(crate) types: Vec<TypeInfo>,
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) modules: BTreeMap<String, Module>,
     pub(crate) module_symbols: BTreeMap<String, BTreeMap<String, FunctionKey>>,
@@ -95,6 +167,7 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
     if !diagnostics.is_empty() {
         sort_diagnostics(&mut diagnostics);
         return Analysis {
+            types: Vec::new(),
             diagnostics,
             modules,
             module_symbols: BTreeMap::new(),
@@ -118,6 +191,7 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
     if !diagnostics.is_empty() {
         sort_diagnostics(&mut diagnostics);
         return Analysis {
+            types: Vec::new(),
             diagnostics,
             modules,
             module_symbols,
@@ -128,12 +202,15 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
         };
     }
 
-    let (records, record_keys) = collect_records(&modules, &mut module_symbols, &mut diagnostics);
+    let mut types = Vec::new();
+    let (records, record_keys) =
+        collect_records(&modules, &mut module_symbols, &mut types, &mut diagnostics);
     let (functions, mut signatures) = collect_signatures(
         &modules,
         &module_symbols,
         &records,
         &record_keys,
+        &mut types,
         &mut diagnostics,
     );
     let call_graph = build_call_graph(&functions, &module_symbols);
@@ -168,6 +245,7 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
                 &module_symbols,
                 &records,
                 &record_keys,
+                &mut types,
             );
             diagnostics.append(&mut function_diagnostics);
             expression_types.extend(
@@ -187,6 +265,7 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
 
     sort_diagnostics(&mut diagnostics);
     Analysis {
+        types,
         diagnostics,
         modules,
         module_symbols,
@@ -218,6 +297,14 @@ fn resolve_imports(
         let mut duplicate_spans = BTreeSet::new();
         for import in &module.imports {
             for imported in &import.names {
+                if builtin_name(&imported.name) {
+                    diagnostics.push(Diagnostic::error(
+                        "UBI0011",
+                        "Reserved prelude name",
+                        imported.span.clone(),
+                    ));
+                    continue;
+                }
                 if !imported_names.insert(imported.name.clone()) {
                     diagnostics.push(Diagnostic::error(
                         "UBI0011",
@@ -380,6 +467,7 @@ fn report_import_cycles<'a>(
 fn collect_records(
     modules: &BTreeMap<String, Module>,
     module_symbols: &mut BTreeMap<String, BTreeMap<String, FunctionKey>>,
+    types: &mut Vec<TypeInfo>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> (Vec<RecordInfo>, BTreeMap<FunctionKey, usize>) {
     let mut records = Vec::new();
@@ -392,6 +480,7 @@ fn collect_records(
                 Declaration::Record(value) => &value.name,
             };
             if symbols.contains_key(&name.name)
+                || builtin_name(&name.name)
                 || matches!(name.name.as_str(), "List" | "Option" | "Result")
             {
                 diagnostics.push(Diagnostic::error(
@@ -423,7 +512,14 @@ fn collect_records(
             })
             .unwrap();
         for field in &declaration.fields {
-            let ty = type_from_syntax(&field.ty, &record.key.0, module_symbols, &keys, diagnostics);
+            let ty = type_from_syntax(
+                &field.ty,
+                &record.key.0,
+                module_symbols,
+                &keys,
+                types,
+                diagnostics,
+            );
             if record.fields.insert(field.name.name.clone(), ty).is_some() {
                 diagnostics.push(Diagnostic::error(
                     "UBI0030",
@@ -447,7 +543,7 @@ fn collect_records(
             .unwrap();
         for field in &declaration.fields {
             let ty = record.fields[&field.name.name];
-            check_public_type(ty, &field.ty.span, &records, diagnostics);
+            check_public_type(ty, &field.ty.span, &records, types, diagnostics);
         }
     }
     (records, keys)
@@ -457,8 +553,22 @@ fn check_public_type(
     ty: ValueType,
     span: &Span,
     records: &[RecordInfo],
+    types: &[TypeInfo],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
+    match ty {
+        ValueType::List(id) | ValueType::Option(id) => {
+            if let TypeInfo::List(inner) | TypeInfo::Option(inner) = types[id] {
+                check_public_type(inner, span, records, types, diagnostics);
+            }
+        }
+        ValueType::Function(_) | ValueType::Range => diagnostics.push(Diagnostic::error(
+            "UBI0020",
+            "Function and range values cannot be exported",
+            span.clone(),
+        )),
+        _ => {}
+    }
     if let ValueType::Record(id) = ty {
         if !records[id].exported {
             diagnostics.push(Diagnostic::error(
@@ -475,6 +585,7 @@ fn collect_signatures<'a>(
     module_symbols: &BTreeMap<String, BTreeMap<String, FunctionKey>>,
     records: &[RecordInfo],
     record_keys: &BTreeMap<FunctionKey, usize>,
+    types: &mut Vec<TypeInfo>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> (
     BTreeMap<FunctionKey, &'a Function>,
@@ -503,19 +614,26 @@ fn collect_signatures<'a>(
                         source_id,
                         module_symbols,
                         record_keys,
+                        types,
                         diagnostics,
                     );
                     if function.exported {
-                        check_public_type(ty, &parameter.ty.span, records, diagnostics);
+                        check_public_type(ty, &parameter.ty.span, records, types, diagnostics);
                     }
                     ty
                 })
                 .collect();
             let return_type = function.return_type.as_ref().map(|ty| {
-                let value =
-                    type_from_syntax(ty, source_id, module_symbols, record_keys, diagnostics);
+                let value = type_from_syntax(
+                    ty,
+                    source_id,
+                    module_symbols,
+                    record_keys,
+                    types,
+                    diagnostics,
+                );
                 if function.exported {
-                    check_public_type(value, &ty.span, records, diagnostics);
+                    check_public_type(value, &ty.span, records, types, diagnostics);
                 }
                 value
             });
@@ -545,8 +663,35 @@ fn type_from_syntax(
     module_id: &str,
     symbols: &BTreeMap<String, BTreeMap<String, FunctionKey>>,
     records: &BTreeMap<FunctionKey, usize>,
+    types: &mut Vec<TypeInfo>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> ValueType {
+    if matches!(ty.name.as_str(), "List" | "Option") && ty.arguments.len() == 1 {
+        let inner = type_from_syntax(
+            &ty.arguments[0],
+            module_id,
+            symbols,
+            records,
+            types,
+            diagnostics,
+        );
+        return intern_type(
+            types,
+            if ty.name == "List" {
+                TypeInfo::List(inner)
+            } else {
+                TypeInfo::Option(inner)
+            },
+        );
+    }
+    if !ty.arguments.is_empty() || matches!(ty.name.as_str(), "List" | "Option") {
+        diagnostics.push(Diagnostic::error(
+            "UBI0020",
+            "Invalid type arguments",
+            ty.span.clone(),
+        ));
+        return ValueType::Error;
+    }
     match ty.name.as_str() {
         "int" => ValueType::Int,
         "float" => ValueType::Float,
@@ -621,6 +766,21 @@ fn collect_block_calls(
             StatementKind::Expression(expression) => {
                 collect_expression_calls(expression, symbols, scopes, calls);
             }
+            StatementKind::While { condition, body } => {
+                collect_expression_calls(condition, symbols, scopes, calls);
+                collect_block_calls(body, symbols, scopes, calls);
+            }
+            StatementKind::For {
+                name,
+                iterable,
+                body,
+            } => {
+                collect_expression_calls(iterable, symbols, scopes, calls);
+                scopes.push(HashSet::from([name.name.clone()]));
+                collect_block_calls(body, symbols, scopes, calls);
+                scopes.pop();
+            }
+            StatementKind::Break | StatementKind::Continue => {}
         }
     }
     if let Some(tail) = &block.tail {
@@ -636,6 +796,36 @@ fn collect_expression_calls(
     calls: &mut Vec<FunctionKey>,
 ) {
     match &expression.kind {
+        ExprKind::Name(name) => {
+            if !scopes.iter().rev().any(|scope| scope.contains(&name.name)) {
+                if let Some(key) = symbols.and_then(|map| map.get(&name.name)) {
+                    calls.push(key.clone());
+                }
+            }
+        }
+        ExprKind::List(values) => {
+            for value in values {
+                collect_expression_calls(value, symbols, scopes, calls);
+            }
+        }
+        ExprKind::Arrow { parameters, body } => {
+            scopes.push(parameters.iter().map(|p| p.name.name.clone()).collect());
+            collect_expression_calls(body, symbols, scopes, calls);
+            scopes.pop();
+        }
+        ExprKind::Match { subject, arms } => {
+            collect_expression_calls(subject, symbols, scopes, calls);
+            for arm in arms {
+                let mut bindings = HashSet::new();
+                collect_pattern_names(&arm.pattern, &mut bindings);
+                scopes.push(bindings);
+                if let Some(guard) = &arm.guard {
+                    collect_expression_calls(guard, symbols, scopes, calls);
+                }
+                collect_expression_calls(&arm.body, symbols, scopes, calls);
+                scopes.pop();
+            }
+        }
         ExprKind::Unary { operand, .. } | ExprKind::Propagate(operand) => {
             collect_expression_calls(operand, symbols, scopes, calls);
         }
@@ -687,8 +877,7 @@ fn collect_expression_calls(
         | ExprKind::Float { .. }
         | ExprKind::String(_)
         | ExprKind::Bool(_)
-        | ExprKind::Unit
-        | ExprKind::Name(_) => {}
+        | ExprKind::Unit => {}
     }
 }
 
@@ -768,6 +957,7 @@ where
     components
 }
 
+#[allow(clippy::too_many_arguments)]
 fn check_function(
     key: &FunctionKey,
     function: &Function,
@@ -776,6 +966,7 @@ fn check_function(
     module_symbols: &BTreeMap<String, BTreeMap<String, FunctionKey>>,
     records: &[RecordInfo],
     record_keys: &BTreeMap<FunctionKey, usize>,
+    types: &mut Vec<TypeInfo>,
 ) -> (
     Option<ValueType>,
     BTreeMap<Span, ValueType>,
@@ -787,6 +978,9 @@ fn check_function(
         module_symbols,
         records,
         record_keys,
+        types,
+        expected_expr: None,
+        loop_depth: 0,
         expected_return: signature.return_type,
         inferred_return: None,
         scopes: vec![BTreeMap::new()],
@@ -811,6 +1005,7 @@ fn check_function(
         }
     }
 
+    checker.expected_expr = signature.return_type;
     if let Some(body_type) = checker.check_block(&function.body) {
         let completion_span = function
             .body
@@ -834,6 +1029,9 @@ struct Binding {
 }
 
 struct FunctionChecker<'a> {
+    types: &'a mut Vec<TypeInfo>,
+    expected_expr: Option<ValueType>,
+    loop_depth: usize,
     module_id: &'a str,
     signatures: &'a BTreeMap<FunctionKey, Signature>,
     module_symbols: &'a BTreeMap<String, BTreeMap<String, FunctionKey>>,
@@ -848,6 +1046,7 @@ struct FunctionChecker<'a> {
 
 impl FunctionChecker<'_> {
     fn check_block(&mut self, block: &Block) -> Option<ValueType> {
+        let expected = self.expected_expr.take();
         self.scopes.push(BTreeMap::new());
         let mut completes = true;
         for statement in &block.statements {
@@ -861,20 +1060,21 @@ impl FunctionChecker<'_> {
                     annotation,
                     value,
                 } => {
-                    let value_type = self.check_expr(value);
-                    let Some(value_type) = value_type else {
-                        completes = false;
-                        continue;
-                    };
                     let bound_type = annotation.as_ref().map(|ty| {
                         type_from_syntax(
                             ty,
                             self.module_id,
                             self.module_symbols,
                             self.record_keys,
+                            self.types,
                             &mut self.diagnostics,
                         )
                     });
+                    let value_type = self.check_expr_expected(value, bound_type);
+                    let Some(value_type) = value_type else {
+                        completes = false;
+                        continue;
+                    };
                     if let Some(bound_type) = bound_type {
                         self.require_same_type(
                             bound_type,
@@ -902,7 +1102,7 @@ impl FunctionChecker<'_> {
                 }
                 StatementKind::Assign { target, value } => {
                     let target_type = self.check_assignment_target(target);
-                    let value_type = self.check_expr(value);
+                    let value_type = self.check_expr_expected(value, target_type);
                     match (target_type, value_type) {
                         (Some(target_type), Some(value_type)) => self.require_same_type(
                             target_type,
@@ -916,7 +1116,9 @@ impl FunctionChecker<'_> {
                 }
                 StatementKind::Return(value) => {
                     if let Some(value) = value {
-                        if let Some(return_type) = self.check_expr(value) {
+                        if let Some(return_type) =
+                            self.check_expr_expected(value, self.expected_return)
+                        {
                             self.record_return(return_type, value.span.clone());
                         }
                     } else {
@@ -927,12 +1129,81 @@ impl FunctionChecker<'_> {
                 StatementKind::Expression(expression) => {
                     completes = self.check_expr(expression).is_some();
                 }
+                StatementKind::While { condition, body } => {
+                    let ty = self.check_expr_expected(condition, Some(ValueType::Bool));
+                    if let Some(ty) = ty {
+                        self.require_same_type(
+                            ValueType::Bool,
+                            ty,
+                            &condition.span,
+                            "While condition must be bool",
+                        );
+                    }
+                    self.loop_depth += 1;
+                    if let Some(ty) = self.check_block(body) {
+                        self.require_same_type(
+                            ValueType::Unit,
+                            ty,
+                            &body.span,
+                            "Loop body must be unit",
+                        );
+                    }
+                    self.loop_depth -= 1;
+                    completes &= ty.is_some();
+                }
+                StatementKind::For {
+                    name,
+                    iterable,
+                    body,
+                } => {
+                    let ty = self.check_expr(iterable);
+                    let item = match ty {
+                        Some(ValueType::List(id)) => match self.types[id] {
+                            TypeInfo::List(inner) => inner,
+                            _ => unreachable!(),
+                        },
+                        Some(ValueType::String) => ValueType::String,
+                        Some(ValueType::Range) => ValueType::Int,
+                        _ => {
+                            self.error(&iterable.span, "For requires List, string, or range");
+                            ValueType::Error
+                        }
+                    };
+                    self.scopes.push(BTreeMap::from([(
+                        name.name.clone(),
+                        Binding {
+                            ty: item,
+                            mutable: false,
+                        },
+                    )]));
+                    self.loop_depth += 1;
+                    if let Some(ty) = self.check_block(body) {
+                        self.require_same_type(
+                            ValueType::Unit,
+                            ty,
+                            &body.span,
+                            "Loop body must be unit",
+                        );
+                    }
+                    self.loop_depth -= 1;
+                    self.scopes.pop();
+                    completes &= ty.is_some();
+                }
+                StatementKind::Break | StatementKind::Continue => {
+                    if self.loop_depth == 0 {
+                        self.error(
+                            &statement.span,
+                            "Break and continue require an enclosing loop in this function",
+                        );
+                    }
+                    completes = false;
+                }
             }
         }
 
         let result = if completes {
             if let Some(tail) = &block.tail {
-                self.check_expr(tail)
+                self.check_expr_expected(tail, expected)
             } else {
                 Some(ValueType::Unit)
             }
@@ -950,8 +1221,31 @@ impl FunctionChecker<'_> {
         result
     }
 
+    fn check_expr_expected(
+        &mut self,
+        expression: &Expr,
+        expected: Option<ValueType>,
+    ) -> Option<ValueType> {
+        let previous = self.expected_expr;
+        self.expected_expr = expected;
+        let result = self.check_expr(expression);
+        self.expected_expr = previous;
+        result
+    }
+
+    fn error(&mut self, span: &Span, message: &str) {
+        self.diagnostics
+            .push(Diagnostic::error("UBI0020", message, span.clone()));
+    }
+
     fn check_expr_inner(&mut self, expression: &Expr) -> Option<ValueType> {
+        let expected = self.expected_expr.take();
         match &expression.kind {
+            ExprKind::List(values) => self.check_list(expression, values, expected),
+            ExprKind::Arrow { parameters, body } => self.check_arrow(parameters, body, expected),
+            ExprKind::Match { subject, arms } => {
+                self.check_match(expression, subject, arms, expected)
+            }
             ExprKind::Integer {
                 value,
                 literal_span,
@@ -1019,14 +1313,34 @@ impl FunctionChecker<'_> {
                 right,
             } => {
                 let left_type = self.check_expr(left);
-                let right_type = self.check_expr(right);
+                let right_expected = if matches!(
+                    operator,
+                    crate::lexer::Symbol::EqualEqual | crate::lexer::Symbol::BangEqual
+                ) {
+                    left_type
+                } else {
+                    None
+                };
+                let right_type = self.check_expr_expected(right, right_expected);
                 let (Some(left_type), Some(right_type)) = (left_type, right_type) else {
                     return None;
                 };
                 Some(self.binary_type(*operator, left_type, right_type, left, right))
             }
-            ExprKind::Call { callee, arguments } => self.check_call(expression, callee, arguments),
+            ExprKind::Call { callee, arguments } => {
+                self.check_call(expression, callee, arguments, expected)
+            }
             ExprKind::Member { object, name } => {
+                if is_option_member(object, "Option") && name.name == "None" {
+                    if matches!(expected, Some(ValueType::Option(_))) {
+                        return expected;
+                    }
+                    self.error(
+                        &expression.span,
+                        "Option.None requires an expected Option type",
+                    );
+                    return Some(ValueType::Error);
+                }
                 let ty = self.check_expr(object)?;
                 if ty == ValueType::Error {
                     return Some(ty);
@@ -1046,13 +1360,25 @@ impl FunctionChecker<'_> {
             ExprKind::Record { name, base, fields } => {
                 self.check_record(expression, name, base.as_deref(), fields)
             }
-            ExprKind::Index { .. } => {
-                self.diagnostics.push(Diagnostic::error(
-                    "UBI0003",
-                    "Indexing is not supported in Milestone 1",
-                    expression.span.clone(),
-                ));
-                Some(ValueType::Error)
+            ExprKind::Index { object, index } => {
+                let object_ty = self.check_expr(object);
+                let index_ty = self.check_expr(index);
+                let (Some(object_ty), Some(index_ty)) = (object_ty, index_ty) else {
+                    return None;
+                };
+                self.require_same_type(ValueType::Int, index_ty, &index.span, "Index must be int");
+                let item = match object_ty {
+                    ValueType::List(id) => match self.types[id] {
+                        TypeInfo::List(inner) => inner,
+                        _ => unreachable!(),
+                    },
+                    ValueType::String => ValueType::String,
+                    _ => {
+                        self.error(&object.span, "Indexing requires List or string");
+                        ValueType::Error
+                    }
+                };
+                Some(intern_type(self.types, TypeInfo::Option(item)))
             }
             ExprKind::Propagate(_) => {
                 self.diagnostics.push(Diagnostic::error(
@@ -1062,7 +1388,10 @@ impl FunctionChecker<'_> {
                 ));
                 Some(ValueType::Error)
             }
-            ExprKind::Block(block) => self.check_block(block),
+            ExprKind::Block(block) => {
+                self.expected_expr = expected;
+                self.check_block(block)
+            }
             ExprKind::If {
                 condition,
                 then_branch,
@@ -1077,8 +1406,9 @@ impl FunctionChecker<'_> {
                         "If condition must be bool",
                     );
                 }
+                self.expected_expr = expected;
                 let then_type = self.check_block(then_branch);
-                let else_type = self.check_expr(else_branch);
+                let else_type = self.check_expr_expected(else_branch, expected.or(then_type));
                 condition_type?;
                 match (then_type, else_type) {
                     (None, None) => None,
@@ -1110,17 +1440,19 @@ impl FunctionChecker<'_> {
         if let Some(ty) = self.lookup_local(&name.name) {
             return ty;
         }
-        if self
+        if let Some(signature) = self
             .module_symbols
             .get(self.module_id)
-            .is_some_and(|symbols| symbols.contains_key(&name.name))
+            .and_then(|symbols| symbols.get(&name.name))
+            .and_then(|key| self.signatures.get(key))
         {
-            self.diagnostics.push(Diagnostic::error(
-                "UBI0003",
-                "Function values are not supported in Milestone 1",
-                name.span.clone(),
-            ));
-            return ValueType::Error;
+            return intern_type(
+                self.types,
+                TypeInfo::Function {
+                    parameters: signature.parameters.clone(),
+                    return_type: signature.return_type.unwrap_or(ValueType::Error),
+                },
+            );
         }
         self.diagnostics.push(Diagnostic::error(
             "UBI0010",
@@ -1177,7 +1509,8 @@ impl FunctionChecker<'_> {
                     field.span.clone(),
                 ));
             }
-            if let Some(ty) = self.check_expr(value) {
+            let expected = record.fields.get(&field.name).copied();
+            if let Some(ty) = self.check_expr_expected(value, expected) {
                 if let Some(expected) = record.fields.get(&field.name) {
                     self.require_same_type(
                         *expected,
@@ -1200,71 +1533,64 @@ impl FunctionChecker<'_> {
         completes.then_some(ValueType::Record(id))
     }
 
-    fn check_call(&mut self, call: &Expr, callee: &Expr, arguments: &[Expr]) -> Option<ValueType> {
-        let ExprKind::Name(name) = &callee.kind else {
-            for argument in arguments {
-                self.check_expr(argument);
+    fn check_call(
+        &mut self,
+        call: &Expr,
+        callee: &Expr,
+        arguments: &[Expr],
+        expected: Option<ValueType>,
+    ) -> Option<ValueType> {
+        if let ExprKind::Member { object, name } = &callee.kind {
+            if is_option_member(object, "Option") && name.name == "Some" {
+                self.arity(call, arguments, 1);
+                let inner_expected = expected.and_then(|ty| self.option_inner(ty));
+                let Some(value) = arguments.first() else {
+                    return Some(ValueType::Error);
+                };
+                let inner = self.check_expr_expected(value, inner_expected)?;
+                if !self.aggregate_allowed(inner, &value.span) {
+                    return Some(ValueType::Error);
+                }
+                for value in arguments.iter().skip(1) {
+                    self.check_expr(value);
+                }
+                return Some(intern_type(self.types, TypeInfo::Option(inner)));
             }
-            self.diagnostics.push(Diagnostic::error(
-                "UBI0003",
-                "Only named function calls are supported in Milestone 1",
-                callee.span.clone(),
-            ));
-            return Some(ValueType::Error);
-        };
-
-        if self.lookup_local(&name.name).is_some() {
-            for argument in arguments {
-                self.check_expr(argument);
-            }
-            self.diagnostics.push(Diagnostic::error(
-                "UBI0003",
-                "Function values are not supported in Milestone 1",
-                name.span.clone(),
-            ));
-            return Some(ValueType::Error);
         }
-
-        let key = self
-            .module_symbols
-            .get(self.module_id)
-            .and_then(|symbols| symbols.get(&name.name))
-            .cloned();
-        let Some(key) = key else {
-            for argument in arguments {
-                self.check_expr(argument);
+        if let ExprKind::Name(name) = &callee.kind {
+            if self.lookup_local(&name.name).is_none() && builtin_name(&name.name) {
+                return self.check_builtin(call, &name.name, arguments, expected);
             }
-            self.diagnostics.push(Diagnostic::error(
-                "UBI0010",
-                format!("Unknown name: {}", name.name),
-                name.span.clone(),
-            ));
-            return Some(ValueType::Error);
-        };
-        let signature = self.signatures.get(&key).cloned();
-        let Some(signature) = signature else {
-            for argument in arguments {
-                self.check_expr(argument);
-            }
-            return Some(ValueType::Error);
-        };
-        if arguments.len() != signature.parameters.len() {
-            self.diagnostics.push(Diagnostic::error(
-                "UBI0023",
-                format!(
-                    "Expected {} arguments, found {}",
-                    signature.parameters.len(),
-                    arguments.len()
-                ),
-                call.span.clone(),
-            ));
         }
+        let callee_ty = self.check_expr(callee);
+        let Some(callee_ty) = callee_ty else {
+            for argument in arguments {
+                self.check_expr(argument);
+            }
+            return None;
+        };
+        let ValueType::Function(id) = callee_ty else {
+            for argument in arguments {
+                self.check_expr(argument);
+            }
+            if callee_ty != ValueType::Error {
+                self.error(&callee.span, "Call requires a function value");
+            }
+            return Some(ValueType::Error);
+        };
+        let TypeInfo::Function {
+            parameters,
+            return_type,
+        } = self.types[id].clone()
+        else {
+            unreachable!()
+        };
+        self.arity(call, arguments, parameters.len());
         let mut completes = true;
         for (index, argument) in arguments.iter().enumerate() {
-            let argument_type = self.check_expr(argument);
-            if let (Some(actual), Some(expected)) =
-                (argument_type, signature.parameters.get(index).copied())
-            {
+            let expected = parameters.get(index).copied();
+            let actual = self.check_expr_expected(argument, expected);
+            if let (Some(expected), Some(actual)) = (expected, actual) {
                 self.require_same_type(
                     expected,
                     actual,
@@ -1272,14 +1598,507 @@ impl FunctionChecker<'_> {
                     "Function argument has the wrong type",
                 );
             }
-            completes &= argument_type.is_some();
+            completes &= actual.is_some();
+        }
+        completes.then_some(return_type)
+    }
+
+    fn arity(&mut self, call: &Expr, arguments: &[Expr], count: usize) {
+        if arguments.len() != count {
+            self.diagnostics.push(Diagnostic::error(
+                "UBI0023",
+                format!("Expected {count} arguments, found {}", arguments.len()),
+                call.span.clone(),
+            ));
+        }
+    }
+
+    fn option_inner(&self, ty: ValueType) -> Option<ValueType> {
+        if let ValueType::Option(id) = ty {
+            if let TypeInfo::Option(inner) = self.types[id] {
+                return Some(inner);
+            }
+        }
+        None
+    }
+
+    fn list_inner(&self, ty: ValueType) -> Option<ValueType> {
+        if let ValueType::List(id) = ty {
+            if let TypeInfo::List(inner) = self.types[id] {
+                return Some(inner);
+            }
+        }
+        None
+    }
+
+    fn aggregate_allowed(&mut self, ty: ValueType, span: &Span) -> bool {
+        if matches!(ty, ValueType::Function(_) | ValueType::Range) {
+            self.error(
+                span,
+                "Function and range values cannot be stored in aggregates",
+            );
+            false
+        } else {
+            true
+        }
+    }
+
+    fn check_list(
+        &mut self,
+        expression: &Expr,
+        values: &[Expr],
+        expected: Option<ValueType>,
+    ) -> Option<ValueType> {
+        let mut inner = expected.and_then(|ty| self.list_inner(ty));
+        let mut completes = true;
+        for value in values {
+            let actual = self.check_expr_expected(value, inner);
+            if let Some(actual) = actual {
+                self.aggregate_allowed(actual, &value.span);
+                if let Some(expected) = inner {
+                    self.require_same_type(
+                        expected,
+                        actual,
+                        &value.span,
+                        "List elements must have the same type",
+                    );
+                } else {
+                    inner = Some(actual);
+                }
+            } else {
+                completes = false;
+            }
+        }
+        let Some(inner) = inner else {
+            self.error(
+                &expression.span,
+                "Empty list requires an expected List type",
+            );
+            return Some(ValueType::Error);
+        };
+        completes.then(|| intern_type(self.types, TypeInfo::List(inner)))
+    }
+
+    fn check_arrow(
+        &mut self,
+        parameters: &[Parameter],
+        body: &Expr,
+        expected: Option<ValueType>,
+    ) -> Option<ValueType> {
+        let previous_scopes = self.scopes.clone();
+        for scope in &mut self.scopes {
+            for binding in scope.values_mut() {
+                binding.mutable = false;
+            }
+        }
+        self.scopes.push(BTreeMap::new());
+        let mut parameter_types = Vec::new();
+        for parameter in parameters {
+            let ty = type_from_syntax(
+                &parameter.ty,
+                self.module_id,
+                self.module_symbols,
+                self.record_keys,
+                self.types,
+                &mut self.diagnostics,
+            );
+            parameter_types.push(ty);
+            if self
+                .scopes
+                .last_mut()
+                .unwrap()
+                .insert(parameter.name.name.clone(), Binding { ty, mutable: false })
+                .is_some()
+            {
+                self.error(&parameter.name.span, "Duplicate closure parameter");
+            }
+        }
+        let previous_return = self.expected_return.take();
+        let previous_inferred = self.inferred_return.take();
+        let previous_loop = std::mem::replace(&mut self.loop_depth, 0);
+        let expected_return = expected.and_then(|ty| match ty {
+            ValueType::Function(id) => match self.types[id] {
+                TypeInfo::Function { return_type, .. } => Some(return_type),
+                _ => None,
+            },
+            _ => None,
+        });
+        self.expected_return = expected_return;
+        if let Some(ty) = self.check_expr_expected(body, expected_return) {
+            self.record_return(ty, body.span.clone());
+        }
+        let return_type = expected_return
+            .or(self.inferred_return)
+            .unwrap_or(ValueType::Error);
+        self.expected_return = previous_return;
+        self.inferred_return = previous_inferred;
+        self.loop_depth = previous_loop;
+        self.scopes = previous_scopes;
+        Some(intern_type(
+            self.types,
+            TypeInfo::Function {
+                parameters: parameter_types,
+                return_type,
+            },
+        ))
+    }
+
+    fn check_match(
+        &mut self,
+        expression: &Expr,
+        subject: &Expr,
+        arms: &[MatchArm],
+        expected: Option<ValueType>,
+    ) -> Option<ValueType> {
+        let subject_type = self.check_expr(subject);
+        let subject_ty = subject_type.unwrap_or(ValueType::Error);
+        let mut result = expected;
+        let mut completes = false;
+        for arm in arms {
+            self.scopes.push(BTreeMap::new());
+            self.check_pattern(&arm.pattern, subject_ty);
+            if let Some(guard) = &arm.guard {
+                if let Some(ty) = self.check_expr(guard) {
+                    self.require_same_type(
+                        ValueType::Bool,
+                        ty,
+                        &guard.span,
+                        "Match guard must be bool",
+                    );
+                }
+            }
+            if let Some(ty) = self.check_expr_expected(&arm.body, result) {
+                if let Some(expected) = result {
+                    self.require_same_type(
+                        expected,
+                        ty,
+                        &arm.body.span,
+                        "Match arms must have the same type",
+                    );
+                } else {
+                    result = Some(ty);
+                }
+                completes = true;
+            }
+            self.scopes.pop();
+        }
+        let patterns: Vec<&Pattern> = arms
+            .iter()
+            .filter(|arm| arm.guard.is_none())
+            .map(|arm| &arm.pattern)
+            .collect();
+        if subject_ty != ValueType::Error && !patterns_exhaustive(subject_ty, &patterns, self.types)
+        {
+            self.error(&expression.span, "Match patterns are not exhaustive");
+        }
+        if completes && subject_type.is_some() {
+            result
+        } else {
+            None
+        }
+    }
+
+    fn check_pattern(&mut self, pattern: &Pattern, expected: ValueType) {
+        match &pattern.kind {
+            PatternKind::Wildcard => {}
+            PatternKind::Binding(name) => {
+                if self
+                    .scopes
+                    .last_mut()
+                    .unwrap()
+                    .insert(
+                        name.name.clone(),
+                        Binding {
+                            ty: expected,
+                            mutable: false,
+                        },
+                    )
+                    .is_some()
+                {
+                    self.error(&name.span, "Duplicate pattern binding");
+                }
+            }
+            PatternKind::Integer(raw) => {
+                let valid = raw.parse::<i32>().is_ok();
+                if !valid {
+                    self.error(
+                        &pattern.span,
+                        "Pattern integer is outside signed 32-bit range",
+                    );
+                }
+                self.require_same_type(
+                    ValueType::Int,
+                    expected,
+                    &pattern.span,
+                    "Pattern has the wrong type",
+                );
+            }
+            PatternKind::String(_) => self.require_same_type(
+                ValueType::String,
+                expected,
+                &pattern.span,
+                "Pattern has the wrong type",
+            ),
+            PatternKind::Bool(_) => self.require_same_type(
+                ValueType::Bool,
+                expected,
+                &pattern.span,
+                "Pattern has the wrong type",
+            ),
+            PatternKind::Some(inner) => {
+                if let Some(ty) = self.option_inner(expected) {
+                    self.check_pattern(inner, ty);
+                } else {
+                    self.error(&pattern.span, "Option pattern requires Option subject");
+                }
+            }
+            PatternKind::None => {
+                if self.option_inner(expected).is_none() {
+                    self.error(&pattern.span, "Option pattern requires Option subject");
+                }
+            }
+        }
+    }
+
+    fn check_builtin(
+        &mut self,
+        call: &Expr,
+        name: &str,
+        arguments: &[Expr],
+        expected: Option<ValueType>,
+    ) -> Option<ValueType> {
+        use ValueType::{Bool, Error, Float, Int, Range, String};
+        let count = match name {
+            "range" | "append" | "map" | "filter" | "find" | "contains" | "startsWith"
+            | "endsWith" | "split" | "join" | "min" | "max" | "pow" => 2,
+            "set" | "fold" | "replace" | "slice" | "clamp" => 3,
+            _ => 1,
+        };
+        self.arity(call, arguments, count);
+        if arguments.len() != count {
+            for arg in arguments {
+                self.check_expr(arg);
+            }
+            return Some(Error);
+        }
+        let list_expected = if matches!(name, "append" | "filter") {
+            expected
+        } else if name == "set" {
+            expected.and_then(|ty| self.option_inner(ty))
+        } else if name == "join" {
+            Some(intern_type(self.types, TypeInfo::List(String)))
+        } else {
+            None
+        };
+        let mut checked = Vec::new();
+        let mut completes = true;
+        for (index, arg) in arguments.iter().enumerate() {
+            let hint = if index == 0 {
+                list_expected
+            } else if name == "append" || (name == "set" && index == 2) {
+                checked.first().copied().and_then(|ty| self.list_inner(ty))
+            } else if name == "fold" && index == 1 {
+                expected
+            } else if (matches!(name, "map" | "filter" | "find") && index == 1)
+                || (name == "fold" && index == 2)
+            {
+                let item = checked.first().copied().and_then(|ty| self.list_inner(ty));
+                let callback_return = if name == "map" {
+                    expected.and_then(|ty| self.list_inner(ty))
+                } else if name == "fold" {
+                    checked.get(1).copied()
+                } else {
+                    Some(Bool)
+                };
+                match (item, callback_return) {
+                    (Some(item), Some(return_type)) => {
+                        let parameters = if name == "fold" {
+                            vec![checked[1], item]
+                        } else {
+                            vec![item]
+                        };
+                        Some(intern_type(
+                            self.types,
+                            TypeInfo::Function {
+                                parameters,
+                                return_type,
+                            },
+                        ))
+                    }
+                    _ => None,
+                }
+            } else {
+                None
+            };
+            let ty = self.check_expr_expected(arg, hint);
+            completes &= ty.is_some();
+            checked.push(ty.unwrap_or(Error));
         }
         if !completes {
             return None;
         }
-        Some(signature.return_type.unwrap_or(ValueType::Error))
+        let a = checked[0];
+        let item = self.list_inner(a);
+        let check = |this: &mut Self, index: usize, ty: ValueType| {
+            this.require_same_type(
+                ty,
+                checked[index],
+                &arguments[index].span,
+                "Prelude argument has the wrong type",
+            )
+        };
+        let result = match name {
+            "range" => {
+                check(self, 0, Int);
+                check(self, 1, Int);
+                Range
+            }
+            "length" => {
+                if a != String && item.is_none() && a != Error {
+                    self.error(&arguments[0].span, "Length requires string or List");
+                }
+                Int
+            }
+            "append" | "set" => {
+                let Some(item) = item else {
+                    self.error(&arguments[0].span, "Collection helper requires List");
+                    return Some(Error);
+                };
+                if name == "append" {
+                    check(self, 1, item);
+                    a
+                } else {
+                    check(self, 1, Int);
+                    check(self, 2, item);
+                    intern_type(self.types, TypeInfo::Option(a))
+                }
+            }
+            "map" | "filter" | "find" | "fold" => {
+                let Some(item) = item else {
+                    self.error(&arguments[0].span, "Collection helper requires List");
+                    return Some(Error);
+                };
+                let index = if name == "fold" { 2 } else { 1 };
+                let ValueType::Function(id) = checked[index] else {
+                    self.error(&arguments[index].span, "Callback must be a function");
+                    return Some(Error);
+                };
+                let TypeInfo::Function {
+                    parameters,
+                    return_type,
+                } = self.types[id].clone()
+                else {
+                    unreachable!()
+                };
+                let required = if name == "fold" {
+                    vec![checked[1], item]
+                } else {
+                    vec![item]
+                };
+                if parameters != required {
+                    self.error(
+                        &arguments[index].span,
+                        "Callback parameters have the wrong types",
+                    );
+                }
+                if name == "filter" || name == "find" {
+                    self.require_same_type(
+                        Bool,
+                        return_type,
+                        &arguments[index].span,
+                        "Predicate must return bool",
+                    );
+                }
+                if name == "fold" {
+                    self.require_same_type(
+                        checked[1],
+                        return_type,
+                        &arguments[index].span,
+                        "Fold callback must return accumulator type",
+                    );
+                    checked[1]
+                } else if name == "filter" {
+                    a
+                } else if name == "find" {
+                    intern_type(self.types, TypeInfo::Option(item))
+                } else {
+                    self.aggregate_allowed(return_type, &arguments[index].span);
+                    intern_type(self.types, TypeInfo::List(return_type))
+                }
+            }
+            "contains" | "startsWith" | "endsWith" => {
+                check(self, 0, String);
+                check(self, 1, String);
+                Bool
+            }
+            "trim" => {
+                check(self, 0, String);
+                String
+            }
+            "split" => {
+                check(self, 0, String);
+                check(self, 1, String);
+                intern_type(self.types, TypeInfo::List(String))
+            }
+            "join" => {
+                let ty = intern_type(self.types, TypeInfo::List(String));
+                check(self, 0, ty);
+                check(self, 1, String);
+                String
+            }
+            "replace" => {
+                for i in 0..3 {
+                    check(self, i, String);
+                }
+                String
+            }
+            "slice" => {
+                check(self, 0, String);
+                check(self, 1, Int);
+                check(self, 2, Int);
+                String
+            }
+            "abs" | "min" | "max" | "clamp" => {
+                if !matches!(a, Int | Float | Error) {
+                    self.error(&arguments[0].span, "Math requires int or float");
+                }
+                for i in 1..count {
+                    check(self, i, a);
+                }
+                a
+            }
+            "floor" | "ceil" | "round" | "sqrt" | "sin" | "cos" | "tan" | "log" | "exp" | "pow" => {
+                for i in 0..count {
+                    check(self, i, Float);
+                }
+                Float
+            }
+            "toFloat" => {
+                check(self, 0, Int);
+                Float
+            }
+            "toInt" => {
+                check(self, 0, Float);
+                intern_type(self.types, TypeInfo::Option(Int))
+            }
+            "parseInt" => {
+                check(self, 0, String);
+                intern_type(self.types, TypeInfo::Option(Int))
+            }
+            "parseFloat" => {
+                check(self, 0, String);
+                intern_type(self.types, TypeInfo::Option(Float))
+            }
+            "toString" => {
+                if !matches!(a, Int | Bool | String | Error) {
+                    self.error(&arguments[0].span, "ToString accepts int, bool, or string");
+                }
+                String
+            }
+            _ => unreachable!(),
+        };
+        Some(result)
     }
-
     fn check_assignment_target(&mut self, target: &Expr) -> Option<ValueType> {
         let ExprKind::Name(name) = &target.kind else {
             return Some(ValueType::Error);
@@ -1358,7 +2177,12 @@ impl FunctionChecker<'_> {
                 }
             }
             Symbol::EqualEqual | Symbol::BangEqual => {
-                if left_type != right_type {
+                if !self.equatable(left_type, &mut BTreeSet::new())
+                    || !self.equatable(right_type, &mut BTreeSet::new())
+                {
+                    self.error(&right.span, "Function and range values cannot be compared");
+                    Error
+                } else if left_type != right_type {
                     self.mismatch(
                         right,
                         left_type,
@@ -1437,6 +2261,24 @@ impl FunctionChecker<'_> {
                 ),
                 span.clone(),
             ));
+        }
+    }
+
+    fn equatable(&self, ty: ValueType, visited: &mut BTreeSet<usize>) -> bool {
+        match ty {
+            ValueType::Function(_) | ValueType::Range => false,
+            ValueType::List(id) | ValueType::Option(id) => match self.types[id] {
+                TypeInfo::List(inner) | TypeInfo::Option(inner) => self.equatable(inner, visited),
+                _ => unreachable!(),
+            },
+            ValueType::Record(id) => {
+                !visited.insert(id)
+                    || self.records[id]
+                        .fields
+                        .values()
+                        .all(|ty| self.equatable(*ty, visited))
+            }
+            _ => true,
         }
     }
 
@@ -1519,5 +2361,58 @@ impl FunctionChecker<'_> {
                 ValueType::Error
             }
         }
+    }
+}
+
+fn is_option_member(expression: &Expr, name: &str) -> bool {
+    matches!(&expression.kind, ExprKind::Name(value) if value.name == name)
+}
+
+fn collect_pattern_names(pattern: &Pattern, names: &mut HashSet<String>) {
+    match &pattern.kind {
+        PatternKind::Binding(name) => {
+            names.insert(name.name.clone());
+        }
+        PatternKind::Some(inner) => collect_pattern_names(inner, names),
+        _ => {}
+    }
+}
+
+fn patterns_exhaustive(ty: ValueType, patterns: &[&Pattern], types: &[TypeInfo]) -> bool {
+    if patterns.iter().any(|pattern| {
+        matches!(
+            pattern.kind,
+            PatternKind::Wildcard | PatternKind::Binding(_)
+        )
+    }) {
+        return true;
+    }
+    match ty {
+        ValueType::Bool => {
+            patterns
+                .iter()
+                .any(|p| matches!(p.kind, PatternKind::Bool(true)))
+                && patterns
+                    .iter()
+                    .any(|p| matches!(p.kind, PatternKind::Bool(false)))
+        }
+        ValueType::Option(id) => {
+            let TypeInfo::Option(inner) = types[id] else {
+                unreachable!()
+            };
+            let some: Vec<&Pattern> = patterns
+                .iter()
+                .filter_map(|p| {
+                    if let PatternKind::Some(value) = &p.kind {
+                        Some(value.as_ref())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            patterns.iter().any(|p| matches!(p.kind, PatternKind::None))
+                && patterns_exhaustive(inner, &some, types)
+        }
+        _ => false,
     }
 }
