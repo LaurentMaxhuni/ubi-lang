@@ -708,3 +708,135 @@ for(const value of ['Infinity','1.0',true,{},null]) assert.throws(()=>m.floating
 "#,
     );
 }
+
+#[test]
+fn local_prelude_names_resolve_lexically_in_calls_references_and_captures() {
+    let a = checked(
+        r#"
+fn inc(n: int) -> int { n + 1 }
+export fn localNames() -> int {
+  let length = (x: int) => x + 1;
+  let map = (x: int) => x * 2;
+  let trim = (x: int) => x - 3;
+  let reference = map;
+  length(2) * 100 + reference(4) * 10 + trim(9)
+}
+
+export fn capturedName() -> int {
+  let length = (n: int) => n + 10;
+  let callback = (n: int) => length(n);
+  fold(map([1, 2], callback), 0, (a: int, b: int) => a + b)
+}
+export fn nestedScope() -> int {
+  let count = length([1, 2]);
+  let local = { let length = inc; length(9) };
+  count * 100 + local
+}
+export fn callbackArgument() -> int {
+  let trim = (n: int) => n + 5;
+  fold(map([1, 2], trim), 0, (a: int, b: int) => a + b)
+}
+export fn functionSnapshot() -> int {
+  let mut length = (n: int) => n + 1;
+  let old = (n: int) => length(n);
+  length = (n: int) => n + 20;
+  old(2) * 100 + length(2)
+}
+export fn noncallableName() -> int {
+  let trim = 9; let consume = (n: int) => trim + n; consume(2)
+}
+"#,
+    );
+    for (name, expected) in [
+        ("localNames", 386),
+        ("capturedName", 23),
+        ("nestedScope", 210),
+        ("callbackArgument", 13),
+        ("functionSnapshot", 322),
+        ("noncallableName", 11),
+    ] {
+        assert_eq!(run(&a, name, vec![]), Ok(Value::Int(expected)), "{name}");
+    }
+    node(&a, "assert.equal(m.localNames(),386); assert.equal(m.capturedName(),23); assert.equal(m.nestedScope(),210); assert.equal(m.callbackArgument(),13); assert.equal(m.functionSnapshot(),322); assert.equal(m.noncallableName(),11);");
+}
+
+#[test]
+fn named_and_local_callees_share_source_expression_step_accounting() {
+    let a = checked(
+        r#"
+fn nop() -> unit { () }
+export fn namedWithinBudget() -> unit { for (x in range(0, 150000)) { nop(); } }
+export fn namedOverBudget() -> unit { for (x in range(0, 180000)) { nop(); } }
+export fn localWithinBudget() -> unit { let f = nop; for (x in range(0, 150000)) { f(); } }
+export fn localOverBudget() -> unit { let f = nop; for (x in range(0, 180000)) { f(); } }
+"#,
+    );
+    for name in ["namedWithinBudget", "localWithinBudget"] {
+        assert_eq!(run(&a, name, vec![]), Ok(Value::Unit), "{name}");
+    }
+    for name in ["namedOverBudget", "localOverBudget"] {
+        fault(&a, name, "UBI-R0005");
+    }
+    node(&a, "assert.equal(m.namedWithinBudget(),undefined); assert.equal(m.localWithinBudget(),undefined); for(const name of ['namedOverBudget','localOverBudget']) assert.throws(()=>m[name](),e=>e.code==='UBI-R0005');");
+}
+
+#[test]
+fn imported_named_callbacks_keep_aggregate_types_captures_and_frame_budget() {
+    let mut sources = SourceSet::default();
+    for (id, source) in [
+        (
+            "lib.ubi",
+            r#"
+export record Item { value: int }
+export fn batch(item: Item) -> Option<List<Item>> {
+  Option.Some([Item { ...item, value: item.value + 1 }, item])
+}
+export fn empty(item: Item) -> Option<List<Item>> { Option.None }
+export fn score(total: int, batch: Option<List<Item>>) -> int {
+  match (batch) {
+    Option.Some(items) => fold(items, total, (n: int, item: Item) => n + item.value),
+    Option.None => total,
+  }
+}
+export fn walk(n: int) -> int { if (n == 0) { 0 } else { walk(n - 1) } }
+"#,
+        ),
+        (
+            "main.ubi",
+            r#"
+import { Item, batch, empty, score, walk } from "./lib.ubi";
+export fn importedSnapshot() -> int {
+  let mut callback = batch;
+  let saved = (item: Item) => callback(item);
+  callback = empty;
+  fold(map([Item { value: 2 }, Item { value: 4 }], saved), 0, score)
+}
+export fn importedEmpty() -> int { fold(map([Item { value: 2 }], empty), 7, score) }
+export fn importedValues() -> List<Option<List<Item>>> { map([Item { value: 2 }], batch) }
+export fn withinFrames() -> int { match (map([1], walk)[0]) { Option.Some(n) => n, Option.None => 99 } }
+export fn overFrames() -> List<int> { map([40], walk) }
+"#,
+        ),
+    ] {
+        sources
+            .insert(SourceFile::new(id, source.as_bytes().to_vec()).unwrap())
+            .unwrap();
+    }
+    let a = analyze(&sources);
+    assert!(a.diagnostics.is_empty(), "{:#?}", a.diagnostics);
+    assert_eq!(run(&a, "importedSnapshot", vec![]), Ok(Value::Int(14)));
+    assert_eq!(run(&a, "importedEmpty", vec![]), Ok(Value::Int(7)));
+    assert_eq!(run(&a, "withinFrames", vec![]), Ok(Value::Int(0)));
+    fault(&a, "overFrames", "UBI-R0005");
+    node(
+        &a,
+        r#"
+assert.equal(m.importedSnapshot(),14); assert.equal(m.importedEmpty(),7); assert.equal(m.withinFrames(),0);
+const values=m.importedValues();
+assert.deepEqual(values,[{tag:'Some',value:[{value:3},{value:2}]}]);
+assert.ok(Object.isFrozen(values)); assert.ok(Object.isFrozen(values[0]));
+assert.ok(Object.isFrozen(values[0].value)); assert.ok(Object.isFrozen(values[0].value[0]));
+assert.throws(()=>m.overFrames(),e=>e.code==='UBI-R0005');
+"#,
+    );
+}

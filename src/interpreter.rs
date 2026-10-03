@@ -578,7 +578,11 @@ impl Interpreter<'_> {
             ExprKind::Call { callee, arguments } => {
                 let constructor = matches!(&callee.kind, ExprKind::Member { object, name } if matches!(&object.kind, ExprKind::Name(namespace) if namespace.name == "Option") && name.name == "Some");
                 let builtin = match &callee.kind {
-                    ExprKind::Name(name) if builtin_name(&name.name) => Some(name.name.as_str()),
+                    ExprKind::Name(name)
+                        if self.local(&name.name).is_none() && builtin_name(&name.name) =>
+                    {
+                        Some(name.name.as_str())
+                    }
                     _ => None,
                 };
                 let callable = if constructor || builtin.is_some() {
@@ -978,9 +982,12 @@ impl Interpreter<'_> {
 }
 
 fn checked_length(length: usize) -> Result<Value, EvalError> {
-    i32::try_from(length)
-        .map(Value::Int)
-        .map_err(|_| overflow_fault())
+    i32::try_from(length).map(Value::Int).map_err(|_| {
+        EvalError::Runtime(RuntimeFault {
+            code: "UBI-R0003",
+            message: "Length exceeds int range".into(),
+        })
+    })
 }
 
 fn float_min(a: f64, b: f64) -> f64 {

@@ -50,7 +50,7 @@ arguments    = expression, { ",", expression }, [ "," ] ;
 primary      = INT | FLOAT | STRING | "true" | "false" | name | "(", ")"
              | "(", expression, ")" | block | if_expr | match_expr | arrow
              | "[", [ arguments ], "]" | record_value ;
-if_expr      = "if", "(", expression, ")", block, "else", ( block | if_expr ) ;
+if_expr      = "if", "(", expression, ")", block, [ "else", ( block | if_expr ) ] ;
 record_value = name, "{", [ record_items ], "}" ;
 record_items = [ "...", expression, "," ], field_value, { ",", field_value }, [ "," ] ;
 field_value  = name, ":", expression ;
@@ -368,7 +368,9 @@ semantics; function values and aggregates containing functions are not equatable
 literals, and nested `Option.Some(pattern)`/`Option.None` patterns, with optional
 `if (bool)` guards. Subject evaluates once; first matching unguarded or true-guard
 arm executes. Bindings are immutable and scoped to that arm. All completing arms
-have identical types. Coverage is exhaustive; guarded arms do not establish
+have identical types, including statically unreachable arms. Every arm's pattern
+and body are typechecked; reachability alone never causes rejection.
+Coverage is exhaustive; guarded arms do not establish
 coverage. Some coverage requires exhaustive payload coverage. Other types need a
 catch-all. Duplicate pattern bindings are rejected. `UBI0020` reports type,
 callback, loop-placement, and coverage errors; unresolved names use `UBI0010`.

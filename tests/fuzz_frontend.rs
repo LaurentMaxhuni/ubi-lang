@@ -19,6 +19,7 @@ fn deterministic_mutations_never_crash_the_parser_or_checker() {
         "export fn f(xs: List<Option<int>>) -> int { let mut total = 0; for (item in xs) { total = total + match (item) { Option.Some(n) if (n > 0) => n, Option.Some(n) => 0, Option.None => 0 }; } total }",
         "export fn f() -> int { let mut n = 1; let cb = (x: int) => { let mut y = x + n; while (y < 4) { y = y + 1; } y }; n = 9; fold(map([1, 2], cb), 0, (a: int, b: int) => a + b) }",
         "export fn f() -> string { join(filter(split(\"a😀b\", \"\"), (s: string) => contains(\"a😀\", s)), \"|\") }",
+        "export fn f() -> int { let length = (n: int) => n + 1; let trim = (n: int) => length(n); fold(map([1, 2], trim), 0, (a: int, b: int) => a + b) }",
     ];
     for seed in &seeds[4..] {
         let mut compiler = Compiler::new();
@@ -65,11 +66,15 @@ fn deterministic_mutations_never_crash_the_parser_or_checker() {
         let check = compiler.check();
         if check.diagnostics.is_empty() {
             let build = compiler.build();
-            if build.diagnostics.is_empty() {
-                assert!(build.javascript.is_some());
-            } else {
-                assert!(build.javascript.is_none());
-            }
+            assert!(
+                build.diagnostics.is_empty(),
+                "checked mutation {case} failed to build: {:?}",
+                build.diagnostics
+            );
+            assert!(
+                build.javascript.is_some(),
+                "checked mutation {case} produced no JavaScript"
+            );
         }
     }
 }

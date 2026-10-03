@@ -107,10 +107,11 @@ Mini benchmark progress: all four tasks converged within the preset three-iterat
 
 ## Milestone 2 — Make the language useful for shared logic
 
-Progress: local reassignment, non-generic records, field access, immutable updates,
-equality, and record imports pass independent interpreter/JavaScript checks.
-The example creates and completes a Task; browser verification passes.
-Lists and the remaining language/application scope below are unfinished.
+Progress: local reassignment, records, lists, built-in Option/match, loops/ranges,
+closures, collection helpers, strings/math/conversions pass separately authored
+interpreter/JavaScript checks. Focused foundation examples run in Node and browser.
+User-defined enums/generics, Result/propagation, maps, and application/host work
+remain unfinished. Historical task-list gates below are not the current user task.
 
 - Add nominal records, field access, record updates, lists, and local reassignment.
 - Add data enums, pattern bindings, and exhaustive matching, including nested patterns. Guards must not incorrectly establish coverage.

@@ -457,7 +457,7 @@ impl<'a> FunctionEmitter<'a> {
                     .map(|argument| self.expression(argument, indent))
                     .collect::<Result<Vec<_>, _>>()?;
                 values.push("$ubi_budget".to_owned());
-                format!("{target}({})", values.join(", "))
+                format!("($ubi_tick($ubi_budget), {target}({}))", values.join(", "))
             }
             ExprKind::Unary { operator, operand } => {
                 let operand = self.expression(operand, indent)?;

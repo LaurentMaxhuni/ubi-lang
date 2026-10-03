@@ -157,3 +157,40 @@ Snapshots make closure capture stable. Use records for named data; defer richer
 abstractions. ASCII trim and strict decimal parsing avoid host-specific coercion;
 float string formatting and Unicode casing are deferred until portable contracts
 are needed. Specify pure utilities in SPEC section 15 before implementation.
+
+## Programming foundations evidence
+
+Run date: 2026-10-03. User-directed scope, SPEC.md 0.4 section 15.
+
+- Parser, checker, typed IR, independent source interpreter, and JavaScript
+  backend implement immutable List/Option values, safe scalar/list indexing,
+  exhaustive guarded/nested matching, for/while and lazy ranges, break/continue,
+  typed snapshot closures, named function callbacks, map/filter/find/fold,
+  string utilities, math, and strict explicit conversions.
+- A separate conformance author derived twelve acceptance groups against the
+  specification before inspecting production implementation. Fixed expectations
+  cover aliases, evaluation/fault order, missing values, closure returns and
+  nested/per-iteration captures, loop budgets, Unicode scalar strings, strict
+  parsing, IEEE domains/signed zero, host validation/freeze, and 32/33 aggregate
+  depth. Both interpreter and generated JavaScript pass those expectations.
+- examples/foundations is a standalone language example; its documented main
+  output and mathSample=12 pass through ubi run. The same generated logic passes
+  a local browser verification page. No task-list changes were required.
+- Frontend fuzzing includes three new valid foundation seeds and 10,000
+  deterministic mutations. Public evaluation remains separate from the
+  implementation; no evaluator-owned hidden corpus or full M2 gate is claimed.
+- Follow-up review corrected lexical prelude-name shadowing in the interpreter
+  and named-callee step accounting in JavaScript. Two additional separately
+  authored regression groups cover local callback names/captures and exact
+  source-expression work budgets. Fourteen foundation groups now pass. Checked
+  fuzz programs must also build successfully, rather than tolerating internal
+  lowering diagnostics. Independent production review found no remaining
+  confirmed issue; unreachable match arms retain typechecking with a clarified
+  contract. Oversized length reports the specified resource fault.
+- A fifteenth conformance group verifies imported named callbacks with nested
+  record/list/Option values, function-alias snapshot captures, frozen returns,
+  and shared cross-module call-frame budgets.
+- Final verification: 118 tests pass across all targets; Clippy with warnings
+  denied, formatting, and whitespace checks pass. The stricter 10,000-mutation
+  fuzz run completed under a separate 60-second process watchdog. Previously
+  documented Windows symlink checks remain unavailable on this host.
