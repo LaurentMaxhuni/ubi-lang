@@ -183,3 +183,7 @@ mod records_tests;
 #[cfg(test)]
 #[path = "foundations_tests.rs"]
 mod foundations_tests;
+
+#[cfg(test)]
+#[path = "enums_tests.rs"]
+mod enums_tests;

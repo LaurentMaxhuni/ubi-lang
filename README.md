@@ -4,8 +4,8 @@ Ubi source files use `.ubi`. The Rust compiler checks source and emits JavaScrip
 ES modules; supported language behavior is documented in [SPEC.md](SPEC.md).
 
 Current support includes typed variables/functions, records, immutable lists,
-`Option` and exhaustive matching, loops/ranges, snapshot closures, collection
-helpers, and pure string/math/conversion utilities. Record fields and collection
+`Option`, user-defined enums and exhaustive matching, loops/ranges, snapshot
+closures, collection helpers, and pure string/math/conversion utilities. Record fields and collection
 elements stay immutable; updates create new values:
 
 ```ubi
@@ -25,9 +25,10 @@ const done = completeTask(JSON.stringify(task));
 // task.completed remains false; done.completed is true.
 ```
 
-Primitive arguments pass directly. Record, list, and Option arguments use
+Primitive arguments pass directly. Record, list, Option, and enum arguments use
 serialized JSON; returned aggregates are frozen. See [host encoding](SPEC.md#15-programming-foundations-2026-10-03)
-for validation and representation. User-defined enums/generics, Result, maps,
+for validation and representation; [enum encoding](SPEC.md#16-user-defined-enums-2026-10-04)
+uses exact `tag`/`values` envelopes. User generics, Result, maps,
 classes, tuples, async, and host capabilities remain future slices.
 
 ```powershell
@@ -78,6 +79,29 @@ String helpers include `length`, `contains`, `startsWith`, `endsWith`, `trim`,
 Conversions are explicit: `toFloat`, `toInt`, `parseInt`, `parseFloat`, `toString`.
 Parsing and float-to-int conversion return Option; `toString` accepts int, bool,
 or string. See [the contracts](SPEC.md#15-programming-foundations-2026-10-03).
+
+## User-defined enums
+
+Declare typed variants and handle every case:
+
+```ubi
+enum Shape { Point, Rectangle(int, int) }
+fn area(shape: Shape) -> int {
+    match (shape) {
+        Shape.Point => 0,
+        Shape.Rectangle(width, height) => width * height,
+    }
+}
+```
+
+Enums support imports, nested patterns, immutable payloads, and structural
+equality. Run the [enum example](examples/enums/README.md):
+
+```powershell
+cargo run -- run main.ubi --root examples/enums
+```
+
+It prints `enums: rectangle=12, total=22`.
 
 ## Run a program
 

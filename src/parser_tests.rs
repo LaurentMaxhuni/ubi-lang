@@ -93,10 +93,10 @@ fn unsupported_keyword_and_later_profile_syntax_get_ubi0003() {
     assert_eq!(error.code, "UBI0003");
     assert_eq!(&source[error.primary.start..error.primary.end], "await");
 
-    let source = "enum Later {}";
+    let source = "enum Later<T> { Value(T) }";
     let error = parse("main.ubi", source).unwrap_err();
     assert_eq!(error.code, "UBI0003");
-    assert_eq!(&source[error.primary.start..error.primary.end], "enum");
+    assert_eq!(&source[error.primary.start..error.primary.end], "<");
 }
 
 #[test]

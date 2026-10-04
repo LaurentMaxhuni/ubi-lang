@@ -20,6 +20,7 @@ pub(crate) enum ValueType {
     Record(usize),
     List(usize),
     Option(usize),
+    Enum(usize),
     Function(usize),
     Range,
     Never,
@@ -37,6 +38,7 @@ impl ValueType {
             Self::Record(_) => "record",
             Self::List(_) => "List",
             Self::Option(_) => "Option",
+            Self::Enum(_) => "enum",
             Self::Function(_) => "function",
             Self::Range => "range",
             Self::Never => "never",
@@ -49,6 +51,11 @@ impl ValueType {
 pub(crate) enum TypeInfo {
     List(ValueType),
     Option(ValueType),
+    Enum {
+        key: FunctionKey,
+        exported: bool,
+        variants: BTreeMap<String, Vec<ValueType>>,
+    },
     Function {
         parameters: Vec<ValueType>,
         return_type: ValueType,
@@ -63,6 +70,7 @@ fn intern_type(types: &mut Vec<TypeInfo>, info: TypeInfo) -> ValueType {
     match info {
         TypeInfo::List(_) => ValueType::List(id),
         TypeInfo::Option(_) => ValueType::Option(id),
+        TypeInfo::Enum { .. } => ValueType::Enum(id),
         TypeInfo::Function { .. } => ValueType::Function(id),
     }
 }
@@ -353,6 +361,9 @@ fn resolve_imports(
                         Declaration::Record(value) => {
                             value.name.name == imported.name && value.exported
                         }
+                        Declaration::Enum(value) => {
+                            value.name.name == imported.name && value.exported
+                        }
                     },
                 ) {
                     Some(_) => {
@@ -478,6 +489,7 @@ fn collect_records(
             let name = match declaration {
                 Declaration::Function(value) => &value.name,
                 Declaration::Record(value) => &value.name,
+                Declaration::Enum(value) => &value.name,
             };
             if symbols.contains_key(&name.name)
                 || builtin_name(&name.name)
@@ -495,9 +507,16 @@ fn collect_records(
             if let Declaration::Record(record) = declaration {
                 keys.insert(key.clone(), records.len());
                 records.push(RecordInfo {
-                    key,
+                    key: key.clone(),
                     exported: record.exported,
                     fields: BTreeMap::new(),
+                });
+            }
+            if let Declaration::Enum(value) = declaration {
+                types.push(TypeInfo::Enum {
+                    key,
+                    exported: value.exported,
+                    variants: BTreeMap::new(),
                 });
             }
         }
@@ -529,6 +548,57 @@ fn collect_records(
             }
         }
     }
+    let enums: Vec<_> = types
+        .iter()
+        .enumerate()
+        .filter_map(|(id, info)| {
+            if let TypeInfo::Enum { key, .. } = info {
+                Some((id, key.clone()))
+            } else {
+                None
+            }
+        })
+        .collect();
+    for (id, key) in enums {
+        let declaration = modules[&key.0]
+            .declarations
+            .iter()
+            .find_map(|declaration| match declaration {
+                Declaration::Enum(value) if value.name.name == key.1 => Some(value),
+                _ => None,
+            })
+            .unwrap();
+        let mut variants = BTreeMap::new();
+        for variant in &declaration.variants {
+            let payloads: Vec<_> = variant
+                .payloads
+                .iter()
+                .map(|ty| type_from_syntax(ty, &key.0, module_symbols, &keys, types, diagnostics))
+                .collect();
+            if declaration.exported {
+                for (ty, syntax) in payloads.iter().zip(&variant.payloads) {
+                    check_public_type(*ty, &syntax.span, &records, types, diagnostics);
+                }
+            }
+            if variants
+                .insert(variant.name.name.clone(), payloads)
+                .is_some()
+            {
+                diagnostics.push(Diagnostic::error(
+                    "UBI0011",
+                    "Duplicate enum variant",
+                    variant.name.span.clone(),
+                ));
+            }
+        }
+        let TypeInfo::Enum {
+            variants: target, ..
+        } = &mut types[id]
+        else {
+            unreachable!()
+        };
+        *target = variants;
+    }
     for record in &records {
         if !record.exported {
             continue;
@@ -557,6 +627,21 @@ fn check_public_type(
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     match ty {
+        ValueType::Enum(id) => {
+            if matches!(
+                types[id],
+                TypeInfo::Enum {
+                    exported: false,
+                    ..
+                }
+            ) {
+                diagnostics.push(Diagnostic::error(
+                    "UBI0013",
+                    "Private enum type exposed by exported signature",
+                    span.clone(),
+                ));
+            }
+        }
         ValueType::List(id) | ValueType::Option(id) => {
             if let TypeInfo::List(inner) | TypeInfo::Option(inner) = types[id] {
                 check_public_type(inner, span, records, types, diagnostics);
@@ -705,6 +790,13 @@ fn type_from_syntax(
                 .and_then(|key| records.get(key))
             {
                 return ValueType::Record(*id);
+            }
+            if let Some(id) = symbols
+                .get(module_id)
+                .and_then(|module| module.get(&ty.name))
+                .and_then(|key| enum_type(types, key))
+            {
+                return ValueType::Enum(id);
             }
             diagnostics.push(Diagnostic::error(
                 "UBI0020",
@@ -1331,6 +1423,19 @@ impl FunctionChecker<'_> {
                 self.check_call(expression, callee, arguments, expected)
             }
             ExprKind::Member { object, name } => {
+                if let Some(id) = self.enum_namespace(object) {
+                    let TypeInfo::Enum { variants, .. } = &self.types[id] else {
+                        unreachable!()
+                    };
+                    match variants.get(&name.name) {
+                        Some(payloads) if payloads.is_empty() => return Some(ValueType::Enum(id)),
+                        Some(_) => {
+                            self.error(&name.span, "Enum payload variant requires arguments")
+                        }
+                        None => self.error(&name.span, "Unknown enum variant"),
+                    }
+                    return Some(ValueType::Error);
+                }
                 if is_option_member(object, "Option") && name.name == "None" {
                     if matches!(expected, Some(ValueType::Option(_))) {
                         return expected;
@@ -1541,6 +1646,38 @@ impl FunctionChecker<'_> {
         expected: Option<ValueType>,
     ) -> Option<ValueType> {
         if let ExprKind::Member { object, name } = &callee.kind {
+            if let Some(id) = self.enum_namespace(object) {
+                let TypeInfo::Enum { variants, .. } = &self.types[id] else {
+                    unreachable!()
+                };
+                let payloads = variants.get(&name.name).cloned();
+                let Some(payloads) = payloads else {
+                    self.error(&name.span, "Unknown enum variant");
+                    for argument in arguments {
+                        self.check_expr(argument);
+                    }
+                    return Some(ValueType::Error);
+                };
+                if payloads.is_empty() {
+                    self.error(&callee.span, "Payload-free enum variant cannot be called");
+                }
+                self.arity(call, arguments, payloads.len());
+                let mut completes = true;
+                for (index, argument) in arguments.iter().enumerate() {
+                    let expected = payloads.get(index).copied();
+                    let actual = self.check_expr_expected(argument, expected);
+                    if let (Some(expected), Some(actual)) = (expected, actual) {
+                        self.require_same_type(
+                            expected,
+                            actual,
+                            &argument.span,
+                            "Enum payload has the wrong type",
+                        );
+                    }
+                    completes &= actual.is_some();
+                }
+                return completes.then_some(ValueType::Enum(id));
+            }
             if is_option_member(object, "Option") && name.name == "Some" {
                 self.arity(call, arguments, 1);
                 let inner_expected = expected.and_then(|ty| self.option_inner(ty));
@@ -1611,6 +1748,23 @@ impl FunctionChecker<'_> {
                 call.span.clone(),
             ));
         }
+    }
+
+    fn enum_namespace(&self, object: &Expr) -> Option<usize> {
+        let ExprKind::Name(name) = &object.kind else {
+            return None;
+        };
+        if self.lookup_local(&name.name).is_some() {
+            return None;
+        }
+        self.enum_id(&name.name)
+    }
+
+    fn enum_id(&self, name: &str) -> Option<usize> {
+        self.module_symbols
+            .get(self.module_id)
+            .and_then(|symbols| symbols.get(name))
+            .and_then(|key| enum_type(self.types, key))
     }
 
     fn option_inner(&self, ty: ValueType) -> Option<ValueType> {
@@ -1787,9 +1941,16 @@ impl FunctionChecker<'_> {
             .filter(|arm| arm.guard.is_none())
             .map(|arm| &arm.pattern)
             .collect();
-        if subject_ty != ValueType::Error && !patterns_exhaustive(subject_ty, &patterns, self.types)
-        {
-            self.error(&expression.span, "Match patterns are not exhaustive");
+        if subject_ty != ValueType::Error {
+            match patterns_exhaustive(subject_ty, &patterns, self.types) {
+                Ok(true) => {}
+                Ok(false) => self.error(&expression.span, "Match patterns are not exhaustive"),
+                Err(()) => self.diagnostics.push(Diagnostic::error(
+                    "UBI0090",
+                    "Match coverage resource limit exceeded",
+                    expression.span.clone(),
+                )),
+            }
         }
         if completes && subject_type.is_some() {
             result
@@ -1855,6 +2016,43 @@ impl FunctionChecker<'_> {
             PatternKind::None => {
                 if self.option_inner(expected).is_none() {
                     self.error(&pattern.span, "Option pattern requires Option subject");
+                }
+            }
+            PatternKind::Variant {
+                qualifier,
+                name,
+                payloads,
+                called,
+            } => {
+                let id = self.enum_id(&qualifier.name);
+                if id.map(ValueType::Enum) != Some(expected) {
+                    self.error(
+                        &qualifier.span,
+                        "Enum pattern requires the same nominal enum subject",
+                    );
+                }
+                let declared = id.and_then(|id| {
+                    if let TypeInfo::Enum { variants, .. } = &self.types[id] {
+                        variants.get(&name.name).cloned()
+                    } else {
+                        None
+                    }
+                });
+                match &declared {
+                    Some(types)
+                        if types.len() == payloads.len() && *called == !types.is_empty() => {}
+                    Some(_) => {
+                        self.error(&pattern.span, "Enum pattern has the wrong payload arity")
+                    }
+                    None => self.error(&name.span, "Unknown enum pattern variant"),
+                }
+                for (index, payload) in payloads.iter().enumerate() {
+                    let ty = declared
+                        .as_ref()
+                        .and_then(|types| types.get(index))
+                        .copied()
+                        .unwrap_or(ValueType::Error);
+                    self.check_pattern(payload, ty);
                 }
             }
         }
@@ -2177,9 +2375,7 @@ impl FunctionChecker<'_> {
                 }
             }
             Symbol::EqualEqual | Symbol::BangEqual => {
-                if !self.equatable(left_type, &mut BTreeSet::new())
-                    || !self.equatable(right_type, &mut BTreeSet::new())
-                {
+                if !self.equatable(left_type) || !self.equatable(right_type) {
                     self.error(&right.span, "Function and range values cannot be compared");
                     Error
                 } else if left_type != right_type {
@@ -2264,22 +2460,29 @@ impl FunctionChecker<'_> {
         }
     }
 
-    fn equatable(&self, ty: ValueType, visited: &mut BTreeSet<usize>) -> bool {
-        match ty {
-            ValueType::Function(_) | ValueType::Range => false,
-            ValueType::List(id) | ValueType::Option(id) => match self.types[id] {
-                TypeInfo::List(inner) | TypeInfo::Option(inner) => self.equatable(inner, visited),
-                _ => unreachable!(),
-            },
-            ValueType::Record(id) => {
-                !visited.insert(id)
-                    || self.records[id]
-                        .fields
-                        .values()
-                        .all(|ty| self.equatable(*ty, visited))
+    fn equatable(&self, ty: ValueType) -> bool {
+        let mut pending = vec![ty];
+        let mut visited = BTreeSet::new();
+        while let Some(ty) = pending.pop() {
+            match ty {
+                ValueType::Function(_) | ValueType::Range => return false,
+                ValueType::List(id) | ValueType::Option(id) => match self.types[id] {
+                    TypeInfo::List(inner) | TypeInfo::Option(inner) => pending.push(inner),
+                    _ => unreachable!(),
+                },
+                ValueType::Record(id) if visited.insert((false, id)) => {
+                    pending.extend(self.records[id].fields.values().copied());
+                }
+                ValueType::Enum(id) if visited.insert((true, id)) => {
+                    let TypeInfo::Enum { variants, .. } = &self.types[id] else {
+                        unreachable!()
+                    };
+                    pending.extend(variants.values().flatten().copied());
+                }
+                _ => {}
             }
-            _ => true,
         }
+        true
     }
 
     fn mismatch(&mut self, expression: &Expr, left: ValueType, right: ValueType, message: &str) {
@@ -2368,51 +2571,122 @@ fn is_option_member(expression: &Expr, name: &str) -> bool {
     matches!(&expression.kind, ExprKind::Name(value) if value.name == name)
 }
 
+pub(crate) fn enum_type(types: &[TypeInfo], target: &FunctionKey) -> Option<usize> {
+    types
+        .iter()
+        .position(|info| matches!(info, TypeInfo::Enum { key, .. } if key == target))
+}
+
 fn collect_pattern_names(pattern: &Pattern, names: &mut HashSet<String>) {
     match &pattern.kind {
         PatternKind::Binding(name) => {
             names.insert(name.name.clone());
         }
         PatternKind::Some(inner) => collect_pattern_names(inner, names),
+        PatternKind::Variant { payloads, .. } => {
+            for payload in payloads {
+                collect_pattern_names(payload, names);
+            }
+        }
         _ => {}
     }
 }
 
-fn patterns_exhaustive(ty: ValueType, patterns: &[&Pattern], types: &[TypeInfo]) -> bool {
-    if patterns.iter().any(|pattern| {
+fn patterns_exhaustive(
+    ty: ValueType,
+    patterns: &[&Pattern],
+    types: &[TypeInfo],
+) -> Result<bool, ()> {
+    // Specialize whole rows: checking payload columns separately loses correlations.
+    // An explicit stack also bounds compiler stack usage for wide enum payloads.
+    let rows = patterns
+        .iter()
+        .map(|pattern| vec![Some(*pattern)])
+        .collect::<Vec<_>>();
+    let mut pending = vec![(vec![ty], rows)];
+    let mut budget = 100_000usize;
+    while let Some((columns, rows)) = pending.pop() {
+        let work = 1 + rows.iter().map(|row| 1 + row.len()).sum::<usize>();
+        budget = budget.checked_sub(work).ok_or(())?;
+        if rows.is_empty() {
+            return Ok(false);
+        }
+        if columns.is_empty()
+            || rows
+                .iter()
+                .any(|row| row.iter().all(|pattern| catch_all(*pattern)))
+        {
+            continue;
+        }
+        let constructors = match columns[0] {
+            ValueType::Bool => vec![("true", vec![]), ("false", vec![])],
+            ValueType::Option(id) => {
+                let TypeInfo::Option(inner) = types[id] else {
+                    unreachable!()
+                };
+                vec![("Some", vec![inner]), ("None", vec![])]
+            }
+            ValueType::Enum(id) => {
+                let TypeInfo::Enum { variants, .. } = &types[id] else {
+                    unreachable!()
+                };
+                variants
+                    .iter()
+                    .map(|(tag, payloads)| (tag.as_str(), payloads.clone()))
+                    .collect()
+            }
+            _ => vec![],
+        };
+        if constructors.is_empty() {
+            let defaults = rows
+                .into_iter()
+                .filter(|row| catch_all(row[0]))
+                .map(|row| row.into_iter().skip(1).collect())
+                .collect();
+            pending.push((columns.into_iter().skip(1).collect(), defaults));
+        } else {
+            for (tag, payload_types) in constructors {
+                let mut specialized = Vec::new();
+                for row in &rows {
+                    budget = budget
+                        .checked_sub(1 + row.len() + payload_types.len())
+                        .ok_or(())?;
+                    let mut payloads = if catch_all(row[0]) {
+                        vec![None; payload_types.len()]
+                    } else {
+                        match &row[0].unwrap().kind {
+                            PatternKind::Bool(value)
+                                if tag == if *value { "true" } else { "false" } =>
+                            {
+                                vec![]
+                            }
+                            PatternKind::None if tag == "None" => vec![],
+                            PatternKind::Some(inner) if tag == "Some" => vec![Some(inner.as_ref())],
+                            PatternKind::Variant { name, payloads, .. }
+                                if name.name == tag && payloads.len() == payload_types.len() =>
+                            {
+                                payloads.iter().map(Some).collect()
+                            }
+                            _ => continue,
+                        }
+                    };
+                    payloads.extend_from_slice(&row[1..]);
+                    specialized.push(payloads);
+                }
+                let mut next_types = payload_types;
+                next_types.extend_from_slice(&columns[1..]);
+                pending.push((next_types, specialized));
+            }
+        }
+    }
+    Ok(true)
+}
+
+fn catch_all(pattern: Option<&Pattern>) -> bool {
+    pattern.is_none_or(|pattern| {
         matches!(
             pattern.kind,
             PatternKind::Wildcard | PatternKind::Binding(_)
         )
-    }) {
-        return true;
-    }
-    match ty {
-        ValueType::Bool => {
-            patterns
-                .iter()
-                .any(|p| matches!(p.kind, PatternKind::Bool(true)))
-                && patterns
-                    .iter()
-                    .any(|p| matches!(p.kind, PatternKind::Bool(false)))
-        }
-        ValueType::Option(id) => {
-            let TypeInfo::Option(inner) = types[id] else {
-                unreachable!()
-            };
-            let some: Vec<&Pattern> = patterns
-                .iter()
-                .filter_map(|p| {
-                    if let PatternKind::Some(value) = &p.kind {
-                        Some(value.as_ref())
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            patterns.iter().any(|p| matches!(p.kind, PatternKind::None))
-                && patterns_exhaustive(inner, &some, types)
-        }
-        _ => false,
-    }
+    })
 }

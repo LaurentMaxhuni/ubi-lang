@@ -1,6 +1,6 @@
 # Ubi language specification
 
-Version: 0.4 draft. Current work: programming foundations (lists, Option/match, loops, closures, and pure utilities), delivered under user direction. Milestone 1 evidence remains recorded in DECISIONS.md.
+Version: 0.5 draft. Current work: user-defined enums on the programming foundation. Milestone 1 evidence remains recorded in DECISIONS.md.
 
 ## 1. Scope and conformance
 
@@ -13,7 +13,7 @@ A conforming implementation preserves specified values, evaluation order, recove
 Current foundation slice adds lists, built-in Option, matching, loops, closures,
 and pure utilities to local reassignment and non-generic records. Section 15
 defines the supported subset and supersedes earlier profile restrictions.
-User-defined enums, generic declarations, and propagation remain deferred.
+Section 16 adds user-defined enums. Generic declarations and propagation remain deferred.
 
 Source is UTF-8 without a byte-order mark. Identifiers are ASCII `[A-Za-z_][A-Za-z0-9_]*`, case-sensitive. `_` alone is reserved for wildcard patterns. Keywords cannot be identifiers; lex them as a distinct token kind rather than as `IDENT`. Whitespace is exactly U+0009 tab, U+000A line feed, U+000D carriage return, and U+0020 space. Newlines have no special syntax. `//` comments end before line feed or carriage return; `/* ... */` comments are non-nesting. Unterminated comments/strings and invalid source encoding are lexical errors. Retain comments and their original byte spans for future formatting.
 
@@ -454,3 +454,47 @@ Pure prelude functions, reserved against user declaration/import:
 
 Prelude overloads resolve from established argument types; no truthiness,
 implicit conversion, ambient host access, or dynamic dispatch is introduced.
+
+## 16. User-defined enums (2026-10-04)
+
+This slice implements non-generic nominal enums, extending section 15. Generic
+declarations, Result/propagation, maps, and host access remain deferred.
+
+`enum Shape { Point, Rectangle(int, int), Label(string), }` declares at least one
+variant. Variant names are unique within their enum. Payloads are positional,
+nonempty typed lists; `Point()` in a declaration is invalid. Payload types may
+include records, enums (including recursive types), lists, and Options. Forward
+references and mutual recursion are allowed, subject to existing aggregate depth
+limits. Enum names share the declaration namespace with functions and records.
+Export/import and private-signature checks apply as in section 3.
+
+Construct `Shape.Point` or `Shape.Rectangle(3, 4)`. Payload-free variants cannot
+be called; payload variants require exactly their declared arguments and types.
+Constructors are qualified syntax, not first-class function values. Local names
+shadow enum names in expressions; patterns resolve their enum qualifier in the
+module type namespace. Wrong enum identity, variant, payload arity, or payload
+type is rejected before execution. Constructor arguments evaluate once, left to
+right. Construction adds one aggregate level; overflow faults with `UBI-R0005`.
+Equality compares nominal identity, variant, then all payloads structurally.
+
+Patterns use `Shape.Point` or `Shape.Rectangle(width, height)`, including nested
+enum/Option patterns, literals, bindings, and wildcards. Binding names cannot
+repeat within an arm. Coverage must include every possible combination of
+payload values, not merely each payload position independently. Guards never
+establish coverage. All arms are typechecked, including unreachable arms.
+Exhaustiveness checking permits at most 100,000 pattern-matrix work units per
+match; each matrix visit, examined row, and examined/copied pattern consumes one
+unit. Exceeding this limit reports `UBI0090`, never silently accepts an incomplete
+match.
+Variant/pattern/type errors use `UBI0020`; constructor argument-count errors use
+`UBI0023`; duplicate declarations/variants use `UBI0011`; exported private types
+use `UBI0013`. Malformed syntax uses existing parser diagnostics.
+
+JavaScript hosts pass enum arguments as serialized JSON text with exactly
+`{ "tag": "Rectangle", "values": [3, 4] }`; payload-free variants have
+`"values": []`. Decode only declared tags and exact payload counts/types, applying
+the existing recursive float/unit encoding and 32 aggregate-level limit. Live
+objects, extra/missing fields, and malformed nested values are rejected before
+execution. Returned enums have this same representation; their object, payload
+array, and nested containers are frozen. Nominal identity is checked internally;
+host JSON acquires the enum type required by the exported parameter.

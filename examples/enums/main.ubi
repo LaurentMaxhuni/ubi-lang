@@ -1,0 +1,11 @@
+import { Shape, measure } from "./shapes.ubi";
+
+export fn rectangle() -> Shape {
+    Shape.Rectangle(3, 4)
+}
+
+export fn main() -> string {
+    let shapes = [Shape.Point, rectangle(), Shape.Rectangle(2, 3), Shape.Label("Ubi!")];
+    let total = fold(map(shapes, measure), 0, (sum: int, value: int) => sum + value);
+    "enums: rectangle=" + toString(measure(rectangle())) + ", total=" + toString(total)
+}

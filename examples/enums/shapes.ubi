@@ -1,0 +1,13 @@
+export enum Shape {
+    Point,
+    Rectangle(int, int),
+    Label(string),
+}
+
+export fn measure(shape: Shape) -> int {
+    match (shape) {
+        Shape.Point => 0,
+        Shape.Rectangle(width, height) => width * height,
+        Shape.Label(text) => length(text),
+    }
+}

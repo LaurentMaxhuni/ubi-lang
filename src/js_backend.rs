@@ -70,6 +70,21 @@ fn emit_module(
                 crate::analyzer::TypeInfo::List(inner)
                 | crate::analyzer::TypeInfo::Option(inner) => type_descriptor(*inner),
                 crate::analyzer::TypeInfo::Function { .. } => "null".to_owned(),
+                crate::analyzer::TypeInfo::Enum { variants, .. } => {
+                    let variants = variants
+                        .iter()
+                        .map(|(tag, payloads)| {
+                            let payloads = payloads
+                                .iter()
+                                .map(|ty| type_descriptor(*ty))
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            format!("[{}, [{payloads}]]", js_string(tag))
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("[{variants}]")
+                }
             })
             .collect::<Vec<_>>()
             .join(", ");
@@ -442,6 +457,14 @@ impl<'a> FunctionEmitter<'a> {
                     None => format!("$ubi_make_record([{fields}])"),
                 }
             }
+            ExprKind::Enum { tag, values } => {
+                let values = values
+                    .iter()
+                    .map(|value| self.expression(value, indent))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .join(", ");
+                format!("$ubi_make_enum({}, [{values}])", js_string(tag))
+            }
             ExprKind::Member { object, name } => format!(
                 "({})[{}]",
                 self.expression(object, indent)?,
@@ -478,7 +501,10 @@ impl<'a> FunctionEmitter<'a> {
                 let record_equality =
                     matches!(
                         left.ty,
-                        ValueType::Record(_) | ValueType::List(_) | ValueType::Option(_)
+                        ValueType::Record(_)
+                            | ValueType::List(_)
+                            | ValueType::Option(_)
+                            | ValueType::Enum(_)
                     ) && matches!(operator, Symbol::EqualEqual | Symbol::BangEqual);
                 let left = self.expression(left, indent)?;
                 let right = self.expression(right, indent)?;
@@ -568,6 +594,19 @@ impl<'a> FunctionEmitter<'a> {
                     self.pattern(inner, &format!("{value}.value"), bindings, declarations)?;
                 format!("({value}.tag === \"Some\" && ({condition}))")
             }
+            PatternKind::Variant { name, payloads, .. } => {
+                let mut conditions = vec![format!("{value}.tag === {}", js_string(&name.name))];
+                for (index, payload) in payloads.iter().enumerate() {
+                    let condition = self.pattern(
+                        payload,
+                        &format!("{value}.values[{index}]"),
+                        bindings,
+                        declarations,
+                    )?;
+                    conditions.push(format!("({condition})"));
+                }
+                format!("({})", conditions.join(" && "))
+            }
         })
     }
 }
@@ -596,7 +635,7 @@ fn emit_export_wrapper(function: &FunctionIr, implementation: &str, binding: &st
     for (index, parameter) in function.parameters.iter().enumerate() {
         if matches!(
             parameter.ty,
-            ValueType::Record(_) | ValueType::List(_) | ValueType::Option(_)
+            ValueType::Record(_) | ValueType::List(_) | ValueType::Option(_) | ValueType::Enum(_)
         ) {
             output.push_str(&format!("  if (!$ubi_internal) $ubi_args[{index}] = $ubi_read_aggregate($ubi_args[{index}], {});\n", type_descriptor(parameter.ty)));
         } else if parameter.ty == ValueType::Int {
@@ -625,7 +664,7 @@ fn js_argument_check(ty: crate::analyzer::ValueType, value: &str) -> String {
         ValueType::Bool => format!("typeof {value} === \"boolean\""),
         ValueType::String => format!("$ubi_is_scalar_string({value})"),
         ValueType::Unit => format!("{value} === undefined"),
-        ValueType::Record(_) | ValueType::List(_) | ValueType::Option(_) => "true".to_owned(),
+        ValueType::Record(_) | ValueType::List(_) | ValueType::Option(_) | ValueType::Enum(_) => "true".to_owned(),
         ValueType::Never | ValueType::Error | ValueType::Function(_) | ValueType::Range => "false".to_owned(),
     }
 }
@@ -635,6 +674,7 @@ fn type_descriptor(ty: ValueType) -> String {
         ValueType::Record(id) => format!("[\"record\", {id}]"),
         ValueType::List(id) => format!("[\"list\", {id}]"),
         ValueType::Option(id) => format!("[\"option\", {id}]"),
+        ValueType::Enum(id) => format!("[\"enum\", {id}]"),
         ValueType::Function(_) => js_string("function"),
         ValueType::Range => js_string("range"),
         _ => js_string(ty.name()),
@@ -775,6 +815,10 @@ function $ubi_make_list(values) {
 }
 function $ubi_some(value) { return $ubi_freeze({ tag: "Some", value }, [value]); }
 const $ubi_none = $ubi_freeze({ tag: "None" }, []);
+function $ubi_make_enum(tag, values) {
+  Object.freeze(values);
+  return $ubi_freeze({ tag, values }, values);
+}
 function $ubi_equal(left, right) {
   if (left === null || typeof left !== "object") return left === right;
   if (right === null || typeof right !== "object") return false;
@@ -816,6 +860,12 @@ function $ubi_decode(data, type, depth) {
       if (data.tag === "None" && names.length === 1) return $ubi_none;
       if (data.tag !== "Some" || names.length !== 2 || !Object.prototype.hasOwnProperty.call(data, "value")) throw new TypeError("Invalid Option data");
       return $ubi_some($ubi_decode(data.value, $ubi_types[id], depth + 1));
+    }
+    if (kind === "enum") {
+      if (Object.keys(data).length !== 2 || !Object.prototype.hasOwnProperty.call(data, "tag") || !Object.prototype.hasOwnProperty.call(data, "values") || typeof data.tag !== "string" || !Array.isArray(data.values)) throw new TypeError("Invalid enum data");
+      const variant = $ubi_types[id].find(([tag]) => tag === data.tag);
+      if (!variant || variant[1].length !== data.values.length) throw new TypeError("Invalid enum variant or payload count");
+      return $ubi_make_enum(data.tag, variant[1].map((type, index) => $ubi_decode(data.values[index], type, depth + 1)));
     }
     const fields = $ubi_record_types[id];
     if (Object.keys(data).length !== fields.length) throw new TypeError("Invalid record fields");

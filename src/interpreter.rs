@@ -31,6 +31,11 @@ pub(crate) enum Value {
         type_id: usize,
         value: Option<Rc<Value>>,
     },
+    Enum {
+        type_id: usize,
+        tag: Rc<String>,
+        values: Rc<Vec<Value>>,
+    },
     Function {
         type_id: usize,
         function: Rc<FunctionValue>,
@@ -90,6 +95,18 @@ impl PartialEq for Value {
                     value: bv,
                 },
             ) => a == b && av == bv,
+            (
+                Self::Enum {
+                    type_id: a,
+                    tag: at,
+                    values: av,
+                },
+                Self::Enum {
+                    type_id: b,
+                    tag: bt,
+                    values: bv,
+                },
+            ) => a == b && at == bt && av == bv,
             _ => false,
         }
     }
@@ -106,6 +123,7 @@ impl Value {
             Self::Record { type_id, .. } => ValueType::Record(*type_id),
             Self::List { type_id, .. } => ValueType::List(*type_id),
             Self::Option { type_id, .. } => ValueType::Option(*type_id),
+            Self::Enum { type_id, .. } => ValueType::Enum(*type_id),
             Self::Function { type_id, .. } => ValueType::Function(*type_id),
             Self::Range { .. } => ValueType::Range,
         }
@@ -232,6 +250,16 @@ fn valid_value(
             if value.as_ref().is_none_or(|value| valid_value(value, *ty, analysis, depth + 1, host)))
         }
         Value::Function { .. } | Value::Range { .. } => !host,
+        Value::Enum {
+            type_id,
+            tag,
+            values,
+        } => {
+            depth < 32
+                && matches!(analysis.types.get(*type_id), Some(TypeInfo::Enum { variants, .. })
+                if variants.get(tag.as_str()).is_some_and(|payloads| payloads.len() == values.len()
+                    && payloads.iter().zip(values.iter()).all(|(ty, value)| valid_value(value, *ty, analysis, depth + 1, host))))
+        }
         _ => true,
     }
 }
@@ -241,6 +269,7 @@ fn aggregate_depth(value: &Value) -> usize {
         Value::Record { fields, .. } => 1 + fields.values().map(aggregate_depth).max().unwrap_or(0),
         Value::List { elements, .. } => 1 + elements.iter().map(aggregate_depth).max().unwrap_or(0),
         Value::Option { value, .. } => 1 + value.as_ref().map_or(0, |value| aggregate_depth(value)),
+        Value::Enum { values, .. } => 1 + values.iter().map(aggregate_depth).max().unwrap_or(0),
         _ => 0,
     }
 }
@@ -576,34 +605,7 @@ impl Interpreter<'_> {
                 eval_binary(*operator, left, right)?
             }
             ExprKind::Call { callee, arguments } => {
-                let constructor = matches!(&callee.kind, ExprKind::Member { object, name } if matches!(&object.kind, ExprKind::Name(namespace) if namespace.name == "Option") && name.name == "Some");
-                let builtin = match &callee.kind {
-                    ExprKind::Name(name)
-                        if self.local(&name.name).is_none() && builtin_name(&name.name) =>
-                    {
-                        Some(name.name.as_str())
-                    }
-                    _ => None,
-                };
-                let callable = if constructor || builtin.is_some() {
-                    None
-                } else {
-                    Some(value!(self.eval_expr(callee)))
-                };
-                let mut values = Vec::with_capacity(arguments.len());
-                for argument in arguments {
-                    values.push(value!(self.eval_expr(argument)));
-                }
-                if constructor {
-                    self.option(
-                        self.expression_type(expression)?,
-                        Some(values.into_iter().next().ok_or_else(invariant_error)?),
-                    )?
-                } else if let Some(name) = builtin {
-                    self.builtin(name, values, self.expression_type(expression)?)?
-                } else {
-                    self.call_value(callable.ok_or_else(invariant_error)?, values)?
-                }
+                return self.eval_call(expression, callee, arguments)
             }
             ExprKind::List(elements) => {
                 let mut values = Vec::with_capacity(elements.len());
@@ -703,7 +705,13 @@ impl Interpreter<'_> {
                 })?
             }
             ExprKind::Member { object, name } => {
-                if matches!(&object.kind, ExprKind::Name(namespace) if namespace.name == "Option")
+                if let Some((type_id, tag)) = self.enum_constructor(expression) {
+                    bounded(Value::Enum {
+                        type_id,
+                        tag: Rc::new(tag),
+                        values: Rc::new(Vec::new()),
+                    })?
+                } else if matches!(&object.kind, ExprKind::Name(namespace) if namespace.name == "Option")
                     && name.name == "None"
                 {
                     self.option(self.expression_type(expression)?, None)?
@@ -739,6 +747,50 @@ impl Interpreter<'_> {
         Ok(Completion::Value(value))
     }
 
+    fn eval_call(
+        &mut self,
+        expression: &Expr,
+        callee: &Expr,
+        arguments: &[Expr],
+    ) -> Result<Completion, EvalError> {
+        let enum_constructor = self.enum_constructor(callee);
+        let constructor = matches!(&callee.kind, ExprKind::Member { object, name } if matches!(&object.kind, ExprKind::Name(namespace) if namespace.name == "Option") && name.name == "Some");
+        let builtin = match &callee.kind {
+            ExprKind::Name(name)
+                if self.local(&name.name).is_none() && builtin_name(&name.name) =>
+            {
+                Some(name.name.as_str())
+            }
+            _ => None,
+        };
+        let callable = if constructor || builtin.is_some() || enum_constructor.is_some() {
+            None
+        } else {
+            Some(value!(self.eval_expr(callee)))
+        };
+        let mut values = Vec::with_capacity(arguments.len());
+        for argument in arguments {
+            values.push(value!(self.eval_expr(argument)));
+        }
+        let result = if let Some((type_id, tag)) = enum_constructor {
+            bounded(Value::Enum {
+                type_id,
+                tag: Rc::new(tag),
+                values: Rc::new(values),
+            })?
+        } else if constructor {
+            self.option(
+                self.expression_type(expression)?,
+                Some(values.into_iter().next().ok_or_else(invariant_error)?),
+            )?
+        } else if let Some(name) = builtin {
+            self.builtin(name, values, self.expression_type(expression)?)?
+        } else {
+            self.call_value(callable.ok_or_else(invariant_error)?, values)?
+        };
+        Ok(Completion::Value(result))
+    }
+
     fn list(&self, ty: ValueType, elements: Vec<Value>) -> Result<Value, EvalError> {
         let ValueType::List(type_id) = ty else {
             return Err(invariant_error());
@@ -747,6 +799,25 @@ impl Interpreter<'_> {
             type_id,
             elements: Rc::new(elements),
         })
+    }
+
+    fn enum_constructor(&self, expression: &Expr) -> Option<(usize, String)> {
+        let ExprKind::Member { object, name } = &expression.kind else {
+            return None;
+        };
+        let ExprKind::Name(qualifier) = &object.kind else {
+            return None;
+        };
+        if self.local(&qualifier.name).is_some() {
+            return None;
+        }
+        let key = self
+            .analysis
+            .module_symbols
+            .get(&self.key.0)?
+            .get(&qualifier.name)?;
+        let id = crate::analyzer::enum_type(&self.analysis.types, key)?;
+        Some((id, name.name.clone()))
     }
 
     fn option(&self, ty: ValueType, value: Option<Value>) -> Result<Value, EvalError> {
@@ -1105,6 +1176,14 @@ fn match_pattern(pattern: &Pattern, value: &Value, bindings: &mut BTreeMap<Strin
             },
         ) => match_pattern(pattern, value, bindings),
         (PatternKind::None, Value::Option { value: None, .. }) => true,
+        (PatternKind::Variant { name, payloads, .. }, Value::Enum { tag, values, .. }) => {
+            name.name == **tag
+                && payloads.len() == values.len()
+                && payloads
+                    .iter()
+                    .zip(values.iter())
+                    .all(|(pattern, value)| match_pattern(pattern, value, bindings))
+        }
         _ => false,
     }
 }

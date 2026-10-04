@@ -20,6 +20,9 @@ fn deterministic_mutations_never_crash_the_parser_or_checker() {
         "export fn f() -> int { let mut n = 1; let cb = (x: int) => { let mut y = x + n; while (y < 4) { y = y + 1; } y }; n = 9; fold(map([1, 2], cb), 0, (a: int, b: int) => a + b) }",
         "export fn f() -> string { join(filter(split(\"a😀b\", \"\"), (s: string) => contains(\"a😀\", s)), \"|\") }",
         "export fn f() -> int { let length = (n: int) => n + 1; let trim = (n: int) => length(n); fold(map([1, 2], trim), 0, (a: int, b: int) => a + b) }",
+        "enum Flags { Empty, Pair(bool, Option<bool>) } export fn f() -> int { match (Flags.Pair(true, Option.Some(false))) { Flags.Empty => 0, Flags.Pair(_, Option.None) => 1, Flags.Pair(true, Option.Some(_)) => 2, Flags.Pair(false, Option.Some(_)) => 3 } }",
+        "enum Chain { End, Next(int, Chain) } fn sum(c: Chain) -> int { match (c) { Chain.End => 0, Chain.Next(n, tail) => n + sum(tail) } } export fn f() -> int { sum(Chain.Next(1, Chain.Next(2, Chain.End))) }",
+        "enum E { Empty, Value(int) } fn make() -> E { E.Value(4) } export fn f() -> int { let E = 7; match (make()) { E.Empty => E, E.Value(n) => E + n } }",
     ];
     for seed in &seeds[4..] {
         let mut compiler = Compiler::new();

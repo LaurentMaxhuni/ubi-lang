@@ -28,6 +28,21 @@ pub(crate) struct Import {
 pub(crate) enum Declaration {
     Function(Function),
     Record(Record),
+    Enum(Enum),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Enum {
+    pub(crate) exported: bool,
+    pub(crate) name: Identifier,
+    pub(crate) variants: Vec<Variant>,
+    pub(crate) span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Variant {
+    pub(crate) name: Identifier,
+    pub(crate) payloads: Vec<Type>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -197,6 +212,12 @@ pub(crate) enum PatternKind {
     Bool(bool),
     Some(Box<Pattern>),
     None,
+    Variant {
+        qualifier: Identifier,
+        name: Identifier,
+        payloads: Vec<Pattern>,
+        called: bool,
+    },
 }
 
 pub(crate) fn parse(source_id: &str, source: &str) -> Result<Module, ParseError> {
@@ -341,7 +362,39 @@ impl Parser {
             }));
         }
         if self.at_keyword("enum") {
-            return Err(self.unsupported(self.current().span.clone(), "Type declarations"));
+            let start = self.advance().span.clone();
+            let name = self.parse_identifier()?;
+            if self.at_symbol(Symbol::Less) {
+                return Err(self.unsupported(self.current().span.clone(), "Generic enums"));
+            }
+            self.expect_symbol(Symbol::LBrace)?;
+            let mut variants = Vec::new();
+            loop {
+                let name = self.parse_identifier()?;
+                let mut payloads = Vec::new();
+                if self.eat_symbol(Symbol::LParen).is_some() {
+                    loop {
+                        payloads.push(self.parse_type()?);
+                        if self.eat_symbol(Symbol::Comma).is_none()
+                            || self.at_symbol(Symbol::RParen)
+                        {
+                            break;
+                        }
+                    }
+                    self.expect_symbol(Symbol::RParen)?;
+                }
+                variants.push(Variant { name, payloads });
+                if self.eat_symbol(Symbol::Comma).is_none() || self.at_symbol(Symbol::RBrace) {
+                    break;
+                }
+            }
+            let end = self.expect_symbol(Symbol::RBrace)?.span;
+            return Ok(Declaration::Enum(Enum {
+                exported,
+                name,
+                variants,
+                span: cover(export_span.as_ref().unwrap_or(&start), &end),
+            }));
         }
         if is_unsupported_keyword(self.current()) {
             return Err(self.unsupported(self.current().span.clone(), "This language feature"));
@@ -1075,6 +1128,37 @@ impl Parser {
                         PatternKind::Some(Box::new(inner))
                     }
                     _ => return Err(self.error_previous("Expected Option.Some or Option.None")),
+                }
+            }
+            TokenKind::Identifier(qualifier) if self.at_symbol(Symbol::Dot) => {
+                let qualifier = Identifier {
+                    name: qualifier,
+                    span: token.span,
+                };
+                self.advance();
+                let name = self.parse_identifier()?;
+                span = cover(&span, &name.span);
+                let called = self.eat_symbol(Symbol::LParen).is_some();
+                let mut payloads = Vec::new();
+                if called {
+                    if !self.at_symbol(Symbol::RParen) {
+                        loop {
+                            payloads.push(self.parse_pattern()?);
+                            if self.eat_symbol(Symbol::Comma).is_none()
+                                || self.at_symbol(Symbol::RParen)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    let end = self.expect_symbol(Symbol::RParen)?.span;
+                    span = cover(&span, &end);
+                }
+                PatternKind::Variant {
+                    qualifier,
+                    name,
+                    payloads,
+                    called,
                 }
             }
             TokenKind::Identifier(name) => PatternKind::Binding(Identifier {

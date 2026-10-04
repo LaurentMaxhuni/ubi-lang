@@ -1,11 +1,11 @@
 # Ubi decisions and milestone evidence
 
-Current work: first M2 shared-logic slice complete under user direction. Local reassignment and non-generic records are implemented; the full M2 task-list scope remains unfinished. Historical M1 hidden evaluation remains unavailable.
+Current work: non-generic user enums extend the completed programming foundation under user direction. Local reassignment, records, lists/Option/match, loops, closures, and pure utilities are implemented; user generics and Result remain unfinished. Historical M1 hidden evaluation remains unavailable.
 
 ## Decisions
 
-Current language work: M2 local reassignment and non-generic records, under the
-user's direction to continue application development without historical gates.
+Current language work: partial M2, adding user-defined enums under the user's
+direction to continue language foundations without reopening historical gates.
 
 User direction, 2026-10-01: set aside milestone gates for the current task and
 implement Windows recognition of `.ubi` files. This direction does not assert
@@ -123,7 +123,7 @@ Run date: 2026-10-01. SPEC.md 0.3 specifies this partial language expansion.
 - A separate conformance agent derived ten grouped tests against the specification before inspecting implementation. Both execution paths pass cases covering nominal identity, aliases, scopes, diagnostics, early returns, evaluation/fault order, hostile host inputs, prototype-like fields, float/unit encoding, and the 32-level runtime record limit.
 - `examples/project` now creates and completes a Task. Generated web modules passed a browser check for immutable updates, Unicode, frozen results, and rejection of live host objects without reading getters. The browser displayed `PASS: shared Ubi task records, immutable updates, and host validation.`
 - `cargo test --all-targets`: 91 tests pass. Fuzz coverage includes valid record/rebinding seeds and 10,000 deterministic mutations, completing in under one second under a separate 60-second watchdog. Windows symlink scenarios retain the previously recorded host limitation.
-- Clippy with warnings denied, formatting, and whitespace checks pass. Lists, enums, generics, matching, closures, and the full task-list application remain future work; no full M2 completion gate is claimed.
+- Clippy with warnings denied, formatting, and whitespace checks pass. At this revision, lists, enums, generics, matching, closures, and the full task-list application remained future work; no full M2 completion gate was claimed.
 
 ## CLI execution evidence
 
@@ -194,3 +194,46 @@ Run date: 2026-10-03. User-directed scope, SPEC.md 0.4 section 15.
   denied, formatting, and whitespace checks pass. The stricter 10,000-mutation
   fuzz run completed under a separate 60-second process watchdog. Previously
   documented Windows symlink checks remain unavailable on this host.
+
+## User-defined enum direction, 2026-10-04
+
+User authorized the next language foundation slice: non-generic nominal enums.
+D022: extend existing typed aggregates and matching with qualified constructors,
+positional payloads, and nested patterns. Keep constructor syntax distinct from
+function values; resolve local shadowing consistently. Pattern-matrix coverage
+checks payload combinations with a finite work budget. Host values use exact
+`tag`/`values` JSON envelopes and existing validation, freezing, and depth limits.
+Generic declarations, Result, maps, and host access remain separate slices.
+Specify this behavior in SPEC section 16 before implementation. Independently
+sourced conformance must check fixed expectations on both backends.
+
+## User-defined enum evidence
+
+Run date: 2026-10-04. User-directed scope, SPEC.md 0.5 section 16.
+
+- Parser, checker, typed IR, source interpreter, and JavaScript backend implement
+  non-generic nominal enums, qualified constructors, multiple positional payloads,
+  imports, nested/guarded patterns, structural equality, and recursive types.
+- A separate author derived eleven conformance groups from the specification
+  without inspecting production code. Fixed expectations pass on interpreter and
+  generated JavaScript: payload correlations, nominal/public types, snapshot
+  callbacks, shadowing, argument/fault order, exact host envelopes, prototype-like
+  variant names, recursive freezing, mixed 32/33 aggregate depth, and the bounded
+  coverage matrix. Invalid programs fail before lowering.
+- Coverage uses whole pattern rows and an explicit stack with a 100,000-work-unit
+  budget. Type equality eligibility likewise traverses nominal types iteratively.
+  Interpreter enum values share immutable storage; splitting call evaluation out
+  of the main expression frame preserves the specified 32-call runtime limit on
+  the supported Windows stack. Existing recursive runtime tests pass unchanged.
+- examples/enums runs through ubi run: main prints
+  `enums: rectangle=12, total=22`; rectangle returns
+  `{"tag":"Rectangle","values":[3,4]}`. Imports and enum exports use the same
+  generated-module path as existing language features.
+- Independent implementation review found no blocking production defect.
+  Current-status documentation and historical deferred-syntax assertions were
+  updated to agree with the enum slice.
+- Verification: 129 tests across all targets pass; Clippy with warnings denied,
+  formatting, and whitespace checks pass. Three enum seeds extend the existing
+  10,000-mutation fuzz suite, which passes under a separate 60-second watchdog.
+  Previously documented Windows symlink privilege checks remain unavailable.
+  Evaluator-owned hidden tests remain unavailable; no full M2 gate is claimed.

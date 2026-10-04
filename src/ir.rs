@@ -97,6 +97,10 @@ pub(crate) enum ExprKind {
     List(Vec<ExprIr>),
     Some(Box<ExprIr>),
     None,
+    Enum {
+        tag: String,
+        values: Vec<ExprIr>,
+    },
     Index {
         object: Box<ExprIr>,
         index: Box<ExprIr>,
@@ -514,7 +518,15 @@ impl FunctionLowerer<'_> {
                 right: Box::new(self.lower_expr(right)?),
             },
             AstExprKind::Call { callee, arguments } => {
-                if option_member(callee, "Some") {
+                if let Some(tag) = self.enum_constructor(callee) {
+                    ExprKind::Enum {
+                        tag,
+                        values: arguments
+                            .iter()
+                            .map(|value| self.lower_expr(value))
+                            .collect::<Result<_, _>>()?,
+                    }
+                } else if option_member(callee, "Some") {
                     let Some(value) = arguments.first() else {
                         return Err(invariant(&expression.span));
                     };
@@ -577,6 +589,12 @@ impl FunctionLowerer<'_> {
                 }
             }
             AstExprKind::Member { .. } if option_member(expression, "None") => ExprKind::None,
+            AstExprKind::Member { .. } if self.enum_constructor(expression).is_some() => {
+                ExprKind::Enum {
+                    tag: self.enum_constructor(expression).unwrap(),
+                    values: Vec::new(),
+                }
+            }
             AstExprKind::Member { object, name } => ExprKind::Member {
                 object: Box::new(self.lower_expr(object)?),
                 name: name.name.clone(),
@@ -607,6 +625,24 @@ impl FunctionLowerer<'_> {
         self.scopes.iter().rev().any(|scope| scope.contains(name))
     }
 
+    fn enum_constructor(&self, expression: &Expr) -> Option<String> {
+        let AstExprKind::Member { object, name } = &expression.kind else {
+            return None;
+        };
+        let AstExprKind::Name(qualifier) = &object.kind else {
+            return None;
+        };
+        if self.is_local(&qualifier.name) {
+            return None;
+        }
+        let key = self
+            .module_symbols
+            .get(self.module_id)?
+            .get(&qualifier.name)?;
+        crate::analyzer::enum_type(self.types, key)?;
+        Some(name.name.clone())
+    }
+
     fn function_key(&self, name: &str, span: &Span) -> Result<FunctionKey, Diagnostic> {
         self.module_symbols
             .get(self.module_id)
@@ -632,6 +668,11 @@ fn pattern_bindings(pattern: &Pattern, bindings: &mut BTreeSet<String>) {
             bindings.insert(name.name.clone());
         }
         PatternKind::Some(inner) => pattern_bindings(inner, bindings),
+        PatternKind::Variant { payloads, .. } => {
+            for payload in payloads {
+                pattern_bindings(payload, bindings);
+            }
+        }
         _ => {}
     }
 }

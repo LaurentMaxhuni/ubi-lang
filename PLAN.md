@@ -1,10 +1,11 @@
 # Ubi implementation plan
 
 User direction, 2026-10-01: set aside milestone gates for the current task.
-Current work: programming foundations: lists/Option/match, loops/ranges,
-closures/collection helpers, and strings/math/conversions. Local reassignment,
-records, project config, Node-backed `ubi run`, and web development with `ubi dev`
-are complete. User-directed work continues without reopening historical gates.
+Current work: user-defined enums on the completed programming foundation:
+lists/Option/match, loops/ranges, closures/collection helpers, strings/math/
+conversions, local reassignment, and records. Project config, Node-backed
+`ubi run`, and web development with `ubi dev` are complete. User-directed work
+continues without reopening historical gates.
 Milestone evidence below remains historical; unrun checks are not marked passed.
 
 Status: Milestone 0 gate approved for reviewed revision `0dd23e85f93fffcd2657f3c24d944c1197fd24e3`. Milestone 1 implementation is ready for human gate review; the pre-M2 mini benchmark now has separate solution and public evaluation agents. Evaluator-owned hidden conformance remains unavailable.
@@ -108,9 +109,10 @@ Mini benchmark progress: all four tasks converged within the preset three-iterat
 ## Milestone 2 — Make the language useful for shared logic
 
 Progress: local reassignment, records, lists, built-in Option/match, loops/ranges,
-closures, collection helpers, strings/math/conversions pass separately authored
-interpreter/JavaScript checks. Focused foundation examples run in Node and browser.
-User-defined enums/generics, Result/propagation, maps, and application/host work
+closures, collection helpers, strings/math/conversions, and user-defined enums
+pass separately authored interpreter/JavaScript checks. Focused foundation
+examples run in Node and browser; the enum example runs through `ubi run`.
+User generics, Result/propagation, maps, and application/host work
 remain unfinished. Historical task-list gates below are not the current user task.
 
 - Add nominal records, field access, record updates, lists, and local reassignment.
@@ -238,6 +240,7 @@ The compiler running in WASM and Ubi programs compiling to WASM are separate del
 - Keep the current JavaScript backend passing conformance checks before introducing another backend.
 - Avoid fixed delivery dates until the first two milestones establish implementation pace.
 - Track progress against completion gates; mark platform work blocked when required SDKs or devices are unavailable.
-- Current task: implement the first four programming foundation groups from SPEC
-  section 15 across parser, checker, typed IR, interpreter, JavaScript backend,
-  and separately authored conformance. Defer maps, Result, and host access.
+- Current task: implement non-generic nominal enums from SPEC section 16 across
+  parser, checker, typed IR, interpreter, JavaScript backend, and separately
+  authored conformance. First four foundation groups from section 15 are complete.
+  User generics, Result, maps, and host access remain subsequent slices.
