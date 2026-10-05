@@ -4,7 +4,7 @@ Ubi source files use `.ubi`. The Rust compiler checks source and emits JavaScrip
 ES modules; supported language behavior is documented in [SPEC.md](SPEC.md).
 
 Current support includes typed variables/functions, records, immutable lists,
-`Option`, user-defined enums and exhaustive matching, loops/ranges, snapshot
+`Option`/`Result`, generics, immutable maps, user-defined enums and exhaustive matching, loops/ranges, snapshot
 closures, collection helpers, and pure string/math/conversion utilities. Record fields and collection
 elements stay immutable; updates create new values:
 
@@ -28,8 +28,9 @@ const done = completeTask(JSON.stringify(task));
 Primitive arguments pass directly. Record, list, Option, and enum arguments use
 serialized JSON; returned aggregates are frozen. See [host encoding](SPEC.md#15-programming-foundations-2026-10-03)
 for validation and representation; [enum encoding](SPEC.md#16-user-defined-enums-2026-10-04)
-uses exact `tag`/`values` envelopes. User generics, Result, maps,
-classes, tuples, async, and host capabilities remain future slices.
+uses exact `tag`/`values` envelopes. Console/storage host access uses opaque
+capabilities and checked function effects. Classes, tuples, async, and platform
+packaging remain future slices.
 
 ```powershell
 cargo run -- check main.ubi --root path/to/project
@@ -103,6 +104,49 @@ cargo run -- run main.ubi --root examples/enums
 
 It prints `enums: rectangle=12, total=22`.
 
+## Generics, errors, maps, and host access
+
+```ubi
+record Box<T> { value: T }
+fn identity<T>(value: T) -> T { value }
+fn parsed(text: string) -> Result<int, string> {
+    match (parseInt(text)) {
+        Option.Some(value) => Result.Ok(value),
+        Option.None => Result.Err("Invalid integer"),
+    }
+}
+fn doubled(text: string) -> Result<int, string> {
+    let value = parsed(text)?;
+    Result.Ok(value * 2)
+}
+```
+
+Generic arguments follow inputs and expected types; generic bodies cannot assume
+arithmetic/equality support for T. `?` unwraps Ok or returns Err from its named
+function with the same error type. Concrete exported wrappers define JavaScript
+host argument types.
+
+`Map<K,V>` accepts int/bool/string keys. `mapEmpty`, `mapSet`, `mapGet`,
+`mapHas`, `mapRemove`, `mapKeys`, `mapValues`, and `length` preserve immutable
+values and insertion order. Map host arguments use serialized entry arrays;
+Result uses the enum tag/values envelope.
+
+Run focused examples:
+
+```powershell
+cargo run -- run main.ubi --root examples/generics
+cargo run -- run main.ubi --root examples/results
+cargo run -- run main.ubi --root examples/maps
+cargo run -- build main.ubi --root examples/host
+node examples/host/run.mjs
+```
+
+The [host example](examples/host/README.md) grants console output and an
+in-memory string store. Ubi receives `Console`/`Storage` tokens explicitly;
+named functions declare `effects(console, storage)`. Trusted adapters return
+typed Result JSON. Missing effects, effectful callbacks, and capability escapes
+are compile errors. CLI JSON never grants authority. See [contracts](SPEC.md#17-basic-generics-2026-10-05).
+
 ## Run a program
 
 Define an exported entry function in `main.ubi`:
@@ -155,7 +199,7 @@ or `cargo run -- dev main.ubi` for an explicit entry.
 
 The server listens only on localhost and serves public web assets and current
 generated modules. The demo's list lives in browser memory and resets on reload;
-Ubi creates/updates each record, while collection support remains future work.
+Ubi creates/updates each record; this demo keeps its collection in JavaScript.
 Config changes require restarting the server.
 
 ## Project config

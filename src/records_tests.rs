@@ -311,15 +311,6 @@ fn record_syntax_and_duplicate_field_offsets_follow_the_slice_contract() {
             a.diagnostics
         );
     }
-    for source in ["record Generic<T> { x: T }", "enum E<T> { A(T) }"] {
-        assert!(
-            analysis(&[("main.ubi", source)])
-                .diagnostics
-                .iter()
-                .any(|d| d.code == "UBI0003"),
-            "unexpectedly accepted deferred syntax: {source}"
-        );
-    }
     for source in [
         "record P { x: int } fn f(p: P) { P { ...p } }",
         "record P { x: int } fn f(p: P) { P { ...p x: 1 } }",

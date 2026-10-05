@@ -1,0 +1,20 @@
+record Box<T> { value: T }
+enum Choice<T> { Value(T), Empty }
+
+fn identity<T>(value: T) -> T { value }
+fn first<T>(values: List<T>) -> Option<T> { values[0] }
+fn unwrap<T>(box: Box<T>) -> T { box.value }
+
+export fn main() -> string {
+    let box = Box { value: identity("generics") };
+    let selected: Choice<string> = Choice.Value(unwrap(box));
+    let label = match (selected) {
+        Choice.Value(value) => value,
+        Choice.Empty => "empty",
+    };
+    let value = match (first([3, 4])) {
+        Option.Some(value) => value,
+        Option.None => 0,
+    };
+    label + ": first=" + toString(value)
+}

@@ -8,6 +8,23 @@ use crate::span::Span;
 
 pub(crate) fn emit(program: &Program) -> Result<BTreeMap<String, String>, Diagnostic> {
     let mut files = BTreeMap::new();
+    if uses_host(program) {
+        if program.modules.contains_key(".ubi-host.ubi") {
+            return Err(Diagnostic::error(
+                "UBI0011",
+                "Source name reserved for generated host support",
+                Span {
+                    source_id: ".ubi-host.ubi".to_owned(),
+                    start: 0,
+                    end: 0,
+                },
+            ));
+        }
+        files.insert(
+            ".ubi-host.mjs".to_owned(),
+            include_str!("host_runtime.js").to_owned(),
+        );
+    }
     for (module_id, module) in &program.modules {
         let names = ModuleNames::new(module_id, module, program)?;
         files.insert(
@@ -18,6 +35,15 @@ pub(crate) fn emit(program: &Program) -> Result<BTreeMap<String, String>, Diagno
     Ok(files)
 }
 
+fn uses_host(program: &Program) -> bool {
+    program.functions.values().any(|function| {
+        function
+            .parameters
+            .iter()
+            .any(|parameter| matches!(parameter.ty, ValueType::Capability(_)))
+    })
+}
+
 fn emit_module(
     module_id: &str,
     module: &ModuleIr,
@@ -25,6 +51,9 @@ fn emit_module(
     program: &Program,
 ) -> Result<String, Diagnostic> {
     let mut output = String::new();
+    if uses_host(program) {
+        output.push_str(&format!("import {{ isCapability as $ubi_is_capability, callHost as $ubi_call_host }} from {};\n", js_string(&relative_specifier(module_id, ".ubi-host.ubi"))));
+    }
     for (local_name, target) in &module.imports {
         let binding = names
             .imports
@@ -32,7 +61,7 @@ fn emit_module(
             .ok_or_else(|| invariant(module_id, 0))?;
         let specifier = relative_specifier(module_id, &target.0);
         output.push_str(&format!(
-            "import {{ {} as {} }} from {};\n",
+            "import {{ $ubi_internal_{} as {} }} from {};\n",
             target.1,
             binding,
             js_string(&specifier)
@@ -69,7 +98,11 @@ fn emit_module(
             .map(|ty| match ty {
                 crate::analyzer::TypeInfo::List(inner)
                 | crate::analyzer::TypeInfo::Option(inner) => type_descriptor(*inner),
-                crate::analyzer::TypeInfo::Function { .. } => "null".to_owned(),
+                crate::analyzer::TypeInfo::Function { .. }
+                | crate::analyzer::TypeInfo::Parameter { .. } => "null".to_owned(),
+                crate::analyzer::TypeInfo::Map { key, value } => {
+                    format!("[{}, {}]", type_descriptor(*key), type_descriptor(*value))
+                }
                 crate::analyzer::TypeInfo::Enum { variants, .. } => {
                     let variants = variants
                         .iter()
@@ -115,6 +148,16 @@ fn emit_module(
         ));
     }
     if !names.exports.is_empty() {
+        for (key, _) in &names.exports {
+            let implementation = names
+                .functions
+                .get(key)
+                .ok_or_else(|| invariant(module_id, 0))?;
+            output.push_str(&format!(
+                "\nexport {{ {implementation} as $ubi_internal_{} }};\n",
+                key.1
+            ));
+        }
         output.push('\n');
         output.push_str("export { ");
         for (index, (key, binding)) in names.exports.iter().enumerate() {
@@ -352,6 +395,9 @@ impl<'a> FunctionEmitter<'a> {
                 .call_target(target)
                 .ok_or_else(|| invariant_span(&expression.span))?
                 .to_owned(),
+            ExprKind::Propagate(value) => {
+                format!("$ubi_propagate({})", self.expression(value, indent)?)
+            }
             ExprKind::Invoke { callee, arguments } => {
                 let callee = self.expression(callee, indent)?;
                 let mut values = arguments
@@ -505,6 +551,7 @@ impl<'a> FunctionEmitter<'a> {
                             | ValueType::List(_)
                             | ValueType::Option(_)
                             | ValueType::Enum(_)
+                            | ValueType::Map(_)
                     ) && matches!(operator, Symbol::EqualEqual | Symbol::BangEqual);
                 let left = self.expression(left, indent)?;
                 let right = self.expression(right, indent)?;
@@ -626,18 +673,23 @@ fn emit_export_wrapper(function: &FunctionIr, implementation: &str, binding: &st
         &argument_checks
     };
     let mut output = format!("function {binding}(...$ubi_args) {{\n");
-    output.push_str("  let $ubi_internal = false;\n");
-    output.push_str(&format!(
-        "  let $ubi_budget;\n  if ($ubi_args.length === {} && $ubi_is_budget($ubi_args[{}])) {{\n    $ubi_internal = true;\n    $ubi_budget = $ubi_args.pop();\n  }} else if ($ubi_args.length === {count}) {{\n    $ubi_budget = $ubi_new_budget();\n  }} else {{\n    throw new TypeError(\"Invalid Ubi function arguments\");\n  }}\n",
-        count + 1,
-        count
-    ));
+    output.push_str(&format!("  if ($ubi_args.length !== {count}) throw new TypeError(\"Invalid Ubi function arguments\");\n  const $ubi_budget = $ubi_new_budget();\n"));
+    if function.generic {
+        output.push_str("  throw new TypeError(\"Generic Ubi functions require a concrete exported wrapper\");\n");
+    }
     for (index, parameter) in function.parameters.iter().enumerate() {
         if matches!(
             parameter.ty,
-            ValueType::Record(_) | ValueType::List(_) | ValueType::Option(_) | ValueType::Enum(_)
+            ValueType::Record(_)
+                | ValueType::List(_)
+                | ValueType::Option(_)
+                | ValueType::Enum(_)
+                | ValueType::Map(_)
         ) {
-            output.push_str(&format!("  if (!$ubi_internal) $ubi_args[{index}] = $ubi_read_aggregate($ubi_args[{index}], {});\n", type_descriptor(parameter.ty)));
+            output.push_str(&format!(
+                "  $ubi_args[{index}] = $ubi_read_aggregate($ubi_args[{index}], {});\n",
+                type_descriptor(parameter.ty)
+            ));
         } else if parameter.ty == ValueType::Int {
             output.push_str(&format!(
                 "  if ($ubi_args[{index}] === 0) $ubi_args[{index}] = 0;\n"
@@ -645,7 +697,7 @@ fn emit_export_wrapper(function: &FunctionIr, implementation: &str, binding: &st
         }
     }
     output.push_str(&format!(
-        "  if ($ubi_args.length !== {count} || !({})) throw new TypeError(\"Invalid Ubi function arguments\");\n",
+        "  if (!({})) throw new TypeError(\"Invalid Ubi function arguments\");\n",
         argument_checks
     ));
     output.push_str(&format!(
@@ -664,7 +716,9 @@ fn js_argument_check(ty: crate::analyzer::ValueType, value: &str) -> String {
         ValueType::Bool => format!("typeof {value} === \"boolean\""),
         ValueType::String => format!("$ubi_is_scalar_string({value})"),
         ValueType::Unit => format!("{value} === undefined"),
-        ValueType::Record(_) | ValueType::List(_) | ValueType::Option(_) | ValueType::Enum(_) => "true".to_owned(),
+        ValueType::Record(_) | ValueType::List(_) | ValueType::Option(_) | ValueType::Enum(_) | ValueType::Map(_) => "true".to_owned(),
+        ValueType::Capability(kind) => format!("$ubi_is_capability({value}, {})", js_string(kind.name())),
+        ValueType::Parameter(_) => "true".to_owned(),
         ValueType::Never | ValueType::Error | ValueType::Function(_) | ValueType::Range => "false".to_owned(),
     }
 }
@@ -675,6 +729,7 @@ fn type_descriptor(ty: ValueType) -> String {
         ValueType::List(id) => format!("[\"list\", {id}]"),
         ValueType::Option(id) => format!("[\"option\", {id}]"),
         ValueType::Enum(id) => format!("[\"enum\", {id}]"),
+        ValueType::Map(id) => format!("[\"map\", {id}]"),
         ValueType::Function(_) => js_string("function"),
         ValueType::Range => js_string("range"),
         _ => js_string(ty.name()),
@@ -798,6 +853,7 @@ const FOUNDATION_RUNTIME: &str = r#"
 const $ubi_break = Symbol("ubi:break");
 const $ubi_continue = Symbol("ubi:continue");
 const $ubi_aggregate_depth = Symbol.for("ubi:aggregate-depth:v1");
+const $ubi_map = Symbol.for("ubi:map:v1");
 function $ubi_freeze(value, children) {
   const depth = 1 + children.reduce((max, child) => Math.max(max, child && typeof child === "object" ? child[$ubi_aggregate_depth] || 0 : 0), 0);
   if (depth > 32) $ubi_fault("UBI-R0005", "Aggregate nesting limit exceeded");
@@ -814,6 +870,12 @@ function $ubi_make_list(values) {
   return $ubi_freeze(values, values);
 }
 function $ubi_some(value) { return $ubi_freeze({ tag: "Some", value }, [value]); }
+function $ubi_make_map(entries) {
+  if (entries.length > 2147483647) $ubi_fault("UBI-R0003", "Map length limit exceeded");
+  entries.forEach(Object.freeze);
+  Object.defineProperty(entries, $ubi_map, { value: true });
+  return $ubi_freeze(entries, entries.flat());
+}
 const $ubi_none = $ubi_freeze({ tag: "None" }, []);
 function $ubi_make_enum(tag, values) {
   Object.freeze(values);
@@ -822,6 +884,12 @@ function $ubi_make_enum(tag, values) {
 function $ubi_equal(left, right) {
   if (left === null || typeof left !== "object") return left === right;
   if (right === null || typeof right !== "object") return false;
+  if (left[$ubi_map] === true || right[$ubi_map] === true) {
+    return left[$ubi_map] === true && right[$ubi_map] === true && left.length === right.length && left.every(([key, value]) => {
+      const entry = right.find(([other]) => key === other);
+      return entry !== undefined && $ubi_equal(value, entry[1]);
+    });
+  }
   const names = Object.keys(left);
   return names.length === Object.keys(right).length && names.every(name => Object.prototype.hasOwnProperty.call(right, name) && $ubi_equal(left[name], right[name]));
 }
@@ -853,6 +921,17 @@ function $ubi_decode(data, type, depth) {
     if (kind === "list") {
       if (!Array.isArray(data)) throw new TypeError("Invalid list data");
       return $ubi_make_list(data.map(value => $ubi_decode(value, $ubi_types[id], depth + 1)));
+    }
+    if (kind === "map") {
+      if (!Array.isArray(data)) throw new TypeError("Invalid map data");
+      const entries = [];
+      for (const entry of data) {
+        if (!Array.isArray(entry) || entry.length !== 2) throw new TypeError("Invalid map entry");
+        const key = $ubi_decode(entry[0], $ubi_types[id][0], depth + 1);
+        if (entries.some(([other]) => other === key)) throw new TypeError("Duplicate map key");
+        entries.push([key, $ubi_decode(entry[1], $ubi_types[id][1], depth + 1)]);
+      }
+      return $ubi_make_map(entries);
     }
     if (Array.isArray(data)) throw new TypeError("Invalid aggregate data");
     if (kind === "option") {
@@ -890,6 +969,20 @@ function $ubi_decode(data, type, depth) {
 function $ubi_builtin(name, args, budget, type) {
   const [a, b, c] = args;
   switch (name) {
+    case "consoleLog": case "storageGet": case "storageSet": case "storageRemove":
+      return $ubi_call_host(name, args, response => $ubi_read_aggregate(response, type), $ubi_make_enum);
+    case "mapEmpty": return $ubi_make_map([]);
+    case "mapSet": {
+      const entries = a.map(([key, value]) => [key, value]);
+      const index = entries.findIndex(([key]) => key === b);
+      if (index < 0) entries.push([b, c]); else entries[index][1] = c;
+      return $ubi_make_map(entries);
+    }
+    case "mapGet": { const entry = a.find(([key]) => key === b); return entry === undefined ? $ubi_none : $ubi_some(entry[1]); }
+    case "mapHas": return a.some(([key]) => key === b);
+    case "mapRemove": return $ubi_make_map(a.filter(([key]) => key !== b).map(([key, value]) => [key, value]));
+    case "mapKeys": return $ubi_make_list(a.map(([key]) => key));
+    case "mapValues": return $ubi_make_list(a.map(([, value]) => value));
     case "length": return typeof a === "string" ? Array.from(a).length : a.length;
     case "append": return $ubi_make_list([...a, b]);
     case "set": {
@@ -970,10 +1063,12 @@ function $ubi_builtin(name, args, budget, type) {
 "#;
 
 const RUNTIME: &str = r#"const $ubi_return = Symbol("ubi:return");
-const $ubi_budget_key = Symbol.for("ubi.runtime.budget");
+function $ubi_propagate(value) {
+  if (value.tag === "Err") throw { [$ubi_return]: true, value };
+  return value.values[0];
+}
 function $ubi_fault(code, message) { throw Object.freeze({ code, message }); }
-function $ubi_new_budget() { return { [$ubi_budget_key]: true, remaining: 1000000, depth: 0 }; }
-function $ubi_is_budget(value) { return !!value && value[$ubi_budget_key] === true; }
+function $ubi_new_budget() { return { remaining: 1000000, depth: 0 }; }
 function $ubi_tick(budget) {
   if (budget.remaining <= 0) $ubi_fault("UBI-R0005", "Runtime execution limit exceeded");
   budget.remaining -= 1;

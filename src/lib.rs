@@ -2,6 +2,7 @@
 
 mod analyzer;
 mod diagnostics;
+mod effects;
 #[cfg(test)]
 mod interpreter;
 mod ir;
@@ -187,3 +188,19 @@ mod foundations_tests;
 #[cfg(test)]
 #[path = "enums_tests.rs"]
 mod enums_tests;
+
+#[cfg(test)]
+#[path = "generics_tests.rs"]
+mod generics_tests;
+
+#[cfg(test)]
+#[path = "result_tests.rs"]
+mod result_tests;
+
+#[cfg(test)]
+#[path = "maps_tests.rs"]
+mod maps_tests;
+
+#[cfg(test)]
+#[path = "effects_tests.rs"]
+mod effects_tests;

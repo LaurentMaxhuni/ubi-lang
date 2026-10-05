@@ -1,0 +1,19 @@
+export fn greet(console: Console) -> Result<unit, HostError> effects(console) {
+    consoleLog(console, "Hello from Ubi host access")
+}
+
+export fn save(storage: Storage, key: string, value: string) -> Result<string, HostError> effects(storage) {
+    storageSet(storage, key, value)?;
+    let loaded = storageGet(storage, key)?;
+    match (loaded) {
+        Option.Some(value) => Result.Ok(value),
+        Option.None => Result.Err(HostError.Failure("Missing saved value")),
+    }
+}
+
+export fn main(console: Console, storage: Storage) -> Result<string, HostError> effects(console, storage) {
+    greet(console)?;
+    let saved = save(storage, "message", "Explicit capabilities")?;
+    consoleLog(console, saved)?;
+    Result.Ok(saved)
+}

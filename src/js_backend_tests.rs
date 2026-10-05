@@ -456,7 +456,9 @@ fn imports_resolved_functions_with_relative_esm_specifiers() {
         ),
     ]);
     let app = &files["modules/app/main.mjs"];
-    assert!(app.contains("import { double as $ubi_import0 } from \"../lib/math.mjs\";"));
+    assert!(
+        app.contains("import { $ubi_internal_double as $ubi_import0 } from \"../lib/math.mjs\";")
+    );
     assert!(app.contains("$ubi_import0(($ubi_tick($ubi_budget), 21), $ubi_budget)"));
     assert!(app.contains("export { $ubi_export0 as run };"));
 }

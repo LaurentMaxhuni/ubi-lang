@@ -27,6 +27,7 @@ pub(crate) struct ModuleIr {
 pub(crate) struct FunctionIr {
     pub(crate) key: FunctionKey,
     pub(crate) exported: bool,
+    pub(crate) generic: bool,
     pub(crate) parameters: Vec<ParameterIr>,
     pub(crate) return_type: ValueType,
     pub(crate) body: BlockIr,
@@ -97,6 +98,7 @@ pub(crate) enum ExprKind {
     List(Vec<ExprIr>),
     Some(Box<ExprIr>),
     None,
+    Propagate(Box<ExprIr>),
     Enum {
         tag: String,
         values: Vec<ExprIr>,
@@ -217,6 +219,7 @@ pub(crate) fn lower(analysis: &Analysis) -> Result<Program, Diagnostic> {
                 FunctionIr {
                     key,
                     exported: function.exported,
+                    generic: !signature.type_parameters.is_empty(),
                     parameters,
                     return_type,
                     body,
@@ -612,7 +615,7 @@ impl FunctionLowerer<'_> {
                 object: Box::new(self.lower_expr(object)?),
                 index: Box::new(self.lower_expr(index)?),
             },
-            AstExprKind::Propagate(_) => return Err(invariant(&expression.span)),
+            AstExprKind::Propagate(value) => ExprKind::Propagate(Box::new(self.lower_expr(value)?)),
         };
         Ok(ExprIr {
             kind,
@@ -635,10 +638,14 @@ impl FunctionLowerer<'_> {
         if self.is_local(&qualifier.name) {
             return None;
         }
-        let key = self
-            .module_symbols
-            .get(self.module_id)?
-            .get(&qualifier.name)?;
+        let result_key = (String::new(), qualifier.name.clone());
+        let key = if matches!(qualifier.name.as_str(), "Result" | "HostError") {
+            &result_key
+        } else {
+            self.module_symbols
+                .get(self.module_id)?
+                .get(&qualifier.name)?
+        };
         crate::analyzer::enum_type(self.types, key)?;
         Some(name.name.clone())
     }

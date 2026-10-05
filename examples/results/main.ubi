@@ -1,0 +1,24 @@
+enum ParseError { InvalidNumber(string), Negative }
+
+fn parseNonnegative(text: string) -> Result<int, ParseError> {
+    let value = match (parseInt(text)) {
+        Option.Some(value) => value,
+        Option.None => { return Result.Err(ParseError.InvalidNumber(text)); },
+    };
+    if (value < 0) { Result.Err(ParseError.Negative) }
+    else { Result.Ok(value) }
+}
+
+fn sum(left: string, right: string) -> Result<int, ParseError> {
+    let a = parseNonnegative(left)?;
+    let b = parseNonnegative(right)?;
+    Result.Ok(a + b)
+}
+
+export fn main() -> string {
+    match (sum("12", "3")) {
+        Result.Ok(value) => "result: " + toString(value),
+        Result.Err(ParseError.InvalidNumber(text)) => "invalid: " + text,
+        Result.Err(ParseError.Negative) => "negative",
+    }
+}

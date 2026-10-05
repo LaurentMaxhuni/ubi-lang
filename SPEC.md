@@ -1,10 +1,10 @@
 # Ubi language specification
 
-Version: 0.5 draft. Current work: user-defined enums on the programming foundation. Milestone 1 evidence remains recorded in DECISIONS.md.
+Version: 0.6 draft. Current work: generics, recoverable errors, maps, then scoped host access. Milestone 1 evidence remains recorded in DECISIONS.md.
 
 ## 1. Scope and conformance
 
-Milestone 1 implements the core profile: primitive values, immutable local bindings, operators, named functions, calls, `if`, blocks, returns, and named imports/exports. Milestone 2 adds `let mut`, records, enums, lists, generics, `match`, `?`, and pure closures. Examples identify their required milestone; later-profile examples are contracts, not claims of current support. Effects and foreign access have the boundary contract in section 8; their adapter format is specified before Milestone 3 implementation. Async, entrypoints with host capabilities, and platform behavior require later specification revisions.
+Milestone 1 implements the core profile: primitive values, immutable local bindings, operators, named functions, calls, `if`, blocks, returns, and named imports/exports. Milestone 2 adds `let mut`, records, enums, lists, generics, `match`, `?`, and pure closures. Sections 15-20 define current foundations, maps, and synchronous console/storage capabilities. Examples identify their required profile; later-profile examples remain contracts. Async and platform packaging require later revisions.
 
 A conforming implementation preserves specified values, evaluation order, recoverable errors, and fatal faults on every backend. Invalid programs are rejected before either execution path runs. Compiler optimizations cannot change observable behavior. The interpreter evaluates source syntax independently of JavaScript lowering; agreement alone does not establish correctness. Public expectations and an evaluator-owned hidden corpus establish expected behavior separately.
 
@@ -13,7 +13,8 @@ A conforming implementation preserves specified values, evaluation order, recove
 Current foundation slice adds lists, built-in Option, matching, loops, closures,
 and pure utilities to local reassignment and non-generic records. Section 15
 defines the supported subset and supersedes earlier profile restrictions.
-Section 16 adds user-defined enums. Generic declarations and propagation remain deferred.
+Section 16 adds enums; sections 17-20 add generics, Result/propagation, maps,
+and synchronous scoped host access, superseding earlier slice deferrals.
 
 Source is UTF-8 without a byte-order mark. Identifiers are ASCII `[A-Za-z_][A-Za-z0-9_]*`, case-sensitive. `_` alone is reserved for wildcard patterns. Keywords cannot be identifiers; lex them as a distinct token kind rather than as `IDENT`. Whitespace is exactly U+0009 tab, U+000A line feed, U+000D carriage return, and U+0020 space. Newlines have no special syntax. `//` comments end before line feed or carriage return; `/* ... */` comments are non-nesting. Unterminated comments/strings and invalid source encoding are lexical errors. Retain comments and their original byte spans for future formatting.
 
@@ -25,7 +26,8 @@ EBNF: `{ x }` means repetition, `[ x ]` optional, `|` alternatives. Quoted text 
 module       = { import }, { declaration } ;
 import       = "import", "{", name, { ",", name }, [ "," ], "}", "from", STRING, ";" ;
 declaration  = [ "export" ], ( function | record | enum ) ;
-function     = "fn", name, [ generics ], "(", [ parameters ], ")", [ "->", type ], block ;
+function     = "fn", name, [ generics ], "(", [ parameters ], ")", [ "->", type ], [ effects ], block ;
+effects      = "effects", "(", [ name, { ",", name }, [ "," ] ], ")" ;
 generics     = "<", name, { ",", name }, [ "," ], ">" ;
 parameters   = name, ":", type, { ",", name, ":", type }, [ "," ] ;
 type         = primitive_type | name, [ "<", type, { ",", type }, [ "," ], ">" ] ;
@@ -143,7 +145,7 @@ Ordinary Ubi code has no ambient `window`, `document`, `process`, console, files
 
 Milestone 3 adapters must return a typed decoding error for malformed foreign results and normalize documented recoverable exceptions into the declared Result error. Unexpected exceptions or contract violations cause `UBI-R0004`. Reject malformed inbound invocation arguments before executing Ubi code; that is a host validation failure, not a Ubi value. Trusted adapters implement the boundary and can violate it; effects do not isolate malicious JavaScript dependencies.
 
-The Milestone 3 permission contract requires host-created opaque capability values and finite effects on named functions, checked transitively through calls and recursion. Ordinary Ubi cannot construct capabilities; an effectful operation needs both its matching scoped capability and a declared effect. Pure functions/arrows cannot call effectful functions indirectly through aliases or imported names. Capability scope controls authority; effects describe possible operations. Adapter declaration syntax, allowed operations, and effect syntax are intentionally deferred to a pre-implementation specification revision. Async/cancellation/JSON decoder behavior is likewise unsupported until specified; no JavaScript fallback is allowed.
+The permission contract requires host-created opaque capability values and finite effects on named functions, checked transitively through calls and recursion. Ordinary Ubi cannot construct capabilities; an effectful operation needs both its matching scoped capability and a declared effect. Pure functions/arrows cannot call effectful functions indirectly through aliases or imported names. Capability scope controls authority; effects describe possible operations. Section 20 defines synchronous adapters and effects. Async/cancellation/arbitrary JSON decoder behavior remains unsupported until specified; no JavaScript fallback is allowed.
 
 ## 9. Diagnostics and edits
 
@@ -498,3 +500,161 @@ objects, extra/missing fields, and malformed nested values are rejected before
 execution. Returned enums have this same representation; their object, payload
 array, and nested containers are frozen. Nominal identity is checked internally;
 host JSON acquires the enum type required by the exported parameter.
+
+## 17. Basic generics (2026-10-05)
+
+This slice enables the generic declarations in sections 2-6 for functions,
+records, and enums. Parameters are lexical type names, distinct within a
+declaration; reject duplicates with `UBI0011` and conflicts with prelude type
+names with `UBI0020`. Type applications require exactly the declaration's type
+argument count. Type parameters have no bounds: their values may be passed,
+returned, bound, and stored in typed containers; arithmetic, ordering, equality,
+and concrete-type operations on an unconstrained parameter are rejected even
+when every observed caller uses int. Bodies are checked for all substitutions.
+Generic functions require explicit return annotations (`UBI0021`).
+
+Infer invariant arguments from actual function arguments, record fields, enum
+payloads, and expected result types. Expected types propagate through annotated
+bindings, returns, function tails, branches, and constructor arguments. Multiple
+constraints must agree; unresolved parameters and conflicting substitutions use
+`UBI0020`. There are no default types or explicit call-site type arguments.
+Empty lists and payload-free variants need enough context to resolve their
+types. Generic callbacks may be specialized from an established callback type;
+unresolved generic function values are rejected. Types retain nominal source/
+declaration identity plus their argument types. `Box<int>` differs from
+`Box<string>`; recursive nominal types are permitted subject to existing finite
+compiler and runtime limits. Growing instantiation must report `UBI0090` rather
+than overflow the compiler stack or hang.
+
+Substitution nesting is capped at 32 and the combined interned record/type pool
+at 4,096 entries during expansion. Reachable generic call materialization permits
+at most 4,096 instances and 32 successive expanding call substitutions. Exceeding
+these limits uses `UBI0090`; existing parser limits remain independent of runtime
+aggregate depth. `effects` is contextual syntax in a function signature and
+otherwise remains an ordinary identifier.
+
+Exported generic declarations are available to Ubi imports. Direct host
+invocation of a generic function is rejected before execution because a host
+has no type-argument channel; use a concrete exported wrapper. Concrete generic
+record/enum arguments use the existing exact recursive JSON encoding, validation,
+32-level aggregate limit, and immutable returns. Exported generic signatures
+must not expose private nominal types, including nested type arguments.
+Snapshot closures inside generic functions preserve both captured values and
+their concrete instantiated types. Existing evaluation and resource budgets
+apply unchanged.
+
+Public JavaScript exports accept exactly their declared host arguments. Generated
+Ubi-to-Ubi imports use compiler-reserved `$ubi_internal_*` exports with shared
+invocation budgets; these are implementation details outside the host API.
+Public wrappers never accept an extra argument to bypass validation or invoke
+a generic function. Trusted JavaScript can inspect generated internals; Ubi's
+source-level capability/effect checks do not isolate malicious host code.
+
+## 18. Result and propagation (2026-10-05)
+
+The prelude provides nominal `Result<T, E>` with `Ok(T)` and `Err(E)` variants.
+Both parameters are inferred invariantly from payloads and expected types;
+the missing side requires context. `Result.Ok(3)` alone does not infer E.
+Existing nested matching, coverage, equality eligibility, imports, and immutable
+payload semantics apply. Prelude names cannot be redeclared or shadowed as types.
+Host encoding is the enum envelope: exactly `{ "tag": "Ok", "values": [3] }`
+or `{ "tag": "Err", "values": [error] }`, recursively validated and frozen.
+
+Section 6's `?` contract now applies: only a Result operand inside a named
+function explicitly returning Result with exactly the same E. Evaluate once;
+Ok unwraps its payload, Err exits that function preserving the error payload
+under the function's result type. U may differ from T. Propagation exits through
+loops, blocks, nested arguments, guards, and constructors without evaluating
+later operations. It does not exit the caller of that function. Arrows cannot
+use `?`, even inside a Result-returning named function. Invalid contexts, Option
+operands, and mismatched errors use `UBI0033` at the `?` token. There is no implicit
+error conversion, no Option propagation, and no interception of fatal faults.
+
+## 19. Immutable maps (2026-10-05)
+
+`Map<K, V>` is an immutable finite insertion-ordered collection with unique keys.
+K is int, bool, or string; floats, aggregates, functions, capabilities, and
+unconstrained type parameters are invalid key types (`UBI0020`). V follows list
+element restrictions. Key equality uses the existing primitive rules, including
+Unicode scalar string equality. Map types are invariant.
+
+Prelude operations:
+
+```
+mapEmpty() -> Map<K, V>
+mapSet(Map<K, V>, K, V) -> Map<K, V>
+mapGet(Map<K, V>, K) -> Option<V>
+mapHas(Map<K, V>, K) -> bool
+mapRemove(Map<K, V>, K) -> Map<K, V>
+mapKeys(Map<K, V>) -> List<K>
+mapValues(Map<K, V>) -> List<V>
+length(Map<K, V>) -> int
+```
+
+`mapEmpty` requires an expected Map type. Set replaces an existing value without
+moving its key; new keys append. Remove preserves the remaining order; removing
+a missing key returns an equal map. Reinserted keys append. Get of a missing key
+returns None. Operations never mutate inputs/aliases. Keys/values return fresh
+lists in insertion order. Maps are not directly iterable; iterate their keys or
+values. Plain copying and linear lookup suffice for v0. Equality, when V is
+equatable, compares key/value associations independent of insertion order.
+Evaluate arguments once, left to right. Existing step and 32-level aggregate
+budgets apply; map values count as one aggregate level plus their children.
+
+Host Map input uses serialized JSON containing an array of exact two-element
+`[key, value]` arrays. Reject duplicate keys, wrong lengths/types, extra envelope
+objects, and excess depth before execution. Returned maps use the same entry
+array; outer and entry arrays and nested values are frozen. Strings including
+`__proto__` and `constructor` are ordinary keys with no object-property meaning.
+
+## 20. Scoped synchronous host access (2026-10-05)
+
+Named functions may declare `effects(console, storage)` after their return type
+and before their body. Each name may occur once (`UBI0011`); unknown effects use
+`UBI0040`. Omitted/empty effects mean pure. Every called function's declared
+effects must be included in the caller's declaration, across imports and
+recursion, even when a branch is unreachable. Effectful function values/aliases
+and effectful arrows are rejected (`UBI0040`); only direct named calls are allowed.
+Pure callbacks remain pure transitively. Shadowed local names resolve normally.
+
+Opaque prelude types `Console` and `Storage` represent authority supplied by a
+trusted host. Ordinary Ubi cannot construct them, compare them, put them in
+aggregates, return them, pass them through unconstrained generic parameters, or
+capture them in arrows. Capability parameters and local aliases passed to named
+functions are allowed. A host operation requires both its exact capability
+argument and its declared effect; wrong/missing capability and forbidden
+capability storage, comparison, return, capture, or generic substitution use
+`UBI0040`.
+No ambient host access or arbitrary foreign import is introduced.
+
+The prelude adds `HostError { Failure(string), Decode(string) }` and operations:
+
+```
+consoleLog(Console, string) -> Result<unit, HostError>       // console
+storageGet(Storage, string) -> Result<Option<string>, HostError> // storage
+storageSet(Storage, string, string) -> Result<unit, HostError> // storage
+storageRemove(Storage, string) -> Result<unit, HostError>    // storage
+```
+
+Generated builds requiring capabilities include `.ubi-host.mjs` at their root;
+that artifact name is reserved in these builds. Trusted JavaScript imports
+`createConsoleCapability(write)` and `createStorageCapability({get,set,remove})`
+from that module. Factories snapshot callbacks into an opaque frozen object
+registered in a private WeakMap shared by all generated modules in that build.
+Capability host arguments must be registered tokens of the correct kind, never
+JSON or arbitrary objects. Factories and adapter callbacks are host code and
+are not Ubi-callable. Synchronous callbacks receive strings and return serialized
+JSON of the operation's exact Result type. Expected failures return
+Result.Err(HostError.Failure(message)); malformed responses become
+Result.Err(HostError.Decode(message)). Unexpected callback throws produce fatal
+`UBI-R0004`. Callbacks cannot return promises; async remains unsupported.
+Responses are decoded into immutable typed values before use. Invocation
+validation precedes all callbacks. Adapter execution occurs once in source
+evaluation order and cannot bypass shared Ubi budgets.
+
+Reference interpretation uses trusted synchronous Rust callbacks with the same
+operation contracts and fixed fixtures for independent evaluation. CLI JSON
+arguments cannot grant capabilities; examples use an explicit host adapter.
+This slice grants no filesystem/network/device access and does not isolate
+malicious trusted JavaScript adapters. Async storage, HTTP, and packaging follow
+later milestones.

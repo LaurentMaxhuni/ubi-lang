@@ -1,0 +1,7 @@
+export fn main() -> string {
+    let empty: Map<string, int> = mapEmpty();
+    let initial = mapSet(mapSet(empty, "apples", 2), "pears", 3);
+    let updated = mapSet(initial, "apples", 5);
+    let total = fold(mapValues(updated), 0, (sum: int, count: int) => sum + count);
+    "maps: " + join(mapKeys(updated), ", ") + "; total=" + toString(total)
+}

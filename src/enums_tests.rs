@@ -262,7 +262,6 @@ fn invalid_enum_constructors_patterns_and_bindings_reject_before_lowering() {
     for source in ["enum E {}", "enum E { A() }", "enum E { A(int,,bool) }"] {
         rejected(&[("main.ubi", source)], "UBI0002");
     }
-    rejected(&[("main.ubi", "enum E<T> { A(T) }")], "UBI0003");
 }
 
 #[test]

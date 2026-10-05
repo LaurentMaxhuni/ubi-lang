@@ -10,7 +10,22 @@ use crate::span::Span;
 
 pub(crate) type FunctionKey = (String, String);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum CapabilityKind {
+    Console,
+    Storage,
+}
+
+impl CapabilityKind {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Console => "console",
+            Self::Storage => "storage",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum ValueType {
     Int,
     Float,
@@ -20,8 +35,11 @@ pub(crate) enum ValueType {
     Record(usize),
     List(usize),
     Option(usize),
+    Map(usize),
+    Capability(CapabilityKind),
     Enum(usize),
     Function(usize),
+    Parameter(usize),
     Range,
     Never,
     Error,
@@ -38,8 +56,12 @@ impl ValueType {
             Self::Record(_) => "record",
             Self::List(_) => "List",
             Self::Option(_) => "Option",
+            Self::Map(_) => "Map",
+            Self::Capability(CapabilityKind::Console) => "Console",
+            Self::Capability(CapabilityKind::Storage) => "Storage",
             Self::Enum(_) => "enum",
             Self::Function(_) => "function",
+            Self::Parameter(_) => "type parameter",
             Self::Range => "range",
             Self::Never => "never",
             Self::Error => "<error>",
@@ -49,11 +71,20 @@ impl ValueType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum TypeInfo {
+    Parameter {
+        key: FunctionKey,
+        name: String,
+    },
     List(ValueType),
     Option(ValueType),
+    Map {
+        key: ValueType,
+        value: ValueType,
+    },
     Enum {
         key: FunctionKey,
         exported: bool,
+        arguments: Vec<ValueType>,
         variants: BTreeMap<String, Vec<ValueType>>,
     },
     Function {
@@ -68,8 +99,10 @@ fn intern_type(types: &mut Vec<TypeInfo>, info: TypeInfo) -> ValueType {
         types.len() - 1
     });
     match info {
+        TypeInfo::Parameter { .. } => ValueType::Parameter(id),
         TypeInfo::List(_) => ValueType::List(id),
         TypeInfo::Option(_) => ValueType::Option(id),
+        TypeInfo::Map { .. } => ValueType::Map(id),
         TypeInfo::Enum { .. } => ValueType::Enum(id),
         TypeInfo::Function { .. } => ValueType::Function(id),
     }
@@ -79,6 +112,17 @@ pub(crate) fn builtin_name(name: &str) -> bool {
     matches!(
         name,
         "range"
+            | "mapEmpty"
+            | "mapSet"
+            | "mapGet"
+            | "mapHas"
+            | "mapRemove"
+            | "mapKeys"
+            | "mapValues"
+            | "consoleLog"
+            | "storageGet"
+            | "storageSet"
+            | "storageRemove"
             | "length"
             | "append"
             | "set"
@@ -118,6 +162,7 @@ pub(crate) fn builtin_name(name: &str) -> bool {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Signature {
+    pub(crate) type_parameters: Vec<ValueType>,
     pub(crate) parameters: Vec<ValueType>,
     pub(crate) return_type: Option<ValueType>,
     name_span: Span,
@@ -137,6 +182,7 @@ pub(crate) struct Analysis {
     pub(crate) module_symbols: BTreeMap<String, BTreeMap<String, FunctionKey>>,
     pub(crate) signatures: BTreeMap<FunctionKey, Signature>,
     pub(crate) expression_types: BTreeMap<(FunctionKey, Span), ValueType>,
+    pub(crate) reference_targets: BTreeMap<(FunctionKey, Span), FunctionKey>,
     pub(crate) records: Vec<RecordInfo>,
     pub(crate) record_keys: BTreeMap<FunctionKey, usize>,
 }
@@ -145,6 +191,7 @@ pub(crate) struct Analysis {
 pub(crate) struct RecordInfo {
     pub(crate) key: FunctionKey,
     pub(crate) exported: bool,
+    pub(crate) arguments: Vec<ValueType>,
     pub(crate) fields: BTreeMap<String, ValueType>,
 }
 
@@ -181,6 +228,7 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
             module_symbols: BTreeMap::new(),
             signatures: BTreeMap::new(),
             expression_types: BTreeMap::new(),
+            reference_targets: BTreeMap::new(),
             records: Vec::new(),
             record_keys: BTreeMap::new(),
         };
@@ -205,18 +253,19 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
             module_symbols,
             signatures: BTreeMap::new(),
             expression_types: BTreeMap::new(),
+            reference_targets: BTreeMap::new(),
             records: Vec::new(),
             record_keys: BTreeMap::new(),
         };
     }
 
     let mut types = Vec::new();
-    let (records, record_keys) =
+    let (mut records, record_keys) =
         collect_records(&modules, &mut module_symbols, &mut types, &mut diagnostics);
     let (functions, mut signatures) = collect_signatures(
         &modules,
         &module_symbols,
-        &records,
+        &mut records,
         &record_keys,
         &mut types,
         &mut diagnostics,
@@ -224,6 +273,7 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
     let call_graph = build_call_graph(&functions, &module_symbols);
     let components = strongly_connected_components(&call_graph);
     let mut expression_types = BTreeMap::new();
+    let mut reference_targets = BTreeMap::new();
 
     for component in components.into_iter().rev() {
         let recursive = component.len() > 1
@@ -245,15 +295,21 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
                 ));
             }
 
-            let (inferred_return, function_types, mut function_diagnostics) = check_function(
-                &key,
-                function,
-                &signature,
-                &signatures,
-                &module_symbols,
-                &records,
-                &record_keys,
-                &mut types,
+            let (inferred_return, function_types, references, mut function_diagnostics) =
+                check_function(
+                    &key,
+                    function,
+                    &signature,
+                    &signatures,
+                    &module_symbols,
+                    &mut records,
+                    &record_keys,
+                    &mut types,
+                );
+            reference_targets.extend(
+                references
+                    .into_iter()
+                    .map(|(span, target)| ((key.clone(), span), target)),
             );
             diagnostics.append(&mut function_diagnostics);
             expression_types.extend(
@@ -271,17 +327,43 @@ pub(crate) fn analyze(sources: &SourceSet) -> Analysis {
         }
     }
 
+    materialize_calls(
+        &signatures,
+        &expression_types,
+        &reference_targets,
+        &mut records,
+        &mut types,
+        &mut diagnostics,
+    );
+    if let Some(declaration) = modules
+        .values()
+        .next()
+        .and_then(|module| module.declarations.first())
+    {
+        let span = match declaration {
+            Declaration::Function(v) => &v.span,
+            Declaration::Record(v) => &v.span,
+            Declaration::Enum(v) => &v.span,
+        };
+        validate_instantiated_aggregates(&records, &types, &mut diagnostics, span);
+    }
     sort_diagnostics(&mut diagnostics);
-    Analysis {
+    let mut analysis = Analysis {
         types,
         diagnostics,
         modules,
         module_symbols,
         signatures,
         expression_types,
+        reference_targets,
         records,
         record_keys,
-    }
+    };
+    analysis
+        .diagnostics
+        .extend(crate::effects::check(&analysis));
+    sort_diagnostics(&mut analysis.diagnostics);
+    analysis
 }
 
 fn lexical_diagnostic(error: crate::lexer::LexError) -> Diagnostic {
@@ -475,6 +557,55 @@ fn report_import_cycles<'a>(
     }
 }
 
+fn generic_parameters(
+    key: &FunctionKey,
+    names: &[Identifier],
+    types: &mut Vec<TypeInfo>,
+    diagnostics: &mut Vec<Diagnostic>,
+) -> Vec<ValueType> {
+    let mut seen = BTreeSet::new();
+    names
+        .iter()
+        .map(|name| {
+            if !seen.insert(name.name.clone()) {
+                diagnostics.push(Diagnostic::error(
+                    "UBI0011",
+                    "Duplicate type parameter",
+                    name.span.clone(),
+                ));
+            }
+            if matches!(
+                name.name.as_str(),
+                "List"
+                    | "Option"
+                    | "Result"
+                    | "Map"
+                    | "Console"
+                    | "Storage"
+                    | "HostError"
+                    | "int"
+                    | "float"
+                    | "bool"
+                    | "string"
+                    | "unit"
+            ) {
+                diagnostics.push(Diagnostic::error(
+                    "UBI0020",
+                    "Reserved type parameter name",
+                    name.span.clone(),
+                ));
+            }
+            intern_type(
+                types,
+                TypeInfo::Parameter {
+                    key: key.clone(),
+                    name: name.name.clone(),
+                },
+            )
+        })
+        .collect()
+}
+
 fn collect_records(
     modules: &BTreeMap<String, Module>,
     module_symbols: &mut BTreeMap<String, BTreeMap<String, FunctionKey>>,
@@ -483,6 +614,39 @@ fn collect_records(
 ) -> (Vec<RecordInfo>, BTreeMap<FunctionKey, usize>) {
     let mut records = Vec::new();
     let mut keys = BTreeMap::new();
+    let result_key = (String::new(), "Result".to_owned());
+    let result_t = intern_type(
+        types,
+        TypeInfo::Parameter {
+            key: result_key.clone(),
+            name: "T".to_owned(),
+        },
+    );
+    let result_e = intern_type(
+        types,
+        TypeInfo::Parameter {
+            key: result_key.clone(),
+            name: "E".to_owned(),
+        },
+    );
+    types.push(TypeInfo::Enum {
+        key: result_key,
+        exported: true,
+        arguments: vec![result_t, result_e],
+        variants: BTreeMap::from([
+            ("Ok".to_owned(), vec![result_t]),
+            ("Err".to_owned(), vec![result_e]),
+        ]),
+    });
+    types.push(TypeInfo::Enum {
+        key: (String::new(), "HostError".to_owned()),
+        exported: true,
+        arguments: vec![],
+        variants: BTreeMap::from([
+            ("Failure".to_owned(), vec![ValueType::String]),
+            ("Decode".to_owned(), vec![ValueType::String]),
+        ]),
+    });
     for (source_id, module) in modules {
         let symbols = module_symbols.entry(source_id.clone()).or_default();
         for declaration in &module.declarations {
@@ -493,7 +657,10 @@ fn collect_records(
             };
             if symbols.contains_key(&name.name)
                 || builtin_name(&name.name)
-                || matches!(name.name.as_str(), "List" | "Option" | "Result")
+                || matches!(
+                    name.name.as_str(),
+                    "List" | "Option" | "Result" | "Map" | "Console" | "Storage" | "HostError"
+                )
             {
                 diagnostics.push(Diagnostic::error(
                     "UBI0011",
@@ -505,41 +672,56 @@ fn collect_records(
             let key = (source_id.clone(), name.name.clone());
             symbols.insert(name.name.clone(), key.clone());
             if let Declaration::Record(record) = declaration {
+                let arguments =
+                    generic_parameters(&key, &record.type_parameters, types, diagnostics);
                 keys.insert(key.clone(), records.len());
                 records.push(RecordInfo {
                     key: key.clone(),
                     exported: record.exported,
+                    arguments,
                     fields: BTreeMap::new(),
                 });
             }
             if let Declaration::Enum(value) = declaration {
+                let arguments =
+                    generic_parameters(&key, &value.type_parameters, types, diagnostics);
                 types.push(TypeInfo::Enum {
                     key,
                     exported: value.exported,
+                    arguments,
                     variants: BTreeMap::new(),
                 });
             }
         }
     }
-    for record in &mut records {
-        let declaration = modules[&record.key.0]
+    let templates: Vec<_> = records
+        .iter()
+        .enumerate()
+        .map(|(id, r)| (id, r.key.clone()))
+        .collect();
+    for (id, key) in &templates {
+        let declaration = modules[&key.0]
             .declarations
             .iter()
-            .find_map(|declaration| match declaration {
-                Declaration::Record(value) if value.name.name == record.key.1 => Some(value),
+            .find_map(|d| match d {
+                Declaration::Record(v) if v.name.name == key.1 => Some(v),
                 _ => None,
             })
             .unwrap();
+        let parameters = records[*id].arguments.clone();
+        let mut fields = BTreeMap::new();
         for field in &declaration.fields {
             let ty = type_from_syntax(
                 &field.ty,
-                &record.key.0,
+                &key.0,
                 module_symbols,
                 &keys,
+                &parameters,
+                &mut records,
                 types,
                 diagnostics,
             );
-            if record.fields.insert(field.name.name.clone(), ty).is_some() {
+            if fields.insert(field.name.name.clone(), ty).is_some() {
                 diagnostics.push(Diagnostic::error(
                     "UBI0030",
                     "Duplicate record field",
@@ -547,39 +729,52 @@ fn collect_records(
                 ));
             }
         }
+        records[*id].fields = fields;
     }
     let enums: Vec<_> = types
         .iter()
         .enumerate()
-        .filter_map(|(id, info)| {
-            if let TypeInfo::Enum { key, .. } = info {
-                Some((id, key.clone()))
-            } else {
-                None
-            }
+        .filter_map(|(id, info)| match info {
+            TypeInfo::Enum { key, .. } if !key.0.is_empty() => Some((id, key.clone())),
+            _ => None,
         })
         .collect();
-    for (id, key) in enums {
+    for (id, key) in &enums {
+        // Only declaration templates are populated from syntax.
+        let template = enum_type(types, key).unwrap();
+        if *id != template {
+            continue;
+        }
         let declaration = modules[&key.0]
             .declarations
             .iter()
-            .find_map(|declaration| match declaration {
-                Declaration::Enum(value) if value.name.name == key.1 => Some(value),
+            .find_map(|d| match d {
+                Declaration::Enum(v) if v.name.name == key.1 => Some(v),
                 _ => None,
             })
             .unwrap();
+        let TypeInfo::Enum { arguments, .. } = &types[*id] else {
+            unreachable!()
+        };
+        let parameters = arguments.clone();
         let mut variants = BTreeMap::new();
         for variant in &declaration.variants {
-            let payloads: Vec<_> = variant
+            let payloads = variant
                 .payloads
                 .iter()
-                .map(|ty| type_from_syntax(ty, &key.0, module_symbols, &keys, types, diagnostics))
+                .map(|ty| {
+                    type_from_syntax(
+                        ty,
+                        &key.0,
+                        module_symbols,
+                        &keys,
+                        &parameters,
+                        &mut records,
+                        types,
+                        diagnostics,
+                    )
+                })
                 .collect();
-            if declaration.exported {
-                for (ty, syntax) in payloads.iter().zip(&variant.payloads) {
-                    check_public_type(*ty, &syntax.span, &records, types, diagnostics);
-                }
-            }
             if variants
                 .insert(variant.name.name.clone(), payloads)
                 .is_some()
@@ -593,27 +788,74 @@ fn collect_records(
         }
         let TypeInfo::Enum {
             variants: target, ..
-        } = &mut types[id]
+        } = &mut types[*id]
         else {
             unreachable!()
         };
         *target = variants;
     }
-    for record in &records {
-        if !record.exported {
+    if refresh_nominals(&keys, &mut records, types).is_err() {
+        if let Some(module) = modules.values().next() {
+            if let Some(decl) = module.declarations.first() {
+                let span = match decl {
+                    Declaration::Function(v) => &v.span,
+                    Declaration::Record(v) => &v.span,
+                    Declaration::Enum(v) => &v.span,
+                };
+                diagnostics.push(Diagnostic::error(
+                    "UBI0090",
+                    "Generic type expansion limit exceeded",
+                    span.clone(),
+                ));
+            }
+        }
+    }
+    for (id, key) in templates {
+        if !records[id].exported {
             continue;
         }
-        let declaration = modules[&record.key.0]
+        let declaration = modules[&key.0]
             .declarations
             .iter()
-            .find_map(|declaration| match declaration {
-                Declaration::Record(value) if value.name.name == record.key.1 => Some(value),
+            .find_map(|d| match d {
+                Declaration::Record(v) if v.name.name == key.1 => Some(v),
                 _ => None,
             })
             .unwrap();
         for field in &declaration.fields {
-            let ty = record.fields[&field.name.name];
-            check_public_type(ty, &field.ty.span, &records, types, diagnostics);
+            check_public_type(
+                records[id].fields[&field.name.name],
+                &field.ty.span,
+                &records,
+                types,
+                diagnostics,
+            );
+        }
+    }
+    for (id, key) in enums {
+        let TypeInfo::Enum {
+            exported: true,
+            variants,
+            ..
+        } = &types[id]
+        else {
+            continue;
+        };
+        if id != enum_type(types, &key).unwrap() {
+            continue;
+        }
+        let declaration = modules[&key.0]
+            .declarations
+            .iter()
+            .find_map(|d| match d {
+                Declaration::Enum(v) if v.name.name == key.1 => Some(v),
+                _ => None,
+            })
+            .unwrap();
+        for variant in &declaration.variants {
+            for (ty, syntax) in variants[&variant.name.name].iter().zip(&variant.payloads) {
+                check_public_type(*ty, &syntax.span, &records, types, diagnostics);
+            }
         }
     }
     (records, keys)
@@ -626,41 +868,54 @@ fn check_public_type(
     types: &[TypeInfo],
     diagnostics: &mut Vec<Diagnostic>,
 ) {
-    match ty {
-        ValueType::Enum(id) => {
-            if matches!(
-                types[id],
-                TypeInfo::Enum {
-                    exported: false,
-                    ..
+    let mut pending = vec![ty];
+    while let Some(ty) = pending.pop() {
+        match ty {
+            ValueType::Record(id) => {
+                if !records[id].exported {
+                    diagnostics.push(Diagnostic::error(
+                        "UBI0013",
+                        "Private record type exposed by exported signature",
+                        span.clone(),
+                    ));
                 }
-            ) {
-                diagnostics.push(Diagnostic::error(
-                    "UBI0013",
-                    "Private enum type exposed by exported signature",
-                    span.clone(),
-                ));
+                pending.extend(records[id].arguments.iter().copied());
             }
-        }
-        ValueType::List(id) | ValueType::Option(id) => {
-            if let TypeInfo::List(inner) | TypeInfo::Option(inner) = types[id] {
-                check_public_type(inner, span, records, types, diagnostics);
+            ValueType::Enum(id) => {
+                let TypeInfo::Enum {
+                    exported,
+                    arguments,
+                    ..
+                } = &types[id]
+                else {
+                    unreachable!()
+                };
+                if !exported {
+                    diagnostics.push(Diagnostic::error(
+                        "UBI0013",
+                        "Private enum type exposed by exported signature",
+                        span.clone(),
+                    ));
+                }
+                pending.extend(arguments.iter().copied());
             }
-        }
-        ValueType::Function(_) | ValueType::Range => diagnostics.push(Diagnostic::error(
-            "UBI0020",
-            "Function and range values cannot be exported",
-            span.clone(),
-        )),
-        _ => {}
-    }
-    if let ValueType::Record(id) = ty {
-        if !records[id].exported {
-            diagnostics.push(Diagnostic::error(
-                "UBI0013",
-                "Private record type exposed by exported signature",
+            ValueType::List(id) | ValueType::Option(id) => {
+                let (TypeInfo::List(inner) | TypeInfo::Option(inner)) = types[id] else {
+                    unreachable!()
+                };
+                pending.push(inner);
+            }
+            ValueType::Map(id) => {
+                if let TypeInfo::Map { key, value } = types[id] {
+                    pending.extend([key, value]);
+                }
+            }
+            ValueType::Function(_) | ValueType::Range => diagnostics.push(Diagnostic::error(
+                "UBI0020",
+                "Function and range values cannot be exported",
                 span.clone(),
-            ));
+            )),
+            _ => {}
         }
     }
 }
@@ -668,7 +923,7 @@ fn check_public_type(
 fn collect_signatures<'a>(
     modules: &'a BTreeMap<String, Module>,
     module_symbols: &BTreeMap<String, BTreeMap<String, FunctionKey>>,
-    records: &[RecordInfo],
+    records: &mut Vec<RecordInfo>,
     record_keys: &BTreeMap<FunctionKey, usize>,
     types: &mut Vec<TypeInfo>,
     diagnostics: &mut Vec<Diagnostic>,
@@ -690,6 +945,8 @@ fn collect_signatures<'a>(
             {
                 continue;
             }
+            let type_parameters =
+                generic_parameters(&key, &function.type_parameters, types, diagnostics);
             let parameters = function
                 .parameters
                 .iter()
@@ -699,6 +956,8 @@ fn collect_signatures<'a>(
                         source_id,
                         module_symbols,
                         record_keys,
+                        &type_parameters,
+                        records,
                         types,
                         diagnostics,
                     );
@@ -714,6 +973,8 @@ fn collect_signatures<'a>(
                     source_id,
                     module_symbols,
                     record_keys,
+                    &type_parameters,
+                    records,
                     types,
                     diagnostics,
                 );
@@ -722,7 +983,7 @@ fn collect_signatures<'a>(
                 }
                 value
             });
-            if function.exported && return_type.is_none() {
+            if (function.exported || !type_parameters.is_empty()) && return_type.is_none() {
                 diagnostics.push(Diagnostic::error(
                     "UBI0021",
                     "Exported functions require an explicit return annotation",
@@ -733,6 +994,7 @@ fn collect_signatures<'a>(
             signatures.insert(
                 key,
                 Signature {
+                    type_parameters,
                     parameters,
                     return_type,
                     name_span: function.name.span.clone(),
@@ -743,67 +1005,688 @@ fn collect_signatures<'a>(
     (functions, signatures)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn type_from_syntax(
     ty: &Type,
     module_id: &str,
     symbols: &BTreeMap<String, BTreeMap<String, FunctionKey>>,
-    records: &BTreeMap<FunctionKey, usize>,
+    record_keys: &BTreeMap<FunctionKey, usize>,
+    parameters: &[ValueType],
+    records: &mut Vec<RecordInfo>,
     types: &mut Vec<TypeInfo>,
     diagnostics: &mut Vec<Diagnostic>,
 ) -> ValueType {
-    if matches!(ty.name.as_str(), "List" | "Option") && ty.arguments.len() == 1 {
-        let inner = type_from_syntax(
-            &ty.arguments[0],
-            module_id,
-            symbols,
-            records,
-            types,
-            diagnostics,
-        );
-        return intern_type(
-            types,
-            if ty.name == "List" {
+    let result = (|| {
+        for parameter in parameters {
+            let ValueType::Parameter(id) = parameter else {
+                continue;
+            };
+            if matches!(&types[*id],TypeInfo::Parameter{name,..} if name==&ty.name) {
+                return ty.arguments.is_empty().then_some(*parameter);
+            }
+        }
+        let arguments: Vec<_> = ty
+            .arguments
+            .iter()
+            .map(|arg| {
+                type_from_syntax(
+                    arg,
+                    module_id,
+                    symbols,
+                    record_keys,
+                    parameters,
+                    records,
+                    types,
+                    diagnostics,
+                )
+            })
+            .collect();
+        if ty.name == "Map" {
+            if arguments.len() != 2 {
+                return None;
+            }
+            if !matches!(
+                arguments[0],
+                ValueType::Int | ValueType::Bool | ValueType::String | ValueType::Error
+            ) {
+                return None;
+            }
+            return Some(intern_type(
+                types,
+                TypeInfo::Map {
+                    key: arguments[0],
+                    value: arguments[1],
+                },
+            ));
+        }
+        if matches!(ty.name.as_str(), "List" | "Option") {
+            return (arguments.len() == 1).then(|| {
+                intern_type(
+                    types,
+                    if ty.name == "List" {
+                        TypeInfo::List(arguments[0])
+                    } else {
+                        TypeInfo::Option(arguments[0])
+                    },
+                )
+            });
+        }
+        let primitive = match ty.name.as_str() {
+            "int" => Some(ValueType::Int),
+            "float" => Some(ValueType::Float),
+            "bool" => Some(ValueType::Bool),
+            "string" => Some(ValueType::String),
+            "unit" => Some(ValueType::Unit),
+            "Console" => Some(ValueType::Capability(CapabilityKind::Console)),
+            "Storage" => Some(ValueType::Capability(CapabilityKind::Storage)),
+            _ => None,
+        };
+        if let Some(primitive) = primitive {
+            return arguments.is_empty().then_some(primitive);
+        }
+        let key = if matches!(ty.name.as_str(), "Result" | "HostError") {
+            Some((String::new(), ty.name.clone()))
+        } else {
+            symbols
+                .get(module_id)
+                .and_then(|s| s.get(&ty.name))
+                .cloned()
+        }?;
+        let (template, params) = if let Some(id) = record_keys.get(&key) {
+            (ValueType::Record(*id), records[*id].arguments.clone())
+        } else {
+            let id = enum_type(types, &key)?;
+            let TypeInfo::Enum { arguments, .. } = &types[id] else {
+                unreachable!()
+            };
+            (ValueType::Enum(id), arguments.clone())
+        };
+        if params.len() != arguments.len() {
+            return None;
+        }
+        let mapping = parameter_mapping(&params, &arguments);
+        match substitute_type(template, &mapping, records, types) {
+            Ok(value) => Some(value),
+            Err(()) => {
+                diagnostics.push(Diagnostic::error(
+                    "UBI0090",
+                    "Generic type expansion limit exceeded",
+                    ty.span.clone(),
+                ));
+                Some(ValueType::Error)
+            }
+        }
+    })();
+    result.unwrap_or_else(|| {
+        diagnostics.push(Diagnostic::error(
+            "UBI0020",
+            format!("Unknown type or invalid type arguments: {}", ty.name),
+            ty.span.clone(),
+        ));
+        ValueType::Error
+    })
+}
+
+fn contains_parameters(
+    ty: ValueType,
+    parameters: &BTreeSet<usize>,
+    records: &[RecordInfo],
+    types: &[TypeInfo],
+) -> bool {
+    let mut pending = vec![ty];
+    while let Some(ty) = pending.pop() {
+        match ty {
+            ValueType::Parameter(id) if parameters.contains(&id) => return true,
+            ValueType::Record(id) => pending.extend(records[id].arguments.iter().copied()),
+            ValueType::Enum(id) => {
+                if let TypeInfo::Enum { arguments, .. } = &types[id] {
+                    pending.extend(arguments.iter().copied());
+                }
+            }
+            ValueType::List(id) | ValueType::Option(id) => {
+                if let TypeInfo::List(inner) | TypeInfo::Option(inner) = types[id] {
+                    pending.push(inner);
+                }
+            }
+            ValueType::Map(id) => {
+                if let TypeInfo::Map { key, value } = types[id] {
+                    pending.extend([key, value]);
+                }
+            }
+            ValueType::Function(id) => {
+                if let TypeInfo::Function {
+                    parameters,
+                    return_type,
+                } = &types[id]
+                {
+                    pending.extend(parameters.iter().copied());
+                    pending.push(*return_type);
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
+fn needs_context(expression: &Expr) -> bool {
+    match &expression.kind {
+        ExprKind::List(values) => values.is_empty() || values.iter().any(needs_context),
+        ExprKind::Member { .. }
+        | ExprKind::Call { .. }
+        | ExprKind::Record { .. }
+        | ExprKind::Name(_) => true,
+        ExprKind::If {
+            then_branch,
+            else_branch,
+            ..
+        } => {
+            then_branch
+                .tail
+                .as_ref()
+                .is_some_and(|tail| needs_context(tail))
+                || needs_context(else_branch)
+        }
+        ExprKind::Block(block) => block.tail.as_ref().is_some_and(|tail| needs_context(tail)),
+        _ => false,
+    }
+}
+
+fn parameter_mapping(
+    parameters: &[ValueType],
+    arguments: &[ValueType],
+) -> BTreeMap<usize, ValueType> {
+    parameters
+        .iter()
+        .zip(arguments)
+        .filter_map(|(p, a)| {
+            if let ValueType::Parameter(id) = p {
+                Some((*id, *a))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+pub(crate) fn infer_type_arguments(
+    template: ValueType,
+    actual: ValueType,
+    mapping: &mut BTreeMap<usize, ValueType>,
+    records: &[RecordInfo],
+    types: &[TypeInfo],
+) -> bool {
+    let mut pending = vec![(template, actual)];
+    while let Some((template, actual)) = pending.pop() {
+        if actual == ValueType::Error || actual == ValueType::Never || template == ValueType::Error
+        {
+            continue;
+        }
+        if let ValueType::Parameter(id) = template {
+            if let Some(previous) = mapping.get(&id) {
+                if *previous != actual {
+                    return false;
+                }
+            } else {
+                mapping.insert(id, actual);
+            }
+            continue;
+        }
+        if template == actual {
+            continue;
+        }
+        match (template, actual) {
+            (ValueType::List(a), ValueType::List(b))
+            | (ValueType::Option(a), ValueType::Option(b)) => {
+                let (
+                    TypeInfo::List(a) | TypeInfo::Option(a),
+                    TypeInfo::List(b) | TypeInfo::Option(b),
+                ) = (&types[a], &types[b])
+                else {
+                    return false;
+                };
+                pending.push((*a, *b));
+            }
+            (ValueType::Map(a), ValueType::Map(b)) => {
+                let (TypeInfo::Map { key: ak, value: av }, TypeInfo::Map { key: bk, value: bv }) =
+                    (&types[a], &types[b])
+                else {
+                    return false;
+                };
+                pending.extend([(*ak, *bk), (*av, *bv)]);
+            }
+            (ValueType::Record(a), ValueType::Record(b)) if records[a].key == records[b].key => {
+                pending.extend(
+                    records[a]
+                        .arguments
+                        .iter()
+                        .copied()
+                        .zip(records[b].arguments.iter().copied()),
+                )
+            }
+            (ValueType::Enum(a), ValueType::Enum(b)) => {
+                let (
+                    TypeInfo::Enum {
+                        key: a_key,
+                        arguments: a,
+                        ..
+                    },
+                    TypeInfo::Enum {
+                        key: b_key,
+                        arguments: b,
+                        ..
+                    },
+                ) = (&types[a], &types[b])
+                else {
+                    return false;
+                };
+                if a_key != b_key {
+                    return false;
+                }
+                pending.extend(a.iter().copied().zip(b.iter().copied()));
+            }
+            (ValueType::Function(a), ValueType::Function(b)) => {
+                let (
+                    TypeInfo::Function {
+                        parameters: a,
+                        return_type: ar,
+                    },
+                    TypeInfo::Function {
+                        parameters: b,
+                        return_type: br,
+                    },
+                ) = (&types[a], &types[b])
+                else {
+                    return false;
+                };
+                if a.len() != b.len() {
+                    return false;
+                }
+                pending.push((*ar, *br));
+                pending.extend(a.iter().copied().zip(b.iter().copied()));
+            }
+            _ => return false,
+        }
+    }
+    true
+}
+
+pub(crate) fn substitute_type(
+    ty: ValueType,
+    mapping: &BTreeMap<usize, ValueType>,
+    records: &mut Vec<RecordInfo>,
+    types: &mut Vec<TypeInfo>,
+) -> Result<ValueType, ()> {
+    substitute_inner(ty, mapping, records, types, 0)
+}
+
+fn substitute_inner(
+    ty: ValueType,
+    mapping: &BTreeMap<usize, ValueType>,
+    records: &mut Vec<RecordInfo>,
+    types: &mut Vec<TypeInfo>,
+    depth: usize,
+) -> Result<ValueType, ()> {
+    if depth > 32 || records.len() + types.len() > 4096 {
+        return Err(());
+    }
+    let result = match ty {
+        ValueType::Parameter(id) => mapping.get(&id).copied().unwrap_or(ty),
+        ValueType::Map(id) => {
+            let TypeInfo::Map { key, value } = types[id] else {
+                return Err(());
+            };
+            let key = substitute_inner(key, mapping, records, types, depth + 1)?;
+            let value = substitute_inner(value, mapping, records, types, depth + 1)?;
+            intern_type(types, TypeInfo::Map { key, value })
+        }
+        ValueType::List(id) | ValueType::Option(id) => {
+            let (TypeInfo::List(inner) | TypeInfo::Option(inner)) = types[id] else {
+                unreachable!()
+            };
+            let inner = substitute_inner(inner, mapping, records, types, depth + 1)?;
+            intern_type(
+                types,
+                if matches!(ty, ValueType::List(_)) {
+                    TypeInfo::List(inner)
+                } else {
+                    TypeInfo::Option(inner)
+                },
+            )
+        }
+        ValueType::Function(id) => {
+            let TypeInfo::Function {
+                parameters,
+                return_type,
+            } = types[id].clone()
+            else {
+                unreachable!()
+            };
+            let parameters = parameters
+                .into_iter()
+                .map(|p| substitute_inner(p, mapping, records, types, depth + 1))
+                .collect::<Result<_, _>>()?;
+            let return_type = substitute_inner(return_type, mapping, records, types, depth + 1)?;
+            intern_type(
+                types,
+                TypeInfo::Function {
+                    parameters,
+                    return_type,
+                },
+            )
+        }
+        ValueType::Record(id) => {
+            let record = records[id].clone();
+            let arguments = record
+                .arguments
+                .iter()
+                .map(|a| substitute_inner(*a, mapping, records, types, depth + 1))
+                .collect::<Result<Vec<_>, _>>()?;
+            if arguments == record.arguments {
+                return Ok(ty);
+            }
+            if let Some(id) = records
+                .iter()
+                .position(|r| r.key == record.key && r.arguments == arguments)
+            {
+                return Ok(ValueType::Record(id));
+            }
+            let id = records.len();
+            records.push(RecordInfo {
+                key: record.key,
+                exported: record.exported,
+                arguments,
+                fields: BTreeMap::new(),
+            });
+            let fields = record
+                .fields
+                .into_iter()
+                .map(|(name, ty)| {
+                    Ok((
+                        name,
+                        substitute_inner(ty, mapping, records, types, depth + 1)?,
+                    ))
+                })
+                .collect::<Result<_, ()>>()?;
+            records[id].fields = fields;
+            ValueType::Record(id)
+        }
+        ValueType::Enum(id) => {
+            let TypeInfo::Enum {
+                key,
+                exported,
+                arguments,
+                variants,
+            } = types[id].clone()
+            else {
+                unreachable!()
+            };
+            let args = arguments
+                .iter()
+                .map(|a| substitute_inner(*a, mapping, records, types, depth + 1))
+                .collect::<Result<Vec<_>, _>>()?;
+            if args == arguments {
+                return Ok(ty);
+            }
+            if let Some(id) = types.iter().position(
+                |t| matches!(t,TypeInfo::Enum{key:k,arguments:a,..} if k==&key && a==&args),
+            ) {
+                return Ok(ValueType::Enum(id));
+            }
+            let id = types.len();
+            types.push(TypeInfo::Enum {
+                key,
+                exported,
+                arguments: args,
+                variants: BTreeMap::new(),
+            });
+            let variants = variants
+                .into_iter()
+                .map(|(name, payloads)| {
+                    Ok((
+                        name,
+                        payloads
+                            .into_iter()
+                            .map(|p| substitute_inner(p, mapping, records, types, depth + 1))
+                            .collect::<Result<_, _>>()?,
+                    ))
+                })
+                .collect::<Result<_, ()>>()?;
+            let TypeInfo::Enum {
+                variants: target, ..
+            } = &mut types[id]
+            else {
+                unreachable!()
+            };
+            *target = variants;
+            ValueType::Enum(id)
+        }
+        _ => ty,
+    };
+    if records.len() + types.len() > 4096 {
+        return Err(());
+    }
+    Ok(result)
+}
+
+#[cfg(test)]
+pub(crate) fn substitute_type_existing(
+    ty: ValueType,
+    mapping: &BTreeMap<usize, ValueType>,
+    records: &[RecordInfo],
+    types: &[TypeInfo],
+) -> Option<ValueType> {
+    Some(match ty {
+        ValueType::Parameter(id) => mapping.get(&id).copied().unwrap_or(ty),
+        ValueType::Map(id) => {
+            let TypeInfo::Map { key, value } = types[id] else {
+                return None;
+            };
+            let key = substitute_type_existing(key, mapping, records, types)?;
+            let value = substitute_type_existing(value, mapping, records, types)?;
+            ValueType::Map(
+                types
+                    .iter()
+                    .position(|ty| *ty == TypeInfo::Map { key, value })?,
+            )
+        }
+        ValueType::List(id) | ValueType::Option(id) => {
+            let (TypeInfo::List(inner) | TypeInfo::Option(inner)) = types[id] else {
+                return None;
+            };
+            let inner = substitute_type_existing(inner, mapping, records, types)?;
+            let info = if matches!(ty, ValueType::List(_)) {
                 TypeInfo::List(inner)
             } else {
                 TypeInfo::Option(inner)
-            },
-        );
-    }
-    if !ty.arguments.is_empty() || matches!(ty.name.as_str(), "List" | "Option") {
-        diagnostics.push(Diagnostic::error(
-            "UBI0020",
-            "Invalid type arguments",
-            ty.span.clone(),
-        ));
-        return ValueType::Error;
-    }
-    match ty.name.as_str() {
-        "int" => ValueType::Int,
-        "float" => ValueType::Float,
-        "bool" => ValueType::Bool,
-        "string" => ValueType::String,
-        "unit" => ValueType::Unit,
-        _ => {
-            if let Some(id) = symbols
-                .get(module_id)
-                .and_then(|module| module.get(&ty.name))
-                .and_then(|key| records.get(key))
-            {
-                return ValueType::Record(*id);
+            };
+            let id = types.iter().position(|t| t == &info)?;
+            if matches!(ty, ValueType::List(_)) {
+                ValueType::List(id)
+            } else {
+                ValueType::Option(id)
             }
-            if let Some(id) = symbols
-                .get(module_id)
-                .and_then(|module| module.get(&ty.name))
-                .and_then(|key| enum_type(types, key))
-            {
-                return ValueType::Enum(id);
+        }
+        ValueType::Function(id) => {
+            let TypeInfo::Function {
+                parameters,
+                return_type,
+            } = &types[id]
+            else {
+                return None;
+            };
+            let parameters: Vec<ValueType> = parameters
+                .iter()
+                .map(|p| substitute_type_existing(*p, mapping, records, types))
+                .collect::<Option<_>>()?;
+            let return_type = substitute_type_existing(*return_type, mapping, records, types)?;
+            ValueType::Function(types.iter().position(|t| {
+                t == &TypeInfo::Function {
+                    parameters: parameters.clone(),
+                    return_type,
+                }
+            })?)
+        }
+        ValueType::Record(id) => {
+            let record = &records[id];
+            let arguments = record
+                .arguments
+                .iter()
+                .map(|p| substitute_type_existing(*p, mapping, records, types))
+                .collect::<Option<Vec<_>>>()?;
+            ValueType::Record(
+                records
+                    .iter()
+                    .position(|r| r.key == record.key && r.arguments == arguments)?,
+            )
+        }
+        ValueType::Enum(id) => {
+            let TypeInfo::Enum { key, arguments, .. } = &types[id] else {
+                return None;
+            };
+            let arguments = arguments
+                .iter()
+                .map(|p| substitute_type_existing(*p, mapping, records, types))
+                .collect::<Option<Vec<_>>>()?;
+            ValueType::Enum(types.iter().position(
+                |t| matches!(t,TypeInfo::Enum{key:k,arguments:a,..} if k==key && a==&arguments),
+            )?)
+        }
+        _ => ty,
+    })
+}
+
+fn refresh_nominals(
+    keys: &BTreeMap<FunctionKey, usize>,
+    records: &mut Vec<RecordInfo>,
+    types: &mut Vec<TypeInfo>,
+) -> Result<(), ()> {
+    let mut record_id = 0;
+    let mut enum_id = 0;
+    while record_id < records.len() || enum_id < types.len() {
+        if records.len() + types.len() > 4096 {
+            return Err(());
+        }
+        if record_id < records.len() {
+            let record = records[record_id].clone();
+            let template = keys[&record.key];
+            if template != record_id {
+                let mapping = parameter_mapping(&records[template].arguments, &record.arguments);
+                let fields = records[template]
+                    .fields
+                    .clone()
+                    .into_iter()
+                    .map(|(name, ty)| Ok((name, substitute_type(ty, &mapping, records, types)?)))
+                    .collect::<Result<_, ()>>()?;
+                records[record_id].fields = fields;
             }
+            record_id += 1;
+        }
+        if enum_id < types.len() {
+            if let TypeInfo::Enum { key, arguments, .. } = types[enum_id].clone() {
+                let template = enum_type(types, &key).unwrap();
+                if template != enum_id {
+                    let TypeInfo::Enum {
+                        arguments: params,
+                        variants,
+                        ..
+                    } = types[template].clone()
+                    else {
+                        unreachable!()
+                    };
+                    let mapping = parameter_mapping(&params, &arguments);
+                    let variants = variants
+                        .into_iter()
+                        .map(|(name, payloads)| {
+                            Ok((
+                                name,
+                                payloads
+                                    .into_iter()
+                                    .map(|ty| substitute_type(ty, &mapping, records, types))
+                                    .collect::<Result<_, _>>()?,
+                            ))
+                        })
+                        .collect::<Result<_, ()>>()?;
+                    let TypeInfo::Enum {
+                        variants: target, ..
+                    } = &mut types[enum_id]
+                    else {
+                        unreachable!()
+                    };
+                    *target = variants;
+                }
+            }
+            enum_id += 1;
+        }
+    }
+    Ok(())
+}
+
+fn materialize_calls(
+    signatures: &BTreeMap<FunctionKey, Signature>,
+    expression_types: &BTreeMap<(FunctionKey, Span), ValueType>,
+    references: &BTreeMap<(FunctionKey, Span), FunctionKey>,
+    records: &mut Vec<RecordInfo>,
+    types: &mut Vec<TypeInfo>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
+    let mut pending: Vec<_> = signatures
+        .iter()
+        .filter(|(_, s)| s.type_parameters.is_empty())
+        .map(|(k, _)| (k.clone(), BTreeMap::new(), 0usize))
+        .collect();
+    let mut visited = BTreeSet::new();
+    while let Some((key, mapping, depth)) = pending.pop() {
+        if !visited.insert((key.clone(), mapping.clone())) {
+            continue;
+        }
+        if depth > 32 || visited.len() > 4096 {
             diagnostics.push(Diagnostic::error(
-                "UBI0020",
-                format!("Unknown type: {}", ty.name),
-                ty.span.clone(),
+                "UBI0090",
+                "Generic call expansion limit exceeded",
+                signatures[&key].name_span.clone(),
             ));
-            ValueType::Error
+            return;
+        }
+        for ((owner, span), ty) in expression_types {
+            if owner != &key {
+                continue;
+            }
+            let actual = match substitute_type(*ty, &mapping, records, types) {
+                Ok(ty) => ty,
+                Err(()) => {
+                    diagnostics.push(Diagnostic::error(
+                        "UBI0090",
+                        "Generic type expansion limit exceeded",
+                        span.clone(),
+                    ));
+                    return;
+                }
+            };
+            if let Some(target) = references.get(&(key.clone(), span.clone())) {
+                let signature = &signatures[target];
+                if signature.type_parameters.is_empty() {
+                    continue;
+                }
+                let TypeInfo::Function {
+                    parameters,
+                    return_type,
+                } = &types[match actual {
+                    ValueType::Function(id) => id,
+                    _ => continue,
+                }]
+                else {
+                    continue;
+                };
+                let mut inferred = BTreeMap::new();
+                for (template, actual) in signature.parameters.iter().zip(parameters) {
+                    infer_type_arguments(*template, *actual, &mut inferred, records, types);
+                }
+                if let Some(template) = signature.return_type {
+                    infer_type_arguments(template, *return_type, &mut inferred, records, types);
+                }
+                pending.push((target.clone(), inferred, depth + 1));
+            }
         }
     }
 }
@@ -1049,23 +1932,27 @@ where
     components
 }
 
-#[allow(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
 fn check_function(
     key: &FunctionKey,
     function: &Function,
     signature: &Signature,
     signatures: &BTreeMap<FunctionKey, Signature>,
     module_symbols: &BTreeMap<String, BTreeMap<String, FunctionKey>>,
-    records: &[RecordInfo],
+    records: &mut Vec<RecordInfo>,
     record_keys: &BTreeMap<FunctionKey, usize>,
     types: &mut Vec<TypeInfo>,
 ) -> (
     Option<ValueType>,
     BTreeMap<Span, ValueType>,
+    BTreeMap<Span, FunctionKey>,
     Vec<Diagnostic>,
 ) {
     let mut checker = FunctionChecker {
         module_id: &key.0,
+        type_parameters: signature.type_parameters.clone(),
+        reference_targets: BTreeMap::new(),
+        propagation_allowed: function.return_type.is_some(),
         signatures,
         module_symbols,
         records,
@@ -1110,6 +1997,7 @@ fn check_function(
     (
         checker.inferred_return,
         checker.expression_types,
+        checker.reference_targets,
         checker.diagnostics,
     )
 }
@@ -1121,13 +2009,16 @@ struct Binding {
 }
 
 struct FunctionChecker<'a> {
+    propagation_allowed: bool,
+    type_parameters: Vec<ValueType>,
+    reference_targets: BTreeMap<Span, FunctionKey>,
     types: &'a mut Vec<TypeInfo>,
     expected_expr: Option<ValueType>,
     loop_depth: usize,
     module_id: &'a str,
     signatures: &'a BTreeMap<FunctionKey, Signature>,
     module_symbols: &'a BTreeMap<String, BTreeMap<String, FunctionKey>>,
-    records: &'a [RecordInfo],
+    records: &'a mut Vec<RecordInfo>,
     record_keys: &'a BTreeMap<FunctionKey, usize>,
     expected_return: Option<ValueType>,
     inferred_return: Option<ValueType>,
@@ -1158,6 +2049,8 @@ impl FunctionChecker<'_> {
                             self.module_id,
                             self.module_symbols,
                             self.record_keys,
+                            &self.type_parameters,
+                            self.records,
                             self.types,
                             &mut self.diagnostics,
                         )
@@ -1349,7 +2242,14 @@ impl FunctionChecker<'_> {
             ExprKind::String(_) => Some(ValueType::String),
             ExprKind::Bool(_) => Some(ValueType::Bool),
             ExprKind::Unit => Some(ValueType::Unit),
-            ExprKind::Name(name) => Some(self.check_name(name)),
+            ExprKind::Name(name) => {
+                let ty = self.check_name(name, expected);
+                if let Some(target) = self.reference_targets.get(&name.span).cloned() {
+                    self.reference_targets
+                        .insert(expression.span.clone(), target);
+                }
+                Some(ty)
+            }
             ExprKind::Unary { operator, operand } => {
                 if *operator == crate::lexer::Symbol::Minus {
                     if let ExprKind::Integer {
@@ -1424,11 +2324,42 @@ impl FunctionChecker<'_> {
             }
             ExprKind::Member { object, name } => {
                 if let Some(id) = self.enum_namespace(object) {
-                    let TypeInfo::Enum { variants, .. } = &self.types[id] else {
+                    let TypeInfo::Enum {
+                        arguments: parameters,
+                        variants,
+                        ..
+                    } = &self.types[id]
+                    else {
                         unreachable!()
                     };
+                    let parameters = parameters.clone();
                     match variants.get(&name.name) {
-                        Some(payloads) if payloads.is_empty() => return Some(ValueType::Enum(id)),
+                        Some(payloads) if payloads.is_empty() => {
+                            let mut mapping = BTreeMap::new();
+                            if let Some(expected) = expected {
+                                if !infer_type_arguments(
+                                    ValueType::Enum(id),
+                                    expected,
+                                    &mut mapping,
+                                    self.records,
+                                    self.types,
+                                ) {
+                                    self.error(&expression.span, "Enum has the wrong nominal type");
+                                }
+                            }
+                            if !self.resolved(&parameters, &mapping) {
+                                self.error(
+                                    &expression.span,
+                                    "Payload-free enum variant requires an expected type",
+                                );
+                                return Some(ValueType::Error);
+                            }
+                            return Some(self.substitute(
+                                ValueType::Enum(id),
+                                &mapping,
+                                &expression.span,
+                            ));
+                        }
                         Some(_) => {
                             self.error(&name.span, "Enum payload variant requires arguments")
                         }
@@ -1463,7 +2394,7 @@ impl FunctionChecker<'_> {
                 Some(ValueType::Error)
             }
             ExprKind::Record { name, base, fields } => {
-                self.check_record(expression, name, base.as_deref(), fields)
+                self.check_record(expression, name, base.as_deref(), fields, expected)
             }
             ExprKind::Index { object, index } => {
                 let object_ty = self.check_expr(object);
@@ -1485,12 +2416,29 @@ impl FunctionChecker<'_> {
                 };
                 Some(intern_type(self.types, TypeInfo::Option(item)))
             }
-            ExprKind::Propagate(_) => {
-                self.diagnostics.push(Diagnostic::error(
-                    "UBI0003",
-                    "Result propagation is not supported in Milestone 1",
-                    expression.span.clone(),
-                ));
+            ExprKind::Propagate(operand) => {
+                let ty = self.check_expr(operand)?;
+                let result_args = |ty: ValueType, types: &[TypeInfo]| {
+                    if let ValueType::Enum(id) = ty {
+                        if let TypeInfo::Enum { key, arguments, .. } = &types[id] {
+                            (key.0.is_empty() && key.1 == "Result").then(|| arguments.clone())
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                };
+                let operand_args = result_args(ty, self.types);
+                let return_args = self
+                    .expected_return
+                    .and_then(|ty| result_args(ty, self.types));
+                if let (Some(operand_args), Some(return_args)) = (operand_args, return_args) {
+                    if self.propagation_allowed && operand_args[1] == return_args[1] {
+                        return Some(operand_args[0]);
+                    }
+                }
+                self.diagnostics.push(Diagnostic::error("UBI0033","Propagation requires a named Result-returning function with identical error type",Span { source_id: expression.span.source_id.clone(), start: expression.span.end-1, end: expression.span.end }));
                 Some(ValueType::Error)
             }
             ExprKind::Block(block) => {
@@ -1541,23 +2489,47 @@ impl FunctionChecker<'_> {
         }
     }
 
-    fn check_name(&mut self, name: &Identifier) -> ValueType {
+    fn check_name(&mut self, name: &Identifier, expected: Option<ValueType>) -> ValueType {
         if let Some(ty) = self.lookup_local(&name.name) {
             return ty;
         }
-        if let Some(signature) = self
+        let target = self
             .module_symbols
             .get(self.module_id)
-            .and_then(|symbols| symbols.get(&name.name))
-            .and_then(|key| self.signatures.get(key))
-        {
-            return intern_type(
+            .and_then(|s| s.get(&name.name))
+            .cloned();
+        if let Some((target, signature)) = target.and_then(|key| {
+            self.signatures
+                .get(&key)
+                .cloned()
+                .map(|signature| (key, signature))
+        }) {
+            let template = intern_type(
                 self.types,
                 TypeInfo::Function {
                     parameters: signature.parameters.clone(),
                     return_type: signature.return_type.unwrap_or(ValueType::Error),
                 },
             );
+            let mut mapping = BTreeMap::new();
+            if let Some(expected) = expected {
+                if !infer_type_arguments(template, expected, &mut mapping, self.records, self.types)
+                {
+                    self.error(&name.span, "Function reference has the wrong type");
+                }
+            }
+            if !signature.type_parameters.is_empty()
+                && !self.resolved(&signature.type_parameters, &mapping)
+            {
+                self.error(
+                    &name.span,
+                    "Generic function requires an established function type",
+                );
+                return ValueType::Error;
+            }
+            let result = self.substitute(template, &mapping, &name.span);
+            self.reference_targets.insert(name.span.clone(), target);
+            return result;
         }
         self.diagnostics.push(Diagnostic::error(
             "UBI0010",
@@ -1567,18 +2539,127 @@ impl FunctionChecker<'_> {
         ValueType::Error
     }
 
+    fn substitute(
+        &mut self,
+        ty: ValueType,
+        mapping: &BTreeMap<usize, ValueType>,
+        span: &Span,
+    ) -> ValueType {
+        substitute_type(ty, mapping, self.records, self.types).unwrap_or_else(|()| {
+            self.diagnostics.push(Diagnostic::error(
+                "UBI0090",
+                "Generic type expansion limit exceeded",
+                span.clone(),
+            ));
+            ValueType::Error
+        })
+    }
+
+    fn resolved(&self, parameters: &[ValueType], mapping: &BTreeMap<usize, ValueType>) -> bool {
+        parameters
+            .iter()
+            .all(|p| matches!(p,ValueType::Parameter(id) if mapping.contains_key(id)))
+    }
+
+    fn hint(
+        &mut self,
+        ty: ValueType,
+        parameters: &[ValueType],
+        mapping: &BTreeMap<usize, ValueType>,
+        span: &Span,
+    ) -> Option<ValueType> {
+        let value = self.substitute(ty, mapping, span);
+        let unresolved: BTreeSet<_> = parameters
+            .iter()
+            .filter_map(|p| {
+                if let ValueType::Parameter(id) = p {
+                    (!mapping.contains_key(id)).then_some(*id)
+                } else {
+                    None
+                }
+            })
+            .collect();
+        (!contains_parameters(value, &unresolved, self.records, self.types)).then_some(value)
+    }
+
+    fn generic_values(
+        &mut self,
+        values: &[&Expr],
+        templates: &[ValueType],
+        parameters: &[ValueType],
+        mapping: &mut BTreeMap<usize, ValueType>,
+    ) -> bool {
+        let mut completes = true;
+        let mut pending: Vec<usize> = (0..values.len()).collect();
+        loop {
+            let mut deferred = Vec::new();
+            for index in &pending {
+                let value = values[*index];
+                let hint = templates
+                    .get(*index)
+                    .and_then(|ty| self.hint(*ty, parameters, mapping, &value.span));
+                let speculative = hint.is_none() && needs_context(value);
+                let diagnostic_count = self.diagnostics.len();
+                let old_types = speculative.then(|| self.expression_types.clone());
+                let old_references = speculative.then(|| self.reference_targets.clone());
+                let actual = self.check_expr_expected(value, hint);
+                if speculative && self.diagnostics.len() > diagnostic_count {
+                    self.diagnostics.truncate(diagnostic_count);
+                    self.expression_types = old_types.unwrap();
+                    self.reference_targets = old_references.unwrap();
+                    deferred.push(*index);
+                    continue;
+                }
+                if let (Some(template), Some(actual)) = (templates.get(*index), actual) {
+                    if !infer_type_arguments(*template, actual, mapping, self.records, self.types) {
+                        self.error(&value.span, "Conflicting generic type arguments");
+                    }
+                }
+                completes &= actual.is_some();
+            }
+            if deferred.is_empty() {
+                break;
+            }
+            if deferred.len() == pending.len() {
+                for index in deferred {
+                    let value = values[index];
+                    let hint = templates
+                        .get(index)
+                        .and_then(|ty| self.hint(*ty, parameters, mapping, &value.span));
+                    let actual = self.check_expr_expected(value, hint);
+                    if let (Some(template), Some(actual)) = (templates.get(index), actual) {
+                        if !infer_type_arguments(
+                            *template,
+                            actual,
+                            mapping,
+                            self.records,
+                            self.types,
+                        ) {
+                            self.error(&value.span, "Conflicting generic type arguments");
+                        }
+                    }
+                    completes &= actual.is_some();
+                }
+                break;
+            }
+            pending = deferred;
+        }
+        completes
+    }
+
     fn check_record(
         &mut self,
         expression: &Expr,
         name: &Identifier,
         base: Option<&Expr>,
         fields: &[(Identifier, Expr)],
+        expected: Option<ValueType>,
     ) -> Option<ValueType> {
         let id = if self.lookup_local(&name.name).is_none() {
             self.module_symbols
                 .get(self.module_id)
-                .and_then(|symbols| symbols.get(&name.name))
-                .and_then(|key| self.record_keys.get(key))
+                .and_then(|s| s.get(&name.name))
+                .and_then(|k| self.record_keys.get(k))
                 .copied()
         } else {
             None
@@ -1591,21 +2672,44 @@ impl FunctionChecker<'_> {
             ));
             return Some(ValueType::Error);
         };
-        let record = &self.records[id];
-        let mut completes = true;
-        if let Some(base) = base {
-            if let Some(ty) = self.check_expr(base) {
-                self.require_same_type(
-                    ValueType::Record(id),
-                    ty,
-                    &base.span,
-                    "Record update base has the wrong type",
-                );
-            } else {
-                completes = false;
+        let record = self.records[id].clone();
+        let mut mapping = BTreeMap::new();
+        if let Some(expected) = expected {
+            if !infer_type_arguments(
+                ValueType::Record(id),
+                expected,
+                &mut mapping,
+                self.records,
+                self.types,
+            ) {
+                self.error(&expression.span, "Record has the wrong nominal type");
             }
         }
+        let mut completes = true;
+        if let Some(base) = base {
+            let hint = self.hint(
+                ValueType::Record(id),
+                &record.arguments,
+                &mapping,
+                &base.span,
+            );
+            let actual = self.check_expr_expected(base, hint);
+            if let Some(actual) = actual {
+                if !infer_type_arguments(
+                    ValueType::Record(id),
+                    actual,
+                    &mut mapping,
+                    self.records,
+                    self.types,
+                ) {
+                    self.error(&base.span, "Record update base has the wrong type");
+                }
+            }
+            completes &= actual.is_some();
+        }
         let mut seen = BTreeSet::new();
+        let mut values = Vec::new();
+        let mut templates = Vec::new();
         for (field, value) in fields {
             if !seen.insert(field.name.clone()) || !record.fields.contains_key(&field.name) {
                 self.diagnostics.push(Diagnostic::error(
@@ -1614,20 +2718,16 @@ impl FunctionChecker<'_> {
                     field.span.clone(),
                 ));
             }
-            let expected = record.fields.get(&field.name).copied();
-            if let Some(ty) = self.check_expr_expected(value, expected) {
-                if let Some(expected) = record.fields.get(&field.name) {
-                    self.require_same_type(
-                        *expected,
-                        ty,
-                        &value.span,
-                        "Record field has the wrong type",
-                    );
-                }
-            } else {
-                completes = false;
-            }
+            values.push(value);
+            templates.push(
+                record
+                    .fields
+                    .get(&field.name)
+                    .copied()
+                    .unwrap_or(ValueType::Error),
+            );
         }
+        completes &= self.generic_values(&values, &templates, &record.arguments, &mut mapping);
         if base.is_none() && record.fields.keys().any(|field| !seen.contains(field)) {
             self.diagnostics.push(Diagnostic::error(
                 "UBI0030",
@@ -1635,7 +2735,11 @@ impl FunctionChecker<'_> {
                 expression.span.clone(),
             ));
         }
-        completes.then_some(ValueType::Record(id))
+        if !self.resolved(&record.arguments, &mapping) {
+            self.error(&expression.span, "Unresolved record type arguments");
+            return Some(ValueType::Error);
+        }
+        completes.then(|| self.substitute(ValueType::Record(id), &mapping, &expression.span))
     }
 
     fn check_call(
@@ -1645,16 +2749,74 @@ impl FunctionChecker<'_> {
         arguments: &[Expr],
         expected: Option<ValueType>,
     ) -> Option<ValueType> {
+        if let ExprKind::Name(name) = &callee.kind {
+            if self.lookup_local(&name.name).is_none() {
+                if let Some((target, signature)) = self
+                    .module_symbols
+                    .get(self.module_id)
+                    .and_then(|s| s.get(&name.name))
+                    .and_then(|key| self.signatures.get(key).map(|s| (key.clone(), s.clone())))
+                {
+                    if !signature.type_parameters.is_empty() {
+                        self.arity(call, arguments, signature.parameters.len());
+                        let mut mapping = BTreeMap::new();
+                        if let (Some(template), Some(actual)) = (signature.return_type, expected) {
+                            if !infer_type_arguments(
+                                template,
+                                actual,
+                                &mut mapping,
+                                self.records,
+                                self.types,
+                            ) {
+                                self.error(&call.span, "Generic result has the wrong type");
+                            }
+                        }
+                        let completes = self.generic_values(
+                            &arguments.iter().collect::<Vec<_>>(),
+                            &signature.parameters,
+                            &signature.type_parameters,
+                            &mut mapping,
+                        );
+                        if !self.resolved(&signature.type_parameters, &mapping) {
+                            self.error(&call.span, "Unresolved function type arguments");
+                            return Some(ValueType::Error);
+                        }
+                        let template = intern_type(
+                            self.types,
+                            TypeInfo::Function {
+                                parameters: signature.parameters.clone(),
+                                return_type: signature.return_type.unwrap_or(ValueType::Error),
+                            },
+                        );
+                        let function_type = self.substitute(template, &mapping, &callee.span);
+                        self.expression_types
+                            .insert(callee.span.clone(), function_type);
+                        self.reference_targets.insert(callee.span.clone(), target);
+                        return completes.then(|| {
+                            self.substitute(
+                                signature.return_type.unwrap_or(ValueType::Error),
+                                &mapping,
+                                &call.span,
+                            )
+                        });
+                    }
+                }
+            }
+        }
         if let ExprKind::Member { object, name } = &callee.kind {
             if let Some(id) = self.enum_namespace(object) {
-                let TypeInfo::Enum { variants, .. } = &self.types[id] else {
+                let TypeInfo::Enum {
+                    arguments: parameters,
+                    variants,
+                    ..
+                } = self.types[id].clone()
+                else {
                     unreachable!()
                 };
-                let payloads = variants.get(&name.name).cloned();
-                let Some(payloads) = payloads else {
+                let Some(payloads) = variants.get(&name.name) else {
                     self.error(&name.span, "Unknown enum variant");
-                    for argument in arguments {
-                        self.check_expr(argument);
+                    for value in arguments {
+                        self.check_expr(value);
                     }
                     return Some(ValueType::Error);
                 };
@@ -1662,21 +2824,30 @@ impl FunctionChecker<'_> {
                     self.error(&callee.span, "Payload-free enum variant cannot be called");
                 }
                 self.arity(call, arguments, payloads.len());
-                let mut completes = true;
-                for (index, argument) in arguments.iter().enumerate() {
-                    let expected = payloads.get(index).copied();
-                    let actual = self.check_expr_expected(argument, expected);
-                    if let (Some(expected), Some(actual)) = (expected, actual) {
-                        self.require_same_type(
-                            expected,
-                            actual,
-                            &argument.span,
-                            "Enum payload has the wrong type",
-                        );
+                let mut mapping = BTreeMap::new();
+                if let Some(expected) = expected {
+                    if !infer_type_arguments(
+                        ValueType::Enum(id),
+                        expected,
+                        &mut mapping,
+                        self.records,
+                        self.types,
+                    ) {
+                        self.error(&call.span, "Enum result has the wrong type");
                     }
-                    completes &= actual.is_some();
                 }
-                return completes.then_some(ValueType::Enum(id));
+                let completes = self.generic_values(
+                    &arguments.iter().collect::<Vec<_>>(),
+                    payloads,
+                    &parameters,
+                    &mut mapping,
+                );
+                if !self.resolved(&parameters, &mapping) {
+                    self.error(&call.span, "Unresolved enum type arguments");
+                    return Some(ValueType::Error);
+                }
+                return completes
+                    .then(|| self.substitute(ValueType::Enum(id), &mapping, &call.span));
             }
             if is_option_member(object, "Option") && name.name == "Some" {
                 self.arity(call, arguments, 1);
@@ -1761,6 +2932,12 @@ impl FunctionChecker<'_> {
     }
 
     fn enum_id(&self, name: &str) -> Option<usize> {
+        if matches!(name, "Result" | "HostError") {
+            return enum_type(self.types, &(String::new(), name.to_owned()));
+        }
+        if name == "Result" {
+            return enum_type(self.types, &(String::new(), "Result".to_owned()));
+        }
         self.module_symbols
             .get(self.module_id)
             .and_then(|symbols| symbols.get(name))
@@ -1853,6 +3030,8 @@ impl FunctionChecker<'_> {
                 self.module_id,
                 self.module_symbols,
                 self.record_keys,
+                &self.type_parameters,
+                self.records,
                 self.types,
                 &mut self.diagnostics,
             );
@@ -1867,6 +3046,7 @@ impl FunctionChecker<'_> {
                 self.error(&parameter.name.span, "Duplicate closure parameter");
             }
         }
+        let previous_propagation = std::mem::replace(&mut self.propagation_allowed, false);
         let previous_return = self.expected_return.take();
         let previous_inferred = self.inferred_return.take();
         let previous_loop = std::mem::replace(&mut self.loop_depth, 0);
@@ -1884,6 +3064,7 @@ impl FunctionChecker<'_> {
         let return_type = expected_return
             .or(self.inferred_return)
             .unwrap_or(ValueType::Error);
+        self.propagation_allowed = previous_propagation;
         self.expected_return = previous_return;
         self.inferred_return = previous_inferred;
         self.loop_depth = previous_loop;
@@ -2024,12 +3205,19 @@ impl FunctionChecker<'_> {
                 payloads,
                 called,
             } => {
-                let id = self.enum_id(&qualifier.name);
-                if id.map(ValueType::Enum) != Some(expected) {
-                    self.error(
-                        &qualifier.span,
-                        "Enum pattern requires the same nominal enum subject",
-                    );
+                let template = self.enum_id(&qualifier.name);
+                let id = if let (Some(template), ValueType::Enum(actual)) = (template, expected) {
+                    let (TypeInfo::Enum { key: a, .. }, TypeInfo::Enum { key: b, .. }) =
+                        (&self.types[template], &self.types[actual])
+                    else {
+                        unreachable!()
+                    };
+                    (a == b).then_some(actual)
+                } else {
+                    None
+                };
+                if id.is_none() {
+                    self.error(&qualifier.span, "Enum pattern has the wrong nominal type");
                 }
                 let declared = id.and_then(|id| {
                     if let TypeInfo::Enum { variants, .. } = &self.types[id] {
@@ -2066,6 +3254,12 @@ impl FunctionChecker<'_> {
         expected: Option<ValueType>,
     ) -> Option<ValueType> {
         use ValueType::{Bool, Error, Float, Int, Range, String};
+        if name.starts_with("map") && name != "map" {
+            return self.check_map_builtin(call, name, arguments, expected);
+        }
+        if crate::effects::host_effect(name).is_some() {
+            return self.check_host_builtin(call, name, arguments);
+        }
         let count = match name {
             "range" | "append" | "map" | "filter" | "find" | "contains" | "startsWith"
             | "endsWith" | "split" | "join" | "min" | "max" | "pow" => 2,
@@ -2102,7 +3296,11 @@ impl FunctionChecker<'_> {
             {
                 let item = checked.first().copied().and_then(|ty| self.list_inner(ty));
                 let callback_return = if name == "map" {
-                    expected.and_then(|ty| self.list_inner(ty))
+                    expected.and_then(|ty| self.list_inner(ty)).or_else(|| {
+                        // A named generic callback can infer its output from its
+                        // established inputs. Error means no output constraint.
+                        matches!(&arg.kind, ExprKind::Name(_)).then_some(Error)
+                    })
                 } else if name == "fold" {
                     checked.get(1).copied()
                 } else {
@@ -2152,8 +3350,8 @@ impl FunctionChecker<'_> {
                 Range
             }
             "length" => {
-                if a != String && item.is_none() && a != Error {
-                    self.error(&arguments[0].span, "Length requires string or List");
+                if a != String && item.is_none() && !matches!(a, ValueType::Map(_)) && a != Error {
+                    self.error(&arguments[0].span, "Length requires string, List, or Map");
                 }
                 Int
             }
@@ -2460,16 +3658,164 @@ impl FunctionChecker<'_> {
         }
     }
 
+    fn check_map_builtin(
+        &mut self,
+        call: &Expr,
+        name: &str,
+        arguments: &[Expr],
+        expected: Option<ValueType>,
+    ) -> Option<ValueType> {
+        let count = match name {
+            "mapEmpty" => 0,
+            "mapSet" => 3,
+            "mapGet" | "mapHas" | "mapRemove" => 2,
+            _ => 1,
+        };
+        self.arity(call, arguments, count);
+        if arguments.len() != count {
+            for argument in arguments {
+                self.check_expr(argument);
+            }
+            return Some(ValueType::Error);
+        }
+        if name == "mapEmpty" {
+            if matches!(expected, Some(ValueType::Map(_))) {
+                return expected;
+            }
+            self.error(&call.span, "Empty map requires an expected Map type");
+            return Some(ValueType::Error);
+        }
+        let key = intern_type(
+            self.types,
+            TypeInfo::Parameter {
+                key: (String::new(), "$map".to_owned()),
+                name: "K".to_owned(),
+            },
+        );
+        let value = intern_type(
+            self.types,
+            TypeInfo::Parameter {
+                key: (String::new(), "$map".to_owned()),
+                name: "V".to_owned(),
+            },
+        );
+        let parameters = [key, value];
+        let map = intern_type(self.types, TypeInfo::Map { key, value });
+        let result = match name {
+            "mapGet" => intern_type(self.types, TypeInfo::Option(value)),
+            "mapHas" => ValueType::Bool,
+            "mapKeys" => intern_type(self.types, TypeInfo::List(key)),
+            "mapValues" => intern_type(self.types, TypeInfo::List(value)),
+            _ => map,
+        };
+        let mut mapping = BTreeMap::new();
+        if let Some(expected) = expected {
+            if !infer_type_arguments(result, expected, &mut mapping, self.records, self.types) {
+                self.error(&call.span, "Map result has the wrong type");
+            }
+        }
+        let templates = [map, key, value];
+        let values: Vec<_> = arguments.iter().collect();
+        let completes =
+            self.generic_values(&values, &templates[..count], &parameters, &mut mapping);
+        if !self.resolved(&parameters, &mapping) {
+            self.error(&call.span, "Cannot infer map key/value types");
+            return Some(ValueType::Error);
+        }
+        let concrete_key = self.substitute(key, &mapping, &call.span);
+        let concrete_value = self.substitute(value, &mapping, &call.span);
+        if !matches!(
+            concrete_key,
+            ValueType::Int | ValueType::Bool | ValueType::String | ValueType::Error
+        ) {
+            self.error(&call.span, "Map keys must be int, bool, or string");
+        }
+        self.aggregate_allowed(concrete_value, &call.span);
+        completes.then(|| self.substitute(result, &mapping, &call.span))
+    }
+
+    fn check_host_builtin(
+        &mut self,
+        call: &Expr,
+        name: &str,
+        arguments: &[Expr],
+    ) -> Option<ValueType> {
+        let count = if name == "storageSet" { 3 } else { 2 };
+        let kind = if name == "consoleLog" {
+            CapabilityKind::Console
+        } else {
+            CapabilityKind::Storage
+        };
+        if arguments.len() != count {
+            self.diagnostics.push(Diagnostic::error(
+                "UBI0040",
+                "Host operation requires its capability and typed arguments",
+                call.span.clone(),
+            ));
+            self.arity(call, arguments, count);
+        }
+        let mut completes = true;
+        for (index, argument) in arguments.iter().enumerate() {
+            let expected = if index == 0 {
+                ValueType::Capability(kind)
+            } else {
+                ValueType::String
+            };
+            let ty = self.check_expr_expected(argument, Some(expected));
+            completes &= ty.is_some();
+            if index == 0 && ty.is_some_and(|ty| ty != expected && ty != ValueType::Error) {
+                self.diagnostics.push(Diagnostic::error(
+                    "UBI0040",
+                    "Host operation requires the matching capability",
+                    argument.span.clone(),
+                ));
+            } else if let Some(ty) = ty {
+                self.require_same_type(
+                    expected,
+                    ty,
+                    &argument.span,
+                    "Host argument has the wrong type",
+                );
+            }
+        }
+        let ok = if name == "storageGet" {
+            intern_type(self.types, TypeInfo::Option(ValueType::String))
+        } else {
+            ValueType::Unit
+        };
+        let error = ValueType::Enum(
+            enum_type(self.types, &(String::new(), "HostError".to_owned())).unwrap(),
+        );
+        let id = enum_type(self.types, &(String::new(), "Result".to_owned())).unwrap();
+        let TypeInfo::Enum {
+            arguments: parameters,
+            ..
+        } = &self.types[id]
+        else {
+            unreachable!()
+        };
+        let mapping = parameter_mapping(parameters, &[ok, error]);
+        completes.then(|| self.substitute(ValueType::Enum(id), &mapping, &call.span))
+    }
+
     fn equatable(&self, ty: ValueType) -> bool {
         let mut pending = vec![ty];
         let mut visited = BTreeSet::new();
         while let Some(ty) = pending.pop() {
             match ty {
-                ValueType::Function(_) | ValueType::Range => return false,
+                ValueType::Function(_)
+                | ValueType::Range
+                | ValueType::Parameter(_)
+                | ValueType::Capability(_) => return false,
                 ValueType::List(id) | ValueType::Option(id) => match self.types[id] {
                     TypeInfo::List(inner) | TypeInfo::Option(inner) => pending.push(inner),
                     _ => unreachable!(),
                 },
+                ValueType::Map(id) => {
+                    if let TypeInfo::Map { key, value } = self.types[id] {
+                        pending.extend([key, value]);
+                    }
+                }
                 ValueType::Record(id) if visited.insert((false, id)) => {
                     pending.extend(self.records[id].fields.values().copied());
                 }
@@ -2689,4 +4035,72 @@ fn catch_all(pattern: Option<&Pattern>) -> bool {
             PatternKind::Wildcard | PatternKind::Binding(_)
         )
     })
+}
+pub(crate) fn validate_instantiated_aggregates(
+    records: &[RecordInfo],
+    types: &[TypeInfo],
+    diagnostics: &mut Vec<Diagnostic>,
+    span: &Span,
+) {
+    let mut pending = Vec::new();
+    for record in records {
+        pending.extend(record.fields.values().copied());
+    }
+    for info in types {
+        match info {
+            TypeInfo::List(inner) | TypeInfo::Option(inner) => pending.push(*inner),
+            TypeInfo::Enum { variants, .. } => {
+                pending.extend(variants.values().flatten().copied());
+            }
+            TypeInfo::Map { key, value } => {
+                pending.extend([*key, *value]);
+            }
+            _ => {}
+        }
+    }
+    let mut visited = BTreeSet::new();
+    let mut forbidden_function = false;
+    let mut forbidden_capability = false;
+    while let Some(ty) = pending.pop() {
+        if !visited.insert(ty) {
+            continue;
+        }
+        match ty {
+            ValueType::Function(_) | ValueType::Range => forbidden_function = true,
+            ValueType::Capability(_) => forbidden_capability = true,
+            ValueType::Record(id) => {
+                pending.extend(records[id].fields.values().copied());
+            }
+            ValueType::Enum(id) => {
+                if let TypeInfo::Enum { variants, .. } = &types[id] {
+                    pending.extend(variants.values().flatten().copied());
+                }
+            }
+            ValueType::List(id) | ValueType::Option(id) => {
+                if let TypeInfo::List(inner) | TypeInfo::Option(inner) = types[id] {
+                    pending.push(inner);
+                }
+            }
+            ValueType::Map(id) => {
+                if let TypeInfo::Map { key, value } = types[id] {
+                    pending.extend([key, value]);
+                }
+            }
+            _ => {}
+        }
+    }
+    if forbidden_function {
+        diagnostics.push(Diagnostic::error(
+            "UBI0020",
+            "Function and range values cannot be stored in instantiated aggregates",
+            span.clone(),
+        ));
+    }
+    if forbidden_capability {
+        diagnostics.push(Diagnostic::error(
+            "UBI0040",
+            "Capabilities cannot be stored in instantiated aggregates",
+            span.clone(),
+        ));
+    }
 }

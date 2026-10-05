@@ -1,11 +1,11 @@
 # Ubi decisions and milestone evidence
 
-Current work: non-generic user enums extend the completed programming foundation under user direction. Local reassignment, records, lists/Option/match, loops, closures, and pure utilities are implemented; user generics and Result remain unfinished. Historical M1 hidden evaluation remains unavailable.
+Current work: user-authorized generics, Result/propagation, maps, then scoped host access. Completed foundations include local reassignment, records, lists/Option/match, loops, closures, pure utilities, and enums. Historical M1 hidden evaluation remains unavailable.
 
 ## Decisions
 
-Current language work: partial M2, adding user-defined enums under the user's
-direction to continue language foundations without reopening historical gates.
+Current language work: user-directed M2 foundations and synchronous M3
+console/storage capabilities, without reopening historical gates.
 
 User direction, 2026-10-01: set aside milestone gates for the current task and
 implement Windows recognition of `.ubi` files. This direction does not assert
@@ -237,3 +237,65 @@ Run date: 2026-10-04. User-directed scope, SPEC.md 0.5 section 16.
   10,000-mutation fuzz suite, which passes under a separate 60-second watchdog.
   Previously documented Windows symlink privilege checks remain unavailable.
   Evaluator-owned hidden tests remain unavailable; no full M2 gate is claimed.
+
+## Further foundation direction, 2026-10-05
+
+User authorized basic generics, then Result and same-error propagation, maps,
+then host access/effects. Continue runnable slices without reopening historical
+milestone gates. D023: check generic bodies universally, infer invariant type
+arguments from inputs and expected output, and require generic return annotations.
+Generic exports support Ubi imports; concrete wrappers define host-call types.
+Retain independent source interpretation and separately authored conformance.
+Specify each following slice before implementing it; no hidden-evaluation or
+platform-readiness claims follow from public checks.
+
+D024: retain D004's identical-error-only propagation. Reuse nominal enum
+representation and coverage for built-in Result; host envelopes use tag/values
+like user enums. Early Err propagates through all enclosing expression/control
+contexts within its named function; fatal faults remain separate.
+
+D025: Map<K,V> uses exact int/bool/string keys, insertion order, immutable plain
+copying, and association equality. This avoids float NaN and generic equality
+bounds. Host encoding is an entry array with duplicate-key rejection; prototype
+names remain ordinary data. Named map helpers avoid overloading list callbacks.
+
+D026: synchronous console/storage use explicit capability parameters and finite
+named-function effect declarations. Reject effectful aliases and capability
+captures/aggregates/generic escapes. Trusted callbacks return serialized typed
+Result; malformed output becomes Decode, expected failure becomes Failure,
+unexpected throws fault. Share capability registration through one generated
+host module; CLI JSON never grants authority. Async and platform packaging remain
+separate work.
+
+## Generics, errors, maps, and host evidence
+
+Run date: 2026-10-05. User-directed scope, SPEC.md 0.6 sections 17-20.
+
+- Generic functions/records/enums check universally, infer invariant arguments,
+  and retain concrete nominal identities. The interpreter substitutes source
+  expression types independently of JavaScript's erased generic bodies.
+  Expanding nominal/function instantiations have finite resource limits.
+- Built-in Result shares enum encoding/coverage; same-error `?` propagates through
+  nested expressions and loops while preserving fatal-fault behavior. Maps use
+  immutable insertion-ordered entry arrays and association equality.
+- Opaque Console/Storage tokens and named-function effects enforce scoped host
+  access. Trusted synchronous callbacks return serialized Result; malformed
+  responses become Decode, expected failures remain Failure, unexpected throws
+  fault. Public exports enforce exact arity and validation; compiler-reserved
+  internal imports preserve shared budgets without a public bypass argument.
+- A separate author derived 21 conformance groups: generics 6, Result 4, maps 6,
+  effects 5. Fixed expectations pass on interpreter and Node. Controls cover
+  allowed generic callbacks and effectful recursion/imports; escapes cover
+  aliases, captures, aggregates, generic substitutions, and composite callees.
+- Independent review found a contextual generic capability escape through an
+  if-selected function. Reference-level substitution checks close it; separately
+  authored Console/Storage regressions reject it while pure int controls pass.
+  Reviewer verified the fix and reported no remaining blockers.
+- Focused examples print `generics: first=3`, `result: 15`, and
+  `maps: apples, pears; total=8`. The explicit host example logs two messages and
+  returns Ok("Explicit capabilities") using an in-memory store.
+- Verification: 151 tests across all targets pass, with Clippy warnings denied,
+  formatting, and whitespace checks. Six new fuzz seeds cover these features;
+  10,000 mutations and growing-instantiation checks pass under a separate
+  60-second process watchdog. Windows symlink privilege checks and evaluator-owned
+  hidden tests remain unavailable. No full M2/M3 gate or packaging claim is made.

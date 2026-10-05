@@ -1,7 +1,10 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
-use crate::analyzer::{builtin_name, Analysis, FunctionKey, Signature, TypeInfo, ValueType};
+use crate::analyzer::{
+    builtin_name, infer_type_arguments, substitute_type_existing, Analysis, CapabilityKind,
+    FunctionKey, Signature, TypeInfo, ValueType,
+};
 use crate::diagnostics::Severity;
 use crate::lexer::Symbol;
 use crate::parser::{
@@ -27,6 +30,10 @@ pub(crate) enum Value {
         type_id: usize,
         elements: Rc<Vec<Value>>,
     },
+    Map {
+        type_id: usize,
+        entries: Rc<Vec<(Value, Value)>>,
+    },
     Option {
         type_id: usize,
         value: Option<Rc<Value>>,
@@ -40,10 +47,39 @@ pub(crate) enum Value {
         type_id: usize,
         function: Rc<FunctionValue>,
     },
+    Capability(Rc<HostCapability>),
     Range {
         start: i32,
         end: i32,
     },
+}
+
+type HostCallback = dyn Fn(&str, &[String]) -> Result<String, ()>;
+
+pub(crate) struct HostCapability {
+    kind: CapabilityKind,
+    callback: Box<HostCallback>,
+}
+
+impl HostCapability {
+    pub(crate) fn new(
+        kind: CapabilityKind,
+        callback: impl Fn(&str, &[String]) -> Result<String, ()> + 'static,
+    ) -> Self {
+        Self {
+            kind,
+            callback: Box::new(callback),
+        }
+    }
+}
+
+impl std::fmt::Debug for HostCapability {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("HostCapability")
+            .field("kind", &self.kind)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -51,9 +87,10 @@ pub(crate) enum FunctionValue {
     Named(FunctionKey),
     Closure {
         parameters: Vec<String>,
-        body: Expr,
+        body: Box<Expr>,
         captures: BTreeMap<String, Value>,
         key: FunctionKey,
+        type_arguments: BTreeMap<usize, ValueType>,
     },
 }
 
@@ -85,6 +122,24 @@ impl PartialEq for Value {
                     elements: bv,
                 },
             ) => a == b && av == bv,
+            (
+                Self::Map {
+                    type_id: a,
+                    entries: av,
+                },
+                Self::Map {
+                    type_id: b,
+                    entries: bv,
+                },
+            ) => {
+                a == b
+                    && av.len() == bv.len()
+                    && av.iter().all(|(key, value)| {
+                        bv.iter().any(|(other_key, other_value)| {
+                            key == other_key && value == other_value
+                        })
+                    })
+            }
             (
                 Self::Option {
                     type_id: a,
@@ -122,9 +177,11 @@ impl Value {
             Self::Unit => ValueType::Unit,
             Self::Record { type_id, .. } => ValueType::Record(*type_id),
             Self::List { type_id, .. } => ValueType::List(*type_id),
+            Self::Map { type_id, .. } => ValueType::Map(*type_id),
             Self::Option { type_id, .. } => ValueType::Option(*type_id),
             Self::Enum { type_id, .. } => ValueType::Enum(*type_id),
             Self::Function { type_id, .. } => ValueType::Function(*type_id),
+            Self::Capability(capability) => ValueType::Capability(capability.kind),
             Self::Range { .. } => ValueType::Range,
         }
     }
@@ -187,6 +244,9 @@ pub(crate) fn invoke(
         .signatures
         .get(key)
         .ok_or(InvocationError::InvalidProgram)?;
+    if !signature.type_parameters.is_empty() {
+        return Err(InvocationError::InvalidArguments);
+    }
     if !valid_arguments(&arguments, signature, analysis, true) {
         return Err(InvocationError::InvalidArguments);
     }
@@ -196,8 +256,9 @@ pub(crate) fn invoke(
         call_depth: 0,
         scopes: Vec::new(),
         key: key.clone(),
+        type_arguments: BTreeMap::new(),
     }
-    .call_function(key, arguments)
+    .call_function(key, arguments, None)
     .map_err(|error| match error {
         EvalError::Invariant => InvocationError::InternalInvariant,
         EvalError::Runtime(fault) => InvocationError::Runtime(fault),
@@ -244,6 +305,23 @@ fn valid_value(
                 && matches!(analysis.types.get(*type_id), Some(TypeInfo::List(ty))
             if elements.iter().all(|value| valid_value(value, *ty, analysis, depth + 1, host)))
         }
+        Value::Map { type_id, entries } => {
+            let Some(TypeInfo::Map { key, value }) = analysis.types.get(*type_id) else {
+                return false;
+            };
+            let mut keys = BTreeSet::new();
+            depth < 32
+                && entries.iter().all(|(entry_key, entry_value)| {
+                    valid_value(entry_key, *key, analysis, depth + 1, host)
+                        && valid_value(entry_value, *value, analysis, depth + 1, host)
+                        && keys.insert(match entry_key {
+                            Value::Int(value) => value.to_string(),
+                            Value::Bool(value) => value.to_string(),
+                            Value::String(value) => value.clone(),
+                            _ => return false,
+                        })
+                })
+        }
         Value::Option { type_id, value } => {
             depth < 32
                 && matches!(analysis.types.get(*type_id), Some(TypeInfo::Option(ty))
@@ -268,10 +346,154 @@ fn aggregate_depth(value: &Value) -> usize {
     match value {
         Value::Record { fields, .. } => 1 + fields.values().map(aggregate_depth).max().unwrap_or(0),
         Value::List { elements, .. } => 1 + elements.iter().map(aggregate_depth).max().unwrap_or(0),
+        Value::Map { entries, .. } => {
+            1 + entries
+                .iter()
+                .map(|(key, value)| aggregate_depth(key).max(aggregate_depth(value)))
+                .max()
+                .unwrap_or(0)
+        }
         Value::Option { value, .. } => 1 + value.as_ref().map_or(0, |value| aggregate_depth(value)),
         Value::Enum { values, .. } => 1 + values.iter().map(aggregate_depth).max().unwrap_or(0),
         _ => 0,
     }
+}
+
+fn decode_host_value(
+    json: &serde_json::Value,
+    ty: ValueType,
+    analysis: &Analysis,
+    depth: usize,
+) -> Option<Value> {
+    if depth >= 32
+        && matches!(
+            ty,
+            ValueType::Record(_)
+                | ValueType::List(_)
+                | ValueType::Option(_)
+                | ValueType::Enum(_)
+                | ValueType::Map(_)
+        )
+    {
+        return None;
+    }
+    let value = match ty {
+        ValueType::Int => Value::Int(i32::try_from(json.as_i64()?).ok()?),
+        ValueType::Float => Value::Float(match json.as_str() {
+            Some("NaN") => f64::NAN,
+            Some("+Infinity") => f64::INFINITY,
+            Some("-Infinity") => f64::NEG_INFINITY,
+            Some("+0") => 0.0,
+            Some("-0") => -0.0,
+            Some(_) => return None,
+            None => json.as_f64()?,
+        }),
+        ValueType::Bool => Value::Bool(json.as_bool()?),
+        ValueType::String => Value::String(json.as_str()?.to_owned()),
+        ValueType::Unit if json.is_null() => Value::Unit,
+        ValueType::Record(type_id) => {
+            let record = analysis.records.get(type_id)?;
+            let object = json.as_object()?;
+            if object.len() != record.fields.len() {
+                return None;
+            }
+            let fields = record
+                .fields
+                .iter()
+                .map(|(name, ty)| {
+                    Some((
+                        name.clone(),
+                        decode_host_value(object.get(name)?, *ty, analysis, depth + 1)?,
+                    ))
+                })
+                .collect::<Option<_>>()?;
+            Value::Record {
+                type_id,
+                fields: Rc::new(fields),
+            }
+        }
+        ValueType::List(type_id) => {
+            let TypeInfo::List(inner) = analysis.types.get(type_id)? else {
+                return None;
+            };
+            let elements = json
+                .as_array()?
+                .iter()
+                .map(|element| decode_host_value(element, *inner, analysis, depth + 1))
+                .collect::<Option<_>>()?;
+            Value::List {
+                type_id,
+                elements: Rc::new(elements),
+            }
+        }
+        ValueType::Option(type_id) => {
+            let TypeInfo::Option(inner) = analysis.types.get(type_id)? else {
+                return None;
+            };
+            let object = json.as_object()?;
+            let value = match object.get("tag")?.as_str()? {
+                "None" if object.len() == 1 => None,
+                "Some" if object.len() == 2 => Some(Rc::new(decode_host_value(
+                    object.get("value")?,
+                    *inner,
+                    analysis,
+                    depth + 1,
+                )?)),
+                _ => return None,
+            };
+            Value::Option { type_id, value }
+        }
+        ValueType::Enum(type_id) => {
+            let TypeInfo::Enum { variants, .. } = analysis.types.get(type_id)? else {
+                return None;
+            };
+            let object = json.as_object()?;
+            if object.len() != 2 {
+                return None;
+            }
+            let tag = object.get("tag")?.as_str()?;
+            let payloads = object.get("values")?.as_array()?;
+            let types = variants.get(tag)?;
+            if types.len() != payloads.len() {
+                return None;
+            }
+            let values = payloads
+                .iter()
+                .zip(types)
+                .map(|(value, ty)| decode_host_value(value, *ty, analysis, depth + 1))
+                .collect::<Option<_>>()?;
+            Value::Enum {
+                type_id,
+                tag: Rc::new(tag.to_owned()),
+                values: Rc::new(values),
+            }
+        }
+        ValueType::Map(type_id) => {
+            let TypeInfo::Map { key, value } = analysis.types.get(type_id)? else {
+                return None;
+            };
+            let entries = json
+                .as_array()?
+                .iter()
+                .map(|entry| {
+                    let entry = entry.as_array()?;
+                    if entry.len() != 2 {
+                        return None;
+                    }
+                    Some((
+                        decode_host_value(&entry[0], *key, analysis, depth + 1)?,
+                        decode_host_value(&entry[1], *value, analysis, depth + 1)?,
+                    ))
+                })
+                .collect::<Option<_>>()?;
+            Value::Map {
+                type_id,
+                entries: Rc::new(entries),
+            }
+        }
+        _ => return None,
+    };
+    valid_value(&value, ty, analysis, depth, true).then_some(value)
 }
 
 fn find_function<'a>(
@@ -294,6 +516,7 @@ struct Interpreter<'a> {
     call_depth: usize,
     scopes: Vec<BTreeMap<String, Value>>,
     key: FunctionKey,
+    type_arguments: BTreeMap<usize, ValueType>,
 }
 
 impl Interpreter<'_> {
@@ -301,22 +524,83 @@ impl Interpreter<'_> {
         &mut self,
         key: &FunctionKey,
         arguments: Vec<Value>,
+        callable_type: Option<usize>,
     ) -> Result<Value, EvalError> {
         self.enter_call()?;
         let function = find_function(&self.analysis.modules, key)
             .cloned()
             .ok_or_else(invariant_error)?;
-        let signature = self
+        let mut signature = self
             .analysis
             .signatures
             .get(key)
             .cloned()
             .ok_or_else(invariant_error)?;
+        let mut type_arguments = BTreeMap::new();
+        if !signature.type_parameters.is_empty() {
+            let Some(TypeInfo::Function {
+                parameters,
+                return_type,
+            }) = callable_type.and_then(|id| self.analysis.types.get(id))
+            else {
+                return Err(invariant_error());
+            };
+            if signature.parameters.len() != parameters.len()
+                || !signature
+                    .parameters
+                    .iter()
+                    .zip(parameters)
+                    .all(|(template, actual)| {
+                        infer_type_arguments(
+                            *template,
+                            *actual,
+                            &mut type_arguments,
+                            &self.analysis.records,
+                            &self.analysis.types,
+                        )
+                    })
+                || !infer_type_arguments(
+                    signature.return_type.ok_or_else(invariant_error)?,
+                    *return_type,
+                    &mut type_arguments,
+                    &self.analysis.records,
+                    &self.analysis.types,
+                )
+                || signature.type_parameters.iter().any(
+                    |ty| !matches!(ty, ValueType::Parameter(id) if type_arguments.contains_key(id)),
+                )
+            {
+                return Err(invariant_error());
+            }
+            signature.parameters = signature
+                .parameters
+                .iter()
+                .map(|ty| {
+                    substitute_type_existing(
+                        *ty,
+                        &type_arguments,
+                        &self.analysis.records,
+                        &self.analysis.types,
+                    )
+                    .ok_or_else(invariant_error)
+                })
+                .collect::<Result<_, _>>()?;
+            signature.return_type = Some(
+                substitute_type_existing(
+                    signature.return_type.ok_or_else(invariant_error)?,
+                    &type_arguments,
+                    &self.analysis.records,
+                    &self.analysis.types,
+                )
+                .ok_or_else(invariant_error)?,
+            );
+        }
         if !valid_arguments(&arguments, &signature, self.analysis, false) {
             return Err(invariant_error());
         }
         let caller_scopes = std::mem::take(&mut self.scopes);
         let caller_key = std::mem::replace(&mut self.key, key.clone());
+        let caller_types = std::mem::replace(&mut self.type_arguments, type_arguments);
         self.scopes.push(
             function
                 .parameters
@@ -328,6 +612,7 @@ impl Interpreter<'_> {
         let result = self.eval_block(&function.body);
         self.scopes = caller_scopes;
         self.key = caller_key;
+        self.type_arguments = caller_types;
         self.call_depth -= 1;
         let value = completing_value(result?)?;
         if signature.return_type != Some(value.ty()) {
@@ -341,12 +626,13 @@ impl Interpreter<'_> {
             return Err(invariant_error());
         };
         match function.as_ref() {
-            FunctionValue::Named(key) => self.call_function(key, arguments),
+            FunctionValue::Named(key) => self.call_function(key, arguments, Some(type_id)),
             FunctionValue::Closure {
                 parameters,
                 body,
                 captures,
                 key,
+                type_arguments,
             } => {
                 let Some(TypeInfo::Function {
                     parameters: types,
@@ -366,12 +652,15 @@ impl Interpreter<'_> {
                 self.enter_call()?;
                 let caller_scopes = std::mem::take(&mut self.scopes);
                 let caller_key = std::mem::replace(&mut self.key, key.clone());
+                let caller_types =
+                    std::mem::replace(&mut self.type_arguments, type_arguments.clone());
                 self.scopes.push(captures.clone());
                 self.scopes
                     .push(parameters.iter().cloned().zip(arguments).collect());
                 let result = self.eval_expr(body);
                 self.scopes = caller_scopes;
                 self.key = caller_key;
+                self.type_arguments = caller_types;
                 self.call_depth -= 1;
                 let value = completing_value(result?)?;
                 if value.ty() != *return_type {
@@ -523,11 +812,19 @@ impl Interpreter<'_> {
     }
 
     fn expression_type(&self, expression: &Expr) -> Result<ValueType, EvalError> {
-        self.analysis
+        let ty = self
+            .analysis
             .expression_types
             .get(&(self.key.clone(), expression.span.clone()))
             .copied()
-            .ok_or_else(invariant_error)
+            .ok_or_else(invariant_error)?;
+        substitute_type_existing(
+            ty,
+            &self.type_arguments,
+            &self.analysis.records,
+            &self.analysis.types,
+        )
+        .ok_or_else(invariant_error)
     }
 
     fn local(&self, name: &str) -> Option<Value> {
@@ -624,6 +921,7 @@ impl Interpreter<'_> {
                     .flat_map(|scope| {
                         scope
                             .iter()
+                            .filter(|(_, value)| !matches!(value, Value::Capability(_)))
                             .map(|(name, value)| (name.clone(), value.clone()))
                     })
                     .collect();
@@ -634,9 +932,10 @@ impl Interpreter<'_> {
                             .iter()
                             .map(|parameter| parameter.name.name.clone())
                             .collect(),
-                        body: *body.clone(),
+                        body: body.clone(),
                         captures,
                         key: self.key.clone(),
+                        type_arguments: self.type_arguments.clone(),
                     }),
                 }
             }
@@ -676,18 +975,7 @@ impl Interpreter<'_> {
                 Value::Bool(false) => return self.eval_expr(else_branch),
                 _ => return Err(invariant_error()),
             },
-            ExprKind::Record { name, base, fields } => {
-                let key = self
-                    .analysis
-                    .module_symbols
-                    .get(&expression.span.source_id)
-                    .and_then(|symbols| symbols.get(&name.name))
-                    .ok_or_else(invariant_error)?;
-                let type_id = *self
-                    .analysis
-                    .record_keys
-                    .get(key)
-                    .ok_or_else(invariant_error)?;
+            ExprKind::Record { base, fields, .. } => {
                 let mut values = if let Some(base) = base {
                     let Value::Record { fields, .. } = value!(self.eval_expr(base)) else {
                         return Err(invariant_error());
@@ -699,13 +987,19 @@ impl Interpreter<'_> {
                 for (name, expression) in fields {
                     values.insert(name.name.clone(), value!(self.eval_expr(expression)));
                 }
+                let ValueType::Record(type_id) = self.expression_type(expression)? else {
+                    return Err(invariant_error());
+                };
                 bounded(Value::Record {
                     type_id,
                     fields: Rc::new(values),
                 })?
             }
             ExprKind::Member { object, name } => {
-                if let Some((type_id, tag)) = self.enum_constructor(expression) {
+                if let Some((_, tag)) = self.enum_constructor(expression) {
+                    let ValueType::Enum(type_id) = self.expression_type(expression)? else {
+                        return Err(invariant_error());
+                    };
                     bounded(Value::Enum {
                         type_id,
                         tag: Rc::new(tag),
@@ -742,7 +1036,39 @@ impl Interpreter<'_> {
                 };
                 self.option(self.expression_type(expression)?, value)?
             }
-            ExprKind::Propagate(_) => return Err(invariant_error()),
+            ExprKind::Propagate(operand) => {
+                let Value::Enum { tag, values, .. } = value!(self.eval_expr(operand)) else {
+                    return Err(invariant_error());
+                };
+                let [payload] = values.as_slice() else {
+                    return Err(invariant_error());
+                };
+                match tag.as_str() {
+                    "Ok" => payload.clone(),
+                    "Err" => {
+                        let return_type = self
+                            .analysis
+                            .signatures
+                            .get(&self.key)
+                            .and_then(|signature| signature.return_type)
+                            .ok_or_else(invariant_error)?;
+                        let Some(ValueType::Enum(type_id)) = substitute_type_existing(
+                            return_type,
+                            &self.type_arguments,
+                            &self.analysis.records,
+                            &self.analysis.types,
+                        ) else {
+                            return Err(invariant_error());
+                        };
+                        return Ok(Completion::Return(bounded(Value::Enum {
+                            type_id,
+                            tag,
+                            values,
+                        })?));
+                    }
+                    _ => return Err(invariant_error()),
+                }
+            }
         };
         Ok(Completion::Value(value))
     }
@@ -772,7 +1098,10 @@ impl Interpreter<'_> {
         for argument in arguments {
             values.push(value!(self.eval_expr(argument)));
         }
-        let result = if let Some((type_id, tag)) = enum_constructor {
+        let result = if let Some((_, tag)) = enum_constructor {
+            let ValueType::Enum(type_id) = self.expression_type(expression)? else {
+                return Err(invariant_error());
+            };
             bounded(Value::Enum {
                 type_id,
                 tag: Rc::new(tag),
@@ -811,12 +1140,16 @@ impl Interpreter<'_> {
         if self.local(&qualifier.name).is_some() {
             return None;
         }
-        let key = self
-            .analysis
-            .module_symbols
-            .get(&self.key.0)?
-            .get(&qualifier.name)?;
-        let id = crate::analyzer::enum_type(&self.analysis.types, key)?;
+        let key = if matches!(qualifier.name.as_str(), "Result" | "HostError") {
+            (String::new(), qualifier.name.clone())
+        } else {
+            self.analysis
+                .module_symbols
+                .get(&self.key.0)?
+                .get(&qualifier.name)?
+                .clone()
+        };
+        let id = crate::analyzer::enum_type(&self.analysis.types, &key)?;
         Some((id, name.name.clone()))
     }
 
@@ -830,12 +1163,81 @@ impl Interpreter<'_> {
         })
     }
 
+    fn map(&self, ty: ValueType, entries: Vec<(Value, Value)>) -> Result<Value, EvalError> {
+        let ValueType::Map(type_id) = ty else {
+            return Err(invariant_error());
+        };
+        bounded(Value::Map {
+            type_id,
+            entries: Rc::new(entries),
+        })
+    }
+
     fn step(&mut self) -> Result<(), EvalError> {
         if self.remaining_steps == 0 {
             return Err(resource_fault());
         }
         self.remaining_steps -= 1;
         Ok(())
+    }
+
+    fn host_operation(
+        &self,
+        name: &str,
+        capability: &HostCapability,
+        arguments: &[Value],
+        ty: ValueType,
+    ) -> Result<Value, EvalError> {
+        let expected_kind = if name == "consoleLog" {
+            CapabilityKind::Console
+        } else {
+            CapabilityKind::Storage
+        };
+        if capability.kind != expected_kind {
+            return Err(invariant_error());
+        }
+        let arguments = arguments
+            .iter()
+            .map(|value| match value {
+                Value::String(text) => Ok(text.clone()),
+                _ => Err(invariant_error()),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let response = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            (capability.callback)(name, &arguments)
+        }))
+        .ok()
+        .and_then(Result::ok)
+        .ok_or_else(|| {
+            EvalError::Runtime(RuntimeFault {
+                code: "UBI-R0004",
+                message: "Unexpected trusted-adapter fault".to_owned(),
+            })
+        })?;
+        if let Some(value) = serde_json::from_str(&response)
+            .ok()
+            .and_then(|json| decode_host_value(&json, ty, self.analysis, 0))
+        {
+            return Ok(value);
+        }
+        let ValueType::Enum(type_id) = ty else {
+            return Err(invariant_error());
+        };
+        let Some(TypeInfo::Enum { variants, .. }) = self.analysis.types.get(type_id) else {
+            return Err(invariant_error());
+        };
+        let Some([ValueType::Enum(error_id)]) = variants.get("Err").map(Vec::as_slice) else {
+            return Err(invariant_error());
+        };
+        bounded(Value::Enum {
+            type_id,
+            tag: Rc::new("Err".to_owned()),
+            values: Rc::new(vec![Value::Enum {
+                type_id: *error_id,
+                tag: Rc::new("Decode".to_owned()),
+                values: Rc::new(vec![Value::String("Malformed host response".to_owned())]),
+            }]),
+        })
     }
 
     fn builtin(
@@ -845,12 +1247,53 @@ impl Interpreter<'_> {
         ty: ValueType,
     ) -> Result<Value, EvalError> {
         match (name, arguments.as_slice()) {
+            (
+                "consoleLog" | "storageGet" | "storageSet" | "storageRemove",
+                [Value::Capability(capability), arguments @ ..],
+            ) => self.host_operation(name, capability, arguments, ty),
             ("range", [Value::Int(start), Value::Int(end)]) => Ok(Value::Range {
                 start: *start,
                 end: *end,
             }),
             ("length", [Value::String(text)]) => checked_length(text.chars().count()),
             ("length", [Value::List { elements, .. }]) => checked_length(elements.len()),
+            ("length", [Value::Map { entries, .. }]) => checked_length(entries.len()),
+            ("mapEmpty", []) => self.map(ty, Vec::new()),
+            ("mapSet", [Value::Map { entries, .. }, key, value]) => {
+                let mut result = entries.as_ref().clone();
+                if let Some((_, old_value)) =
+                    result.iter_mut().find(|(entry_key, _)| entry_key == key)
+                {
+                    *old_value = value.clone();
+                } else {
+                    result.push((key.clone(), value.clone()));
+                }
+                self.map(ty, result)
+            }
+            ("mapGet", [Value::Map { entries, .. }, key]) => self.option(
+                ty,
+                entries
+                    .iter()
+                    .find(|(entry_key, _)| entry_key == key)
+                    .map(|(_, value)| value.clone()),
+            ),
+            ("mapHas", [Value::Map { entries, .. }, key]) => Ok(Value::Bool(
+                entries.iter().any(|(entry_key, _)| entry_key == key),
+            )),
+            ("mapRemove", [Value::Map { entries, .. }, key]) => self.map(
+                ty,
+                entries
+                    .iter()
+                    .filter(|(entry_key, _)| entry_key != key)
+                    .cloned()
+                    .collect(),
+            ),
+            ("mapKeys", [Value::Map { entries, .. }]) => {
+                self.list(ty, entries.iter().map(|(key, _)| key.clone()).collect())
+            }
+            ("mapValues", [Value::Map { entries, .. }]) => {
+                self.list(ty, entries.iter().map(|(_, value)| value.clone()).collect())
+            }
             ("append", [Value::List { elements, .. }, value]) => {
                 let mut result = elements.as_ref().clone();
                 result.push(value.clone());

@@ -35,6 +35,7 @@ pub(crate) enum Declaration {
 pub(crate) struct Enum {
     pub(crate) exported: bool,
     pub(crate) name: Identifier,
+    pub(crate) type_parameters: Vec<Identifier>,
     pub(crate) variants: Vec<Variant>,
     pub(crate) span: Span,
 }
@@ -49,6 +50,7 @@ pub(crate) struct Variant {
 pub(crate) struct Record {
     pub(crate) exported: bool,
     pub(crate) name: Identifier,
+    pub(crate) type_parameters: Vec<Identifier>,
     pub(crate) fields: Vec<Parameter>,
     pub(crate) span: Span,
 }
@@ -57,8 +59,10 @@ pub(crate) struct Record {
 pub(crate) struct Function {
     pub(crate) exported: bool,
     pub(crate) name: Identifier,
+    pub(crate) type_parameters: Vec<Identifier>,
     pub(crate) parameters: Vec<Parameter>,
     pub(crate) return_type: Option<Type>,
+    pub(crate) effects: Vec<Identifier>,
     pub(crate) body: Block,
     pub(crate) span: Span,
 }
@@ -335,9 +339,7 @@ impl Parser {
         if self.at_keyword("record") {
             let start = self.advance().span.clone();
             let name = self.parse_identifier()?;
-            if self.at_symbol(Symbol::Less) {
-                return Err(self.unsupported(self.current().span.clone(), "Generic records"));
-            }
+            let type_parameters = self.parse_generics()?;
             self.expect_symbol(Symbol::LBrace)?;
             let mut fields = Vec::new();
             while !self.at_symbol(Symbol::RBrace) {
@@ -357,6 +359,7 @@ impl Parser {
             return Ok(Declaration::Record(Record {
                 exported,
                 name,
+                type_parameters,
                 fields,
                 span: cover(export_span.as_ref().unwrap_or(&start), &end),
             }));
@@ -364,9 +367,7 @@ impl Parser {
         if self.at_keyword("enum") {
             let start = self.advance().span.clone();
             let name = self.parse_identifier()?;
-            if self.at_symbol(Symbol::Less) {
-                return Err(self.unsupported(self.current().span.clone(), "Generic enums"));
-            }
+            let type_parameters = self.parse_generics()?;
             self.expect_symbol(Symbol::LBrace)?;
             let mut variants = Vec::new();
             loop {
@@ -392,6 +393,7 @@ impl Parser {
             return Ok(Declaration::Enum(Enum {
                 exported,
                 name,
+                type_parameters,
                 variants,
                 span: cover(export_span.as_ref().unwrap_or(&start), &end),
             }));
@@ -409,9 +411,7 @@ impl Parser {
     ) -> Result<Function, ParseError> {
         let fn_span = self.expect_keyword("fn")?.span;
         let name = self.parse_identifier()?;
-        if self.at_symbol(Symbol::Less) {
-            return Err(self.unsupported(self.current().span.clone(), "Generic functions"));
-        }
+        let type_parameters = self.parse_generics()?;
         self.expect_symbol(Symbol::LParen)?;
         let mut parameters = Vec::new();
         if !self.at_symbol(Symbol::RParen) {
@@ -439,16 +439,46 @@ impl Parser {
         } else {
             None
         };
+        let mut effects = Vec::new();
+        if matches!(&self.current().kind, TokenKind::Identifier(name) if name == "effects") {
+            self.advance();
+            self.expect_symbol(Symbol::LParen)?;
+            if !self.at_symbol(Symbol::RParen) {
+                loop {
+                    effects.push(self.parse_identifier()?);
+                    if self.eat_symbol(Symbol::Comma).is_none() || self.at_symbol(Symbol::RParen) {
+                        break;
+                    }
+                }
+            }
+            self.expect_symbol(Symbol::RParen)?;
+        }
         let body = self.parse_block()?;
         let span = cover(declaration_start.as_ref().unwrap_or(&fn_span), &body.span);
         Ok(Function {
             exported,
             name,
+            type_parameters,
             parameters,
             return_type,
+            effects,
             body,
             span,
         })
+    }
+
+    fn parse_generics(&mut self) -> Result<Vec<Identifier>, ParseError> {
+        let mut parameters = Vec::new();
+        if self.eat_symbol(Symbol::Less).is_some() {
+            loop {
+                parameters.push(self.parse_identifier()?);
+                if self.eat_symbol(Symbol::Comma).is_none() || self.at_symbol(Symbol::Greater) {
+                    break;
+                }
+            }
+            self.expect_symbol(Symbol::Greater)?;
+        }
+        Ok(parameters)
     }
 
     fn parse_type(&mut self) -> Result<Type, ParseError> {

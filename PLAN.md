@@ -1,7 +1,8 @@
 # Ubi implementation plan
 
 User direction, 2026-10-01: set aside milestone gates for the current task.
-Current work: user-defined enums on the completed programming foundation:
+Current work: generics, Result/propagation, maps, and scoped host access/effects
+extend the programming foundation:
 lists/Option/match, loops/ranges, closures/collection helpers, strings/math/
 conversions, local reassignment, and records. Project config, Node-backed
 `ubi run`, and web development with `ubi dev` are complete. User-directed work
@@ -108,12 +109,12 @@ Mini benchmark progress: all four tasks converged within the preset three-iterat
 
 ## Milestone 2 — Make the language useful for shared logic
 
-Progress: local reassignment, records, lists, built-in Option/match, loops/ranges,
-closures, collection helpers, strings/math/conversions, and user-defined enums
-pass separately authored interpreter/JavaScript checks. Focused foundation
-examples run in Node and browser; the enum example runs through `ubi run`.
-User generics, Result/propagation, maps, and application/host work
-remain unfinished. Historical task-list gates below are not the current user task.
+Progress: local reassignment, records, lists, Option/Result/match, loops/ranges,
+closures, collection helpers, strings/math/conversions, enums, basic generics,
+and immutable maps pass separately authored interpreter/JavaScript checks.
+Focused examples run through `ubi run`; explicit console/storage adapters run
+in Node. Async/application/platform work remains unfinished. Historical
+task-list gates below are not the current user task.
 
 - Add nominal records, field access, record updates, lists, and local reassignment.
 - Add data enums, pattern bindings, and exhaustive matching, including nested patterns. Guards must not incorrectly establish coverage.
@@ -133,6 +134,12 @@ What the human checks:
 - Review independent conformance/fuzzing results, capture semantics, and the error-conversion decision; approve the log and sign off.
 
 ## Milestone 3 — Establish host access and effects
+
+User-directed synchronous slice: opaque Console/Storage capabilities, finite
+effects, typed serialized Result adapters, and an independently authored
+escape/allowed-control suite are implemented. Async/network operations and
+broader adapters follow later work. Historical hidden evaluation remains
+unavailable; no full milestone gate is claimed.
 
 - Define a small typed adapter format for JavaScript imports. Keep adapter implementation visibly outside ordinary Ubi code.
 - Introduce opaque capability values that ordinary Ubi code cannot construct.
@@ -240,7 +247,7 @@ The compiler running in WASM and Ubi programs compiling to WASM are separate del
 - Keep the current JavaScript backend passing conformance checks before introducing another backend.
 - Avoid fixed delivery dates until the first two milestones establish implementation pace.
 - Track progress against completion gates; mark platform work blocked when required SDKs or devices are unavailable.
-- Current task: implement non-generic nominal enums from SPEC section 16 across
-  parser, checker, typed IR, interpreter, JavaScript backend, and separately
-  authored conformance. First four foundation groups from section 15 are complete.
-  User generics, Result, maps, and host access remain subsequent slices.
+- Current task, authorized 2026-10-05: basic generics, then Result/propagation,
+  maps, and scoped host access/effects. Implement each across parser, checker,
+  typed IR, interpreter, JavaScript backend, and independently authored
+  conformance; specify each slice first and commit after relevant checks.
