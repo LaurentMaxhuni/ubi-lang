@@ -45,10 +45,28 @@ choices and continuous execution; no intermediate design approval is required.
   UI/module/persistence/sandbox smoke. Android debug APK builds/installs/launches;
   completion survives background/resume and process stop/relaunch on API37 emulator.
 - [Platform evidence](docs/PLATFORMS.md) distinguishes executed checks from
-  configured CI. macOS/Linux/iOS verification, physical devices, release signing
-  where applicable, and evaluator-owned hidden corpus remain unavailable.
-  GitHub CLI is not signed in, so remote CI was not dispatched. Cargo version
+  configured CI. Existing Ubuntu24.04 WSL2/WSLg now verifies Linux CLI persistence
+  and the actual packaged desktop executable with sandbox enabled. Linux compiler
+  verification exposed a dev-server socket-response failure; the minimal refusal
+  fix passes independent dev/full178 checks and100 oversized probes. File/directory
+  symlink prerequisites and containment tests actually execute on Linux.
+  A separate full Linux run with Node24.21.0 also passes all178 checks.
+  macOS/iOS, hosted CI, physical devices, release signing where applicable, and
+  evaluator-owned hidden corpus remain unverified. SSH access works; automatic
+  approval review rejected a public review-branch push, so explicit publication
+  approval is pending and no push occurred. Cargo version
   remains 0.1.0; no 1.0 release, human milestone sign-off, or store publication is claimed.
+- Independent final CI review found Ubuntu24 Chromium sandbox prerequisites.
+  Use Ubuntu22.04 for desktop CI without disabling the sandbox or changing system
+  security policy; migrate before runner retirement on2027-04-17. Capacitor8 iOS
+  SPM project command and exact dependency versions were reviewed, not executed.
+- Linux reproduced an intermittent dev-server oversized-header failure: closing
+  with unread input resets the socket after fragmented431 response writes, leaving
+  a partial HTTP header. Refuse oversized headers by closing without a response,
+  as allowed by the independent regression; retain existing memory/time limits
+  instead of adding request-draining machinery. Clarified SPEC before implementation.
+- Rust1.99 Clippy flags fixed-size SHA-256 chunk iterators. Use stdlib array chunks
+  with the same algorithm; existing source-hash vectors verify unchanged digests.
 
 Current work: user-authorized generics, Result/propagation, maps, then scoped host access. Completed foundations include local reassignment, records, lists/Option/match, loops, closures, pure utilities, and enums. Historical M1 hidden evaluation remains unavailable.
 

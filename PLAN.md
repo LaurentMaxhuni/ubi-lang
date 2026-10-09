@@ -14,9 +14,10 @@ contracts. [Platform evidence](docs/PLATFORMS.md) records actual readiness.
 - [x] Shared task application with durable web/CLI/desktop/mobile hosts.
 - [x] Project creation, production packaging, formatting, version command.
 - [x] Windows desktop package and launch; Android APK and emulator lifecycle.
+- [x] Linux independent full suite, symlink containment, CLI and packaged desktop launch.
 - [x] Cross-platform CI and reproducible native build instructions.
 - [x] Independent code review, fuzzing, formatting, Clippy, and full suite.
-- [ ] macOS/Linux native checks, iOS device/simulator checks, release signing
+- [ ] macOS native checks, iOS device/simulator checks, release signing
       where required, and evaluator-owned hidden conformance.
 
 Release 1.0 remains pending until required platform evidence exists. Missing
