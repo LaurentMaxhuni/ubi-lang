@@ -1,0 +1,17 @@
+{
+  "name": "ubi-tasks",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Portable Ubi task application",
+  "main": "electron.cjs",
+  "engines": { "node": ">=22.12.0", "npm": ">=10" },
+  "scripts": {
+    "start": "electron .",
+    "package": "electron-packager . UbiTasks --out=out --asar --ignore=^/out$",
+    "smoke": "electron . --smoke-test"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "@electron/packager": "20.3.0"
+  }
+}

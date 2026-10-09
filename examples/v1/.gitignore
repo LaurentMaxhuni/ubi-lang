@@ -1,0 +1,8 @@
+node_modules/
+.ubi-build/
+.ubi-dist/
+desktop/out/
+mobile/android/
+mobile/ios/
+tasks.json
+*.tmp

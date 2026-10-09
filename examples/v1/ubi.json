@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "name": "ubi-tasks",
+  "entry": "src/main.ubi",
+  "targets": ["web", "cli", "desktop", "mobile"]
+}

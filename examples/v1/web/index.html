@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'">
+  <title>Ubi Tasks</title>
+  <link rel="stylesheet" href="./style.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">UBI / SHARED TASKS</p>
+    <h1>A little room<br>for what’s next.</h1>
+    <p class="intro">Your list stays on this device.</p>
+    <form id="add-task">
+      <label for="title">New task</label>
+      <div class="entry"><input id="title" name="title" autocomplete="off" required maxlength="400" placeholder="What needs doing?"><button type="submit" disabled>Add task</button></div>
+    </form>
+    <p id="error" role="alert" hidden></p>
+    <div class="toolbar"><label for="filter">Show</label><select id="filter"><option value="all">All tasks</option><option value="active">Active</option><option value="completed">Completed</option></select><button id="reload" type="button" disabled>Reload saved tasks</button></div>
+    <p id="status" role="status" aria-live="polite"></p>
+    <ul id="tasks" aria-label="Tasks"></ul>
+    <p id="empty">Nothing here yet. Start with one small thing.</p>
+  </main>
+</body>
+</html>

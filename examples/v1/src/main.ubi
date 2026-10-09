@@ -1,0 +1,94 @@
+export record Task {
+    id: int,
+    title: string,
+    completed: bool,
+}
+export enum TaskError {
+    EmptyTitle,
+    TitleTooLong,
+    InvalidId,
+    DuplicateId(int),
+    MissingId(int),
+}
+export fn validateTitle(title: string) -> Result < string, TaskError > {
+    let clean = trim(title);
+    if (length(clean) == 0) {
+        Result.Err(TaskError.EmptyTitle)
+    } else if (length(clean) > 200) {
+        Result.Err(TaskError.TitleTooLong)
+    } else {
+        Result.Ok(clean)
+    }
+}
+export fn validateTasks(tasks: List < Task >) -> Result < List < Task >, TaskError > {
+    for (task in tasks) {
+        validateTitle(task.title)?;
+        if (task.id <= 0 || task.id >= 2147483647) {
+            return Result.Err(TaskError.InvalidId);
+        }
+        if (length(filter(tasks,(other: Task) => other.id == task.id)) != 1) {
+            return Result.Err(TaskError.DuplicateId(task.id));
+        }
+    }
+    Result.Ok(tasks)
+}
+export fn decodeTasks(tasks: List < Task >) -> Result < List < Task >, TaskError > {
+    validateTasks(tasks)
+}
+export fn nextId(tasks: List < Task >) -> int {
+    fold(tasks, 0,(largest: int, task: Task) => max(largest, task.id)) + 1
+}
+export fn create(tasks: List < Task >, id: int, title: string) -> Result < List < Task >, TaskError > {
+    let checked = validateTitle(title)?;
+    validateTasks(tasks)?;
+    if (id <= 0 || id >= 2147483647) {
+        Result.Err(TaskError.InvalidId)
+    } else if (length(filter(tasks,(task: Task) => task.id == id)) != 0) {
+        Result.Err(TaskError.DuplicateId(id))
+    } else {
+        Result.Ok(append(tasks, Task {
+            id: id,
+            title: checked,
+            completed: false
+        }))
+    }
+}
+export fn complete(tasks: List < Task >, id: int) -> Result < List < Task >, TaskError > {
+    validateTasks(tasks)?;
+    if (length(filter(tasks,(task: Task) => task.id == id)) == 0) {
+        Result.Err(TaskError.MissingId(id))
+    } else {
+        Result.Ok(map(tasks,(task: Task) => {
+            if (task.id == id) {
+                Task {
+                    ... task,
+                    completed: true
+                }
+            } else {
+                task
+            }
+        }))
+    }
+}
+export fn deleteTask(tasks: List < Task >, id: int) -> Result < List < Task >, TaskError > {
+    validateTasks(tasks)?;
+    if (length(filter(tasks,(task: Task) => task.id == id)) == 0) {
+        Result.Err(TaskError.MissingId(id))
+    } else {
+        Result.Ok(filter(tasks,(task: Task) => task.id != id))
+    }
+}
+export fn filterTasks(tasks: List < Task >, selection: string) -> List < Task > {
+    filter(tasks,(task: Task) => {
+        if (selection == "active") {
+            ! task.completed
+        } else if (selection == "completed") {
+            task.completed
+        } else {
+            true
+        }
+    })
+}
+export fn main() -> string {
+    "Ubi Tasks: shared rules, four hosts."
+}

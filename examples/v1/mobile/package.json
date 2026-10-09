@@ -1,0 +1,22 @@
+{
+  "name": "ubi-tasks",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22.12.0", "npm": ">=10" },
+  "scripts": {
+    "bundle:storage": "esbuild storage.mjs --bundle --format=esm --platform=browser --outfile=native-storage.js --minify",
+    "android": "node native.mjs android",
+    "ios": "node native.mjs ios",
+    "sync": "cap sync",
+    "open:android": "cap open android",
+    "open:ios": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.5.3",
+    "@capacitor/android": "8.5.3",
+    "@capacitor/ios": "8.5.3",
+    "@capacitor/preferences": "8.0.1"
+  },
+  "devDependencies": { "@capacitor/cli": "8.5.3", "esbuild": "0.28.2" }
+}
