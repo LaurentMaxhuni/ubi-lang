@@ -897,7 +897,17 @@ fn write_artifacts(
         let parent = relative.parent().unwrap_or_else(|| Path::new(""));
         let parent = ensure_output_directory(&output_root, parent)?;
         let path = parent.join(file_name);
-        match fs::symlink_metadata(&path) {
+        replace_artifact(&path, contents.as_bytes())?;
+    }
+    Ok(())
+}
+
+/// Replace the output directory entry without truncating any existing inode.
+pub(crate) fn replace_artifact(path: &Path, contents: &[u8]) -> Result<(), String> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SERIAL: AtomicU64 = AtomicU64::new(0);
+    let inspect = || {
+        match fs::symlink_metadata(path) {
             Ok(metadata) if metadata.file_type().is_symlink() => {
                 return Err(format!(
                     "refusing to overwrite output symlink: {}",
@@ -906,6 +916,9 @@ fn write_artifacts(
             }
             Ok(metadata) if !metadata.is_file() => {
                 return Err(format!("output path is not a file: {}", path.display()))
+            }
+            Ok(metadata) if metadata.permissions().readonly() => {
+                return Err(format!("output path is read-only: {}", path.display()))
             }
             Ok(_) => {}
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -916,10 +929,39 @@ fn write_artifacts(
                 ))
             }
         }
-        fs::write(&path, contents)
+        Ok(())
+    };
+    inspect()?;
+    let (temporary, mut file) = loop {
+        let serial = SERIAL.fetch_add(1, Ordering::Relaxed);
+        let temporary = path
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(format!(".ubi-artifact-{}-{serial}.tmp", std::process::id()));
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+        {
+            Ok(file) => break (temporary, file),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(format!("cannot stage output `{}`: {error}", path.display())),
+        }
+    };
+    let operation = (|| {
+        file.write_all(contents)
+            .and_then(|()| file.flush())
+            .and_then(|()| file.sync_all())
             .map_err(|error| format!("cannot write output `{}`: {error}", path.display()))?;
+        drop(file);
+        inspect()?;
+        fs::rename(&temporary, path)
+            .map_err(|error| format!("cannot replace output `{}`: {error}", path.display()))
+    })();
+    if operation.is_err() {
+        let _ = fs::remove_file(&temporary);
     }
-    Ok(())
+    operation
 }
 
 fn ensure_output_directory(root: &Path, relative: &Path) -> Result<PathBuf, String> {
