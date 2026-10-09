@@ -1,0 +1,14 @@
+// V1 profile: checked sequential async storage and HTTP.
+export async fn refresh(storage: Storage, http: Http) -> Result<string, HostError> effects(storage, http) {
+    let response = (await httpGet(http, "https://example.test/message"))?;
+    (await storageSetAsync(storage, "message", response))?;
+    let saved = (await storageGetAsync(storage, "message"))?;
+    match (saved) {
+        Option.Some(value) => Result.Ok(value),
+        Option.None => Result.Err(HostError.Failure("Missing saved message")),
+    }
+}
+
+export async fn clear(storage: Storage) -> Result<unit, HostError> effects(storage) {
+    await storageRemoveAsync(storage, "message")
+}

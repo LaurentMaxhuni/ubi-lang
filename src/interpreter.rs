@@ -835,8 +835,49 @@ impl Interpreter<'_> {
             .cloned()
     }
 
-    fn eval_expr(&mut self, expression: &Expr) -> Result<Completion, EvalError> {
+    fn eval_expr(&mut self, mut expression: &Expr) -> Result<Completion, EvalError> {
         self.step()?;
+        // Completed fixtures need no suspension frame, but await still consumes a step.
+        while let ExprKind::Await(operand) = &expression.kind {
+            self.step()?;
+            expression = operand;
+        }
+        // Keep recursively entered control expressions off the larger aggregate frame.
+        match &expression.kind {
+            ExprKind::Block(block) => self.eval_block(block),
+            ExprKind::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => match value!(self.eval_expr(condition)) {
+                Value::Bool(true) => self.eval_block(then_branch),
+                Value::Bool(false) => self.eval_expr(else_branch),
+                _ => Err(invariant_error()),
+            },
+            ExprKind::Call { callee, arguments } => self.eval_call(expression, callee, arguments),
+            ExprKind::Binary {
+                left,
+                operator,
+                right,
+            } => {
+                let left = value!(self.eval_expr(left));
+                match (operator, &left) {
+                    (Symbol::AndAnd, Value::Bool(false)) => {
+                        return Ok(Completion::Value(Value::Bool(false)))
+                    }
+                    (Symbol::OrOr, Value::Bool(true)) => {
+                        return Ok(Completion::Value(Value::Bool(true)))
+                    }
+                    _ => {}
+                }
+                let right = value!(self.eval_expr(right));
+                eval_binary(*operator, left, right).map(Completion::Value)
+            }
+            _ => self.eval_value_expr(expression),
+        }
+    }
+
+    fn eval_value_expr(&mut self, expression: &Expr) -> Result<Completion, EvalError> {
         let value = match &expression.kind {
             ExprKind::Integer { value, .. } => {
                 Value::Int(value.parse().map_err(|_| invariant_error())?)
@@ -867,6 +908,7 @@ impl Interpreter<'_> {
                     }
                 }
             }
+            ExprKind::Await(_) => unreachable!("completed await operands are unwrapped above"),
             ExprKind::Unary { operator, operand } => {
                 if *operator == Symbol::Minus {
                     if let ExprKind::Integer {
@@ -883,26 +925,11 @@ impl Interpreter<'_> {
                 let value = value!(self.eval_expr(operand));
                 eval_unary(*operator, value)?
             }
-            ExprKind::Binary {
-                left,
-                operator,
-                right,
-            } => {
-                let left = value!(self.eval_expr(left));
-                match (operator, &left) {
-                    (Symbol::AndAnd, Value::Bool(false)) => {
-                        return Ok(Completion::Value(Value::Bool(false)))
-                    }
-                    (Symbol::OrOr, Value::Bool(true)) => {
-                        return Ok(Completion::Value(Value::Bool(true)))
-                    }
-                    _ => {}
-                }
-                let right = value!(self.eval_expr(right));
-                eval_binary(*operator, left, right)?
-            }
-            ExprKind::Call { callee, arguments } => {
-                return self.eval_call(expression, callee, arguments)
+            ExprKind::Binary { .. }
+            | ExprKind::Call { .. }
+            | ExprKind::Block(_)
+            | ExprKind::If { .. } => {
+                unreachable!("control expressions are evaluated in the smaller dispatch frame")
             }
             ExprKind::List(elements) => {
                 let mut values = Vec::with_capacity(elements.len());
@@ -965,16 +992,6 @@ impl Interpreter<'_> {
                 }
                 return Err(invariant_error());
             }
-            ExprKind::Block(block) => return self.eval_block(block),
-            ExprKind::If {
-                condition,
-                then_branch,
-                else_branch,
-            } => match value!(self.eval_expr(condition)) {
-                Value::Bool(true) => return self.eval_block(then_branch),
-                Value::Bool(false) => return self.eval_expr(else_branch),
-                _ => return Err(invariant_error()),
-            },
             ExprKind::Record { base, fields, .. } => {
                 let mut values = if let Some(base) = base {
                     let Value::Record { fields, .. } = value!(self.eval_expr(base)) else {
@@ -1190,6 +1207,8 @@ impl Interpreter<'_> {
     ) -> Result<Value, EvalError> {
         let expected_kind = if name == "consoleLog" {
             CapabilityKind::Console
+        } else if name == "httpGet" {
+            CapabilityKind::Http
         } else {
             CapabilityKind::Storage
         };
@@ -1248,7 +1267,8 @@ impl Interpreter<'_> {
     ) -> Result<Value, EvalError> {
         match (name, arguments.as_slice()) {
             (
-                "consoleLog" | "storageGet" | "storageSet" | "storageRemove",
+                "consoleLog" | "storageGet" | "storageSet" | "storageRemove" | "storageGetAsync"
+                | "storageSetAsync" | "storageRemoveAsync" | "httpGet",
                 [Value::Capability(capability), arguments @ ..],
             ) => self.host_operation(name, capability, arguments, ty),
             ("range", [Value::Int(start), Value::Int(end)]) => Ok(Value::Range {

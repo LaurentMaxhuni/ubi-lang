@@ -14,6 +14,7 @@ pub(crate) type FunctionKey = (String, String);
 pub(crate) enum CapabilityKind {
     Console,
     Storage,
+    Http,
 }
 
 impl CapabilityKind {
@@ -21,6 +22,7 @@ impl CapabilityKind {
         match self {
             Self::Console => "console",
             Self::Storage => "storage",
+            Self::Http => "http",
         }
     }
 }
@@ -59,6 +61,7 @@ impl ValueType {
             Self::Map(_) => "Map",
             Self::Capability(CapabilityKind::Console) => "Console",
             Self::Capability(CapabilityKind::Storage) => "Storage",
+            Self::Capability(CapabilityKind::Http) => "Http",
             Self::Enum(_) => "enum",
             Self::Function(_) => "function",
             Self::Parameter(_) => "type parameter",
@@ -123,6 +126,10 @@ pub(crate) fn builtin_name(name: &str) -> bool {
             | "storageGet"
             | "storageSet"
             | "storageRemove"
+            | "storageGetAsync"
+            | "storageSetAsync"
+            | "storageRemoveAsync"
+            | "httpGet"
             | "length"
             | "append"
             | "set"
@@ -162,6 +169,7 @@ pub(crate) fn builtin_name(name: &str) -> bool {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Signature {
+    pub(crate) asynchronous: bool,
     pub(crate) type_parameters: Vec<ValueType>,
     pub(crate) parameters: Vec<ValueType>,
     pub(crate) return_type: Option<ValueType>,
@@ -582,6 +590,7 @@ fn generic_parameters(
                     | "Map"
                     | "Console"
                     | "Storage"
+                    | "Http"
                     | "HostError"
                     | "int"
                     | "float"
@@ -645,6 +654,7 @@ fn collect_records(
         variants: BTreeMap::from([
             ("Failure".to_owned(), vec![ValueType::String]),
             ("Decode".to_owned(), vec![ValueType::String]),
+            ("Cancelled".to_owned(), vec![ValueType::String]),
         ]),
     });
     for (source_id, module) in modules {
@@ -659,7 +669,14 @@ fn collect_records(
                 || builtin_name(&name.name)
                 || matches!(
                     name.name.as_str(),
-                    "List" | "Option" | "Result" | "Map" | "Console" | "Storage" | "HostError"
+                    "List"
+                        | "Option"
+                        | "Result"
+                        | "Map"
+                        | "Console"
+                        | "Storage"
+                        | "Http"
+                        | "HostError"
                 )
             {
                 diagnostics.push(Diagnostic::error(
@@ -983,10 +1000,12 @@ fn collect_signatures<'a>(
                 }
                 value
             });
-            if (function.exported || !type_parameters.is_empty()) && return_type.is_none() {
+            if (function.exported || function.asynchronous || !type_parameters.is_empty())
+                && return_type.is_none()
+            {
                 diagnostics.push(Diagnostic::error(
                     "UBI0021",
-                    "Exported functions require an explicit return annotation",
+                    "Exported, async, and generic functions require an explicit return annotation",
                     function.name.span.clone(),
                 ));
             }
@@ -994,6 +1013,7 @@ fn collect_signatures<'a>(
             signatures.insert(
                 key,
                 Signature {
+                    asynchronous: function.asynchronous,
                     type_parameters,
                     parameters,
                     return_type,
@@ -1079,6 +1099,7 @@ fn type_from_syntax(
             "unit" => Some(ValueType::Unit),
             "Console" => Some(ValueType::Capability(CapabilityKind::Console)),
             "Storage" => Some(ValueType::Capability(CapabilityKind::Storage)),
+            "Http" => Some(ValueType::Capability(CapabilityKind::Http)),
             _ => None,
         };
         if let Some(primitive) = primitive {
@@ -1171,6 +1192,7 @@ fn contains_parameters(
 
 fn needs_context(expression: &Expr) -> bool {
     match &expression.kind {
+        ExprKind::Await(operand) => needs_context(operand),
         ExprKind::List(values) => values.is_empty() || values.iter().any(needs_context),
         ExprKind::Member { .. }
         | ExprKind::Call { .. }
@@ -1801,7 +1823,9 @@ fn collect_expression_calls(
                 scopes.pop();
             }
         }
-        ExprKind::Unary { operand, .. } | ExprKind::Propagate(operand) => {
+        ExprKind::Unary { operand, .. }
+        | ExprKind::Propagate(operand)
+        | ExprKind::Await(operand) => {
             collect_expression_calls(operand, symbols, scopes, calls);
         }
         ExprKind::Binary { left, right, .. } => {
@@ -2227,6 +2251,7 @@ impl FunctionChecker<'_> {
         let expected = self.expected_expr.take();
         match &expression.kind {
             ExprKind::List(values) => self.check_list(expression, values, expected),
+            ExprKind::Await(operand) => self.check_expr_expected(operand, expected),
             ExprKind::Arrow { parameters, body } => self.check_arrow(parameters, body, expected),
             ExprKind::Match { subject, arms } => {
                 self.check_match(expression, subject, arms, expected)
@@ -3740,9 +3765,15 @@ impl FunctionChecker<'_> {
         name: &str,
         arguments: &[Expr],
     ) -> Option<ValueType> {
-        let count = if name == "storageSet" { 3 } else { 2 };
+        let count = if matches!(name, "storageSet" | "storageSetAsync") {
+            3
+        } else {
+            2
+        };
         let kind = if name == "consoleLog" {
             CapabilityKind::Console
+        } else if name == "httpGet" {
+            CapabilityKind::Http
         } else {
             CapabilityKind::Storage
         };
@@ -3778,8 +3809,10 @@ impl FunctionChecker<'_> {
                 );
             }
         }
-        let ok = if name == "storageGet" {
+        let ok = if matches!(name, "storageGet" | "storageGetAsync") {
             intern_type(self.types, TypeInfo::Option(ValueType::String))
+        } else if name == "httpGet" {
+            ValueType::String
         } else {
             ValueType::Unit
         };

@@ -27,6 +27,7 @@ pub(crate) struct ModuleIr {
 pub(crate) struct FunctionIr {
     pub(crate) key: FunctionKey,
     pub(crate) exported: bool,
+    pub(crate) asynchronous: bool,
     pub(crate) generic: bool,
     pub(crate) parameters: Vec<ParameterIr>,
     pub(crate) return_type: ValueType,
@@ -89,6 +90,7 @@ pub(crate) struct ExprIr {
 
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum ExprKind {
+    Await(Box<ExprIr>),
     Integer(i32),
     Float(f64),
     String(String),
@@ -219,6 +221,7 @@ pub(crate) fn lower(analysis: &Analysis) -> Result<Program, Diagnostic> {
                 FunctionIr {
                     key,
                     exported: function.exported,
+                    asynchronous: function.asynchronous,
                     generic: !signature.type_parameters.is_empty(),
                     parameters,
                     return_type,
@@ -395,6 +398,7 @@ impl FunctionLowerer<'_> {
             .get(&(self.key.clone(), expression.span.clone()))
             .ok_or_else(|| invariant(&expression.span))?;
         let kind = match &expression.kind {
+            AstExprKind::Await(value) => ExprKind::Await(Box::new(self.lower_expr(value)?)),
             AstExprKind::Integer { value, .. } => ExprKind::Integer(
                 value
                     .parse::<i32>()

@@ -58,6 +58,7 @@ pub(crate) struct Record {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Function {
     pub(crate) exported: bool,
+    pub(crate) asynchronous: bool,
     pub(crate) name: Identifier,
     pub(crate) type_parameters: Vec<Identifier>,
     pub(crate) parameters: Vec<Parameter>,
@@ -137,6 +138,7 @@ pub(crate) struct Expr {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ExprKind {
+    Await(Box<Expr>),
     Integer {
         value: String,
         literal_span: Span,
@@ -331,7 +333,7 @@ impl Parser {
     fn parse_declaration(&mut self) -> Result<Declaration, ParseError> {
         let export_span = self.eat_keyword("export").map(|token| token.span);
         let exported = export_span.is_some();
-        if self.at_keyword("fn") {
+        if self.at_keyword("fn") || self.at_keyword("async") {
             return self
                 .parse_function(exported, export_span)
                 .map(Declaration::Function);
@@ -409,6 +411,8 @@ impl Parser {
         exported: bool,
         declaration_start: Option<Span>,
     ) -> Result<Function, ParseError> {
+        let async_span = self.eat_keyword("async").map(|token| token.span);
+        let asynchronous = async_span.is_some();
         let fn_span = self.expect_keyword("fn")?.span;
         let name = self.parse_identifier()?;
         let type_parameters = self.parse_generics()?;
@@ -454,9 +458,16 @@ impl Parser {
             self.expect_symbol(Symbol::RParen)?;
         }
         let body = self.parse_block()?;
-        let span = cover(declaration_start.as_ref().unwrap_or(&fn_span), &body.span);
+        let span = cover(
+            declaration_start
+                .as_ref()
+                .or(async_span.as_ref())
+                .unwrap_or(&fn_span),
+            &body.span,
+        );
         Ok(Function {
             exported,
+            asynchronous,
             name,
             type_parameters,
             parameters,
@@ -878,6 +889,16 @@ impl Parser {
     }
 
     fn parse_prefix_or_primary(&mut self, comparison_seen: &mut bool) -> Result<Expr, ParseError> {
+        if let Some(token) = self.eat_keyword("await") {
+            let operand = self.parse_expression_with_comparison(13, comparison_seen)?;
+            let span = cover(&token.span, &operand.span);
+            let nesting = self.nested_depth(std::iter::once(operand.nesting), &span)?;
+            return Ok(Expr {
+                span,
+                nesting,
+                kind: ExprKind::Await(Box::new(operand)),
+            });
+        }
         if let TokenKind::Symbol(operator @ (Symbol::Minus | Symbol::Bang)) = self.current().kind {
             let start = self.advance().span.clone();
             let operand = self.parse_expression_with_comparison(13, comparison_seen)?;
@@ -938,6 +959,11 @@ impl Parser {
             TokenKind::Keyword(ref keyword) if keyword == "match" => {
                 self.parse_match_expression(token.span)
             }
+            TokenKind::Keyword(ref keyword) if keyword == "async" => Err(ParseError {
+                code: "UBI0041".to_owned(),
+                message: "Async is only supported on named function declarations".to_owned(),
+                primary: token.span,
+            }),
             TokenKind::Keyword(_) if is_unsupported_keyword(&token) => {
                 Err(self.unsupported(token.span, "This language feature"))
             }

@@ -52,7 +52,7 @@ fn emit_module(
 ) -> Result<String, Diagnostic> {
     let mut output = String::new();
     if uses_host(program) {
-        output.push_str(&format!("import {{ isCapability as $ubi_is_capability, callHost as $ubi_call_host }} from {};\n", js_string(&relative_specifier(module_id, ".ubi-host.ubi"))));
+        output.push_str(&format!("import {{ isCapability as $ubi_is_capability, callHost as $ubi_call_host, callHostAsync as $ubi_call_host_async }} from {};\n", js_string(&relative_specifier(module_id, ".ubi-host.ubi"))));
     }
     for (local_name, target) in &module.imports {
         let binding = names
@@ -224,6 +224,7 @@ struct FunctionEmitter<'a> {
     names: &'a ModuleNames,
     local_index: usize,
     scopes: Vec<BTreeMap<String, String>>,
+    awaits: usize,
 }
 
 impl<'a> FunctionEmitter<'a> {
@@ -232,6 +233,7 @@ impl<'a> FunctionEmitter<'a> {
             names,
             local_index: 0,
             scopes: Vec::new(),
+            awaits: 0,
         }
     }
 
@@ -255,7 +257,8 @@ impl<'a> FunctionEmitter<'a> {
             .get(&function.key)
             .ok_or_else(|| invariant_span(&function.span))?;
         let mut output = format!(
-            "function {function_name}({}) {{\n  $ubi_enter($ubi_budget);\n  try {{\n",
+            "{}function {function_name}({}) {{\n  $ubi_enter($ubi_budget);\n  try {{\n",
+            if function.asynchronous { "async " } else { "" },
             parameters.join(", ")
         );
         output.push_str(&body);
@@ -359,6 +362,10 @@ impl<'a> FunctionEmitter<'a> {
 
     fn expression(&mut self, expression: &ExprIr, indent: usize) -> Result<String, Diagnostic> {
         let value = match &expression.kind {
+            ExprKind::Await(operand) => {
+                self.awaits += 1;
+                format!("(await {})", self.expression(operand, indent)?)
+            }
             ExprKind::Integer(value) => value.to_string(),
             ExprKind::Float(value) => value.to_string(),
             ExprKind::String(value) => js_string(value),
@@ -445,6 +452,7 @@ impl<'a> FunctionEmitter<'a> {
                 format!("(({}) => function({}) {{ $ubi_enter($ubi_budget); try {{ return {body}; }} catch ($ubi_error) {{ if ($ubi_error && $ubi_error[$ubi_return] === true) return $ubi_error.value; throw $ubi_error; }} finally {{ $ubi_leave($ubi_budget); }} }})({})", captured_names.join(", "), names.join(", "), captured_values.join(", "))
             }
             ExprKind::Match { subject, arms } => {
+                let awaits = self.awaits;
                 let subject = self.expression(subject, indent)?;
                 let subject_name = self.new_local();
                 let mut body = format!("const {subject_name} = {subject};\n");
@@ -473,7 +481,7 @@ impl<'a> FunctionEmitter<'a> {
                     ));
                 }
                 body.push_str("throw new Error(\"Non-exhaustive Ubi match\");");
-                format!("(() => {{ {body} }})()")
+                self.iife(&body, self.awaits != awaits)
             }
             ExprKind::Local(name) => self
                 .scopes
@@ -601,8 +609,20 @@ impl<'a> FunctionEmitter<'a> {
     }
 
     fn block_expression(&mut self, block: &BlockIr, indent: usize) -> Result<String, Diagnostic> {
+        let awaits = self.awaits;
         let contents = self.block_contents(block, indent + 1)?;
-        Ok(format!("(() => {{\n{contents}\n{}}})()", spaces(indent)))
+        Ok(self.iife(
+            &format!("\n{contents}\n{}", spaces(indent)),
+            self.awaits != awaits,
+        ))
+    }
+
+    fn iife(&self, contents: &str, asynchronous: bool) -> String {
+        if asynchronous {
+            format!("(await (async () => {{ {contents} }})())")
+        } else {
+            format!("(() => {{ {contents} }})()")
+        }
     }
 
     fn new_local(&mut self) -> String {
@@ -672,7 +692,10 @@ fn emit_export_wrapper(function: &FunctionIr, implementation: &str, binding: &st
     } else {
         &argument_checks
     };
-    let mut output = format!("function {binding}(...$ubi_args) {{\n");
+    let mut output = format!(
+        "{}function {binding}(...$ubi_args) {{\n",
+        if function.asynchronous { "async " } else { "" }
+    );
     output.push_str(&format!("  if ($ubi_args.length !== {count}) throw new TypeError(\"Invalid Ubi function arguments\");\n  const $ubi_budget = $ubi_new_budget();\n"));
     if function.generic {
         output.push_str("  throw new TypeError(\"Generic Ubi functions require a concrete exported wrapper\");\n");
@@ -971,6 +994,8 @@ function $ubi_builtin(name, args, budget, type) {
   switch (name) {
     case "consoleLog": case "storageGet": case "storageSet": case "storageRemove":
       return $ubi_call_host(name, args, response => $ubi_read_aggregate(response, type), $ubi_make_enum);
+    case "storageGetAsync": case "storageSetAsync": case "storageRemoveAsync": case "httpGet":
+      return $ubi_call_host_async(name, args, response => $ubi_read_aggregate(response, type), $ubi_make_enum);
     case "mapEmpty": return $ubi_make_map([]);
     case "mapSet": {
       const entries = a.map(([key, value]) => [key, value]);
