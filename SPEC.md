@@ -719,7 +719,7 @@ support keyboard, accessible labels, touch, and narrow screens. Reload and
 mobile suspend/resume preserve data through the host storage adapter.
 
 `ubi init <directory>` creates a runnable four-target app without replacing
-existing files. `ubi package --target <target>` checks/builds fresh code and
+existing files. `ubi package [entry] --target <target>` checks/builds fresh code and
 produces a self-contained target directory in `.ubi-dist/<target>` by default;
 an output override follows build semantics. Web includes public assets and
 compiled modules; CLI includes its Node host; desktop includes an Electron

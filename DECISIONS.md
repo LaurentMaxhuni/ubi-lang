@@ -17,6 +17,39 @@ data. Independent conformance authors/reviewers evaluate implementation.
 User's "Do whatever to get to v1" authorizes routine design/implementation
 choices and continuous execution; no intermediate design approval is required.
 
+## V1 integration evidence, 2026-10-09
+
+- Checked named async functions and immediate await cover parser, checker,
+  effects, IR, independent AST interpretation and JavaScript. Async storage/HTTP
+  use scoped capabilities and cancellable host factories. Eight independent
+  groups cover order, propagation, generic/import/alias escapes, delayed promises,
+  malformed responses, unexpected failures, cancellation, budgets and concurrency.
+- Independent tests/review found Windows interpreter stack overflow on legal
+  recursive async source. Smaller control-expression dispatch frames preserve
+  the specified 32-function-frame fault instead of host stack overflow; regressions pass.
+- Portable task app shares Ubi rules across web, CLI, Electron and Capacitor.
+  Concrete host decoding rejects corrupt state; failed writes preserve data.
+  Project init, packaging, canonical formatting and version/async runner commands
+  complete the initial developer loop.
+- Review found valid source filenames requiring URL encoding in package imports,
+  initial readiness controls, and generated artifact hardlink truncation. Fixes
+  were reviewed; independent red-to-green build/package hardlink tests confirm
+  unrelated linked bytes survive output replacement.
+- Final local compiler evidence: 178 tests pass; `cargo fmt --all -- --check`,
+  `cargo clippy --all-targets -- -D warnings`, and whitespace checks pass.
+  Mutation/expanding-instantiation suite passes under a separate 55-second watchdog.
+  Windows symlink tests cannot create fixtures (privilege error 1314), so remain
+  unverified despite the overall green suite.
+- Web UI and static bundle checked through browser interactions; CLI persisted
+  task check passes. Actual Windows packaged executable passes hidden-window
+  UI/module/persistence/sandbox smoke. Android debug APK builds/installs/launches;
+  completion survives background/resume and process stop/relaunch on API37 emulator.
+- [Platform evidence](docs/PLATFORMS.md) distinguishes executed checks from
+  configured CI. macOS/Linux/iOS verification, physical devices, release signing
+  where applicable, and evaluator-owned hidden corpus remain unavailable.
+  GitHub CLI is not signed in, so remote CI was not dispatched. Cargo version
+  remains 0.1.0; no 1.0 release, human milestone sign-off, or store publication is claimed.
+
 Current work: user-authorized generics, Result/propagation, maps, then scoped host access. Completed foundations include local reassignment, records, lists/Option/match, loops, closures, pure utilities, and enums. Historical M1 hidden evaluation remains unavailable.
 
 ## Decisions

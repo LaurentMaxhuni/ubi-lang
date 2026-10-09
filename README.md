@@ -1,5 +1,42 @@
 # Ubi
 
+Build shared applications for web, CLI, desktop, and mobile. The compiler emits
+JavaScript ES modules; explicit host adapters provide storage and network access.
+V1 integration includes async/await, project creation, formatting, and production
+host packages. Release readiness and unexecuted platform checks are tracked in
+[platform evidence](docs/PLATFORMS.md).
+
+Create a four-target application or run the persistent reference app:
+
+```powershell
+cargo run -- init my-app
+cargo run -- dev --root my-app
+# Or use the checked-in reference app:
+cargo run -- dev --root examples/v1
+```
+
+The [portable app](examples/v1/README.md) shares task creation, validation,
+completion, deletion, and filtering in Ubi. Hosts preserve saved and visible data
+on failed writes and corrupt reads. Package each host:
+
+```powershell
+cargo run -- package --root examples/v1 --target web
+cargo run -- package --root examples/v1 --target cli
+node examples/v1/.ubi-dist/cli/run.mjs add "Try portable Ubi"
+node examples/v1/.ubi-dist/cli/run.mjs list
+cargo run -- package --root examples/v1 --target desktop
+cargo run -- package --root examples/v1 --target mobile
+cargo run -- fmt --root examples/v1 --check
+cargo run -- --version
+```
+
+Outputs live in the project's `.ubi-dist/<target>`. Desktop bundles use Electron;
+mobile bundles use Capacitor and native Preferences storage. Native dependency
+versions are pinned with per-target lockfiles. Follow the example's commands to
+install dependencies and create native packages. Node 22.12+ and npm 10+ are
+required for native package tooling. Android and iOS additionally need their
+SDKs/build hosts. Packages remain unsigned; no store release is claimed.
+
 Ubi source files use `.ubi`. The Rust compiler checks source and emits JavaScript
 ES modules; supported language behavior is documented in [SPEC.md](SPEC.md).
 
@@ -29,8 +66,8 @@ Primitive arguments pass directly. Record, list, Option, and enum arguments use
 serialized JSON; returned aggregates are frozen. See [host encoding](SPEC.md#15-programming-foundations-2026-10-03)
 for validation and representation; [enum encoding](SPEC.md#16-user-defined-enums-2026-10-04)
 uses exact `tag`/`values` envelopes. Console/storage host access uses opaque
-capabilities and checked function effects. Classes, tuples, async, and platform
-packaging remain future slices.
+capabilities and checked function effects. Async functions support immediate
+await with checked storage/HTTP effects. Classes and tuples remain future slices.
 
 ```powershell
 cargo run -- check main.ubi --root path/to/project
@@ -149,6 +186,19 @@ are compile errors. CLI JSON never grants authority. See [contracts](SPEC.md#17-
 
 ## Run a program
 
+Async named functions declare their resolved return type. `run` awaits async
+exports; Ubi callers immediately await direct async calls:
+
+```ubi
+async fn twice(value: int) -> int { value * 2 }
+export async fn main() -> int { await twice(21) }
+```
+
+Use `(await operation())?` to propagate a Result. Async storage and HTTP require
+explicit capabilities and declared effects; cancellation comes from the host's
+AbortSignal. See the [async example](examples/async/README.md) and
+[language contract](SPEC.md#21-v1-asynchronous-application-profile-2026-10-09).
+
 Define an exported entry function in `main.ubi`:
 
 ```ubi
@@ -236,9 +286,10 @@ The runnable [example](examples/project/ubi.json) emits its shared modules to
 `ubi check` or `ubi build` inside a project reads its `ubi.json`; `--out-dir` can
 override the build directory. Explicit source commands above still work.
 
-All targets currently produce JavaScript ES modules. Target declarations describe
-the intended application; mobile/desktop packaging, UI, and host integrations are
-future work. The config validates target names, source paths, and schema version.
+All targets produce JavaScript ES modules. `build` emits shared logic; `package`
+adds the project's public interface and selected web/CLI/Electron/Capacitor host.
+`init` supplies complete hosts for a new application. The config validates target
+names, source paths, and schema version.
 See [the config contract](SPEC.md#13-project-configuration) for details.
 
 ## Windows file recognition

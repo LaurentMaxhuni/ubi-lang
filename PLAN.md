@@ -9,13 +9,13 @@ do not invent human sign-off or claim unexecuted platform checks.
 Sections 21-22 of SPEC.md define the current asynchronous and portable-host
 contracts. [Platform evidence](docs/PLATFORMS.md) records actual readiness.
 
-- [ ] Checked async/await with storage/HTTP capabilities and cancellation.
-- [ ] Independently evaluated async permission escapes and backend agreement.
-- [ ] Shared task application with durable web/CLI/desktop/mobile hosts.
-- [ ] Project creation, production packaging, formatting, version command.
-- [ ] Windows desktop package and launch; Android APK and emulator lifecycle.
-- [ ] Cross-platform CI and reproducible native build instructions.
-- [ ] Final independent review, fuzzing, formatting, Clippy, and full suite.
+- [x] Checked async/await with storage/HTTP capabilities and cancellation.
+- [x] Independently evaluated async permission escapes and backend agreement.
+- [x] Shared task application with durable web/CLI/desktop/mobile hosts.
+- [x] Project creation, production packaging, formatting, version command.
+- [x] Windows desktop package and launch; Android APK and emulator lifecycle.
+- [x] Cross-platform CI and reproducible native build instructions.
+- [x] Independent code review, fuzzing, formatting, Clippy, and full suite.
 - [ ] macOS/Linux native checks, iOS device/simulator checks, release signing
       where required, and evaluator-owned hidden conformance.
 
