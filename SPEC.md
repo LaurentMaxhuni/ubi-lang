@@ -1,6 +1,6 @@
 # Ubi language specification
 
-Version: 0.6 draft. Current work: generics, recoverable errors, maps, then scoped host access. Milestone 1 evidence remains recorded in DECISIONS.md.
+Version: 0.7 draft. Current work: v1 asynchronous application behavior, portable hosts, packaging, and developer tooling. Release validation remains recorded separately from implementation.
 
 ## 1. Scope and conformance
 
@@ -658,3 +658,86 @@ arguments cannot grant capabilities; examples use an explicit host adapter.
 This slice grants no filesystem/network/device access and does not isolate
 malicious trusted JavaScript adapters. Async storage, HTTP, and packaging follow
 later milestones.
+
+## 21. V1 asynchronous application profile (2026-10-09)
+
+This section supersedes earlier async deferrals. `async fn` declares a named
+asynchronous function; its explicit return annotation describes its resolved
+value. Every async function requires a return annotation. Hosts receive a
+Promise from an exported async function. `await expression` is a prefix
+expression and may occur only in an async named function, outside arrows.
+Its operand must be a direct call to an async named function or async host
+operation. Async calls must be immediately awaited; async function aliases,
+callbacks, first-class tasks, detached work, and async arrows are rejected.
+These restrictions use `UBI0041`; missing annotations retain `UBI0021`.
+Await binds like a prefix operator: `(await operation())?` propagates Result.
+
+Evaluate callee arguments once, left to right, then begin its body immediately.
+Await completes before the next source operation; rejection propagates as a
+fatal fault. No implicit parallel execution occurs. Synchronous pure functions
+remain callable from async functions. Effects propagate through awaited calls
+across imports and recursion, including unreachable branches. Existing
+capability restrictions and step/frame budgets apply throughout suspension;
+concurrent public invocations receive independent budgets. Arrows cannot await
+or indirectly invoke async/effectful functions. The AST interpreter executes
+the same sequential contracts using deterministic completed host fixtures;
+real scheduling is a JavaScript host behavior, tested separately.
+
+Add opaque `Http`, effect `http`, and `HostError.Cancelled(string)`:
+
+```
+storageGetAsync(Storage, string) -> Result<Option<string>, HostError>
+storageSetAsync(Storage, string, string) -> Result<unit, HostError>
+storageRemoveAsync(Storage, string) -> Result<unit, HostError>
+httpGet(Http, string) -> Result<string, HostError>
+```
+
+These operations require immediate await, the matching capability, and the
+matching storage/http effect. Trusted factories in `.ubi-host.mjs` expose
+`createAsyncStorageCapability({get,set,remove}, {signal} = {})` and
+`createHttpCapability(get, {signal} = {})`. Callbacks receive ordinary operation
+arguments followed by an optional AbortSignal and return a Promise of exact
+serialized Result JSON. Factories snapshot callbacks. Pre-aborted operations
+return Cancelled without invoking adapters. Hosts must honor cancellation;
+abort while pending returns Cancelled, releases cancellation listeners, and
+cannot resume Ubi execution later. Cancellation cannot undo an already completed
+host write. Expected network/storage failures return Failure; malformed JSON
+returns Decode; unexpected rejection/throw remains fatal `UBI-R0004`.
+HTTP authority is explicitly supplied; trusted adapters enforce allowed URLs,
+timeouts, response-size limits, and redirects. No generic JSON cast is added.
+
+## 22. V1 portable application and tooling contract (2026-10-09)
+
+V1 means the same compiled Ubi domain runs in web, Node CLI, desktop, and mobile
+hosts. It does not mean every historical OS/browser version. Support floors and
+package tool versions must be explicit in release documentation and lockfiles.
+The shared reference app creates, validates, completes, deletes, filters, and
+persists tasks; domain rules live in Ubi. Hosts decode persistent data through
+concrete exported types, display failures, and preserve existing persisted and
+visible data on failed writes or corrupt reads. Web/desktop/mobile controls
+support keyboard, accessible labels, touch, and narrow screens. Reload and
+mobile suspend/resume preserve data through the host storage adapter.
+
+`ubi init <directory>` creates a runnable four-target app without replacing
+existing files. `ubi package --target <target>` checks/builds fresh code and
+produces a self-contained target directory in `.ubi-dist/<target>` by default;
+an output override follows build semantics. Web includes public assets and
+compiled modules; CLI includes its Node host; desktop includes an Electron
+host/package configuration; mobile includes Capacitor configuration and native
+project-generation commands. Native packaging is a separate explicit step,
+with precise prerequisites and failure exit codes. Asset paths/symlinks must
+remain within the project root; output writes must preserve unrelated files.
+Generated configurations never grant renderer Node access or remote navigation.
+
+`ubi fmt [entry] [--root <root>] [--check]` formats reachable source modules;
+formatting preserves token spelling, comments, and behavior, and is idempotent.
+Check mode writes nothing and returns 1 for noncanonical formatting. Invalid
+syntax or operational failure writes no source changes. `ubi --version` reports
+the package version. `ubi run` awaits async exports before printing results or
+reporting failures. Stable compiler/CLI diagnostics remain available in JSON.
+
+Release evidence distinguishes implemented paths from executed checks. Desktop
+requires an actual package and launch on available hosts; mobile requires an
+Android emulator/device or iOS build host. Missing SDKs, macOS/Xcode, devices,
+signing credentials, and evaluator-owned hidden tests remain explicit unchecked
+requirements. No version-1.0 release assertion is made until required checks pass.

@@ -1,5 +1,22 @@
 # Ubi decisions and milestone evidence
 
+## V1 direction, 2026-10-09
+
+User authorized autonomous work toward web, app/mobile, CLI, and desktop v1.
+Ruling: interpret versions as platform targets, with explicit runtime floors;
+arbitrary historical runtime compatibility is neither testable nor useful.
+D027: immediate-await named async calls, sequential execution, and explicit
+storage/HTTP capabilities preserve effect checking without first-class task or
+effect-polymorphism complexity. Cancellation belongs to host-supplied signals.
+D028: share compiled Ubi domain with thin web/Node/Electron/Capacitor hosts;
+provide runnable packaging rather than target labels alone. Native toolchains,
+hardware, signing, and actual package checks determine release readiness.
+D029: project creation, packaging, and a token-preserving canonical formatter
+complete the initial developer loop. Preserve existing files and failed-write
+data. Independent conformance authors/reviewers evaluate implementation.
+User's "Do whatever to get to v1" authorizes routine design/implementation
+choices and continuous execution; no intermediate design approval is required.
+
 Current work: user-authorized generics, Result/propagation, maps, then scoped host access. Completed foundations include local reassignment, records, lists/Option/match, loops, closures, pure utilities, and enums. Historical M1 hidden evaluation remains unavailable.
 
 ## Decisions
