@@ -1,0 +1,86 @@
+name: Compiler and portable packages
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compiler:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        node: ['22', '24']
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install Rust tools
+        run: rustup component add rustfmt clippy
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test --all-targets --locked
+        timeout-minutes: 5
+      - name: Build portable targets
+        run: |
+          cargo run --locked -- package --root examples/v1 --target web
+          cargo run --locked -- package --root examples/v1 --target cli
+          cargo run --locked -- package --root examples/v1 --target desktop
+          cargo run --locked -- package --root examples/v1 --target mobile
+
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: cargo run --locked -- package --root examples/v1 --target desktop
+      - run: npm ci
+        working-directory: examples/v1/.ubi-dist/desktop
+      - name: Verify native desktop UI
+        if: runner.os != 'Linux'
+        run: npm run smoke
+        working-directory: examples/v1/.ubi-dist/desktop
+      - name: Verify native desktop UI on Linux
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run smoke
+        working-directory: examples/v1/.ubi-dist/desktop
+      - run: npm run package
+        working-directory: examples/v1/.ubi-dist/desktop
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ runner.os }}
+          path: examples/v1/.ubi-dist/desktop/out/
+          retention-days: 7
+
+  mobile-projects:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: android
+          - os: macos-latest
+            target: ios
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: cargo run --locked -- package --root examples/v1 --target mobile
+      - run: npm ci
+        working-directory: examples/v1/.ubi-dist/mobile
+      - run: npm run ${{ matrix.target }}
+        working-directory: examples/v1/.ubi-dist/mobile
