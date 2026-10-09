@@ -29,6 +29,8 @@ fn deterministic_mutations_never_crash_the_parser_or_checker() {
         "export fn f() -> bool { let empty: Map<string,Option<List<int>>> = mapEmpty(); let one = mapSet(empty,\"__proto__\",Option.Some([])); let two = mapSet(one,\"constructor\",Option.None); mapGet(two,\"__proto__\") == Option.Some(Option.Some([])) && mapKeys(mapRemove(two,\"constructor\")) == [\"__proto__\"] }",
         "fn write(c: Console,text: string) -> Result<unit,HostError> effects(console) { consoleLog(c,text) } export fn f(c: Console,s: Storage) -> Result<Option<string>,HostError> effects(console,storage) { let alias = c; write(alias,\"hello😀\")?; storageSet(s,\"key\",\"value\")?; let found = storageGet(s,\"key\")?; storageRemove(s,\"key\")?; Result.Ok(found) }",
         "fn plain(x: int) -> int { x + 1 } fn generic<T>(x: T) -> int { let capture = () => x; 2 } export fn f(b: bool) -> int { (if (b) { plain } else { generic })(5) }",
+        "async fn value(n: int) -> int { n } export async fn f() -> int { let mut n = 0; for (x in [1,2,3]) { n = n + await value(x); } n }",
+        "export async fn f(h: Http,s: Storage) -> Result<string,HostError> effects(http,storage) { let text = (await httpGet(h,\"url\"))?; (await storageSetAsync(s,\"key\",text))?; Result.Ok(text) }",
     ];
     for seed in &seeds[4..] {
         let mut compiler = Compiler::new();

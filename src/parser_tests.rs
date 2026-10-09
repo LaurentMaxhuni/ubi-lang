@@ -87,12 +87,8 @@ fn imports_comments_and_trailing_commas_are_preserved() {
 }
 
 #[test]
-fn unsupported_keyword_and_later_profile_syntax_get_ubi0003() {
-    let source = "fn f() { await task; }";
-    let error = parse("main.ubi", source).unwrap_err();
-    assert_eq!(error.code, "UBI0003");
-    assert_eq!(&source[error.primary.start..error.primary.end], "await");
-
+fn later_profile_syntax_parses_before_semantic_restrictions() {
+    parse("main.ubi", "fn f() { await task; }").unwrap();
     parse("main.ubi", "enum Generic<T> { Value(T) }").unwrap();
 }
 
@@ -168,13 +164,12 @@ fn parses_import_graph_and_reports_frontend_corpus_errors_in_the_right_phase() {
     )
     .unwrap();
 
-    let unsupported = include_str!("../examples/invalid/unsupported-async.ubi");
-    let error = parse("invalid.ubi", unsupported).unwrap_err();
-    assert_eq!(error.code, "UBI0003");
-    assert_eq!(
-        &unsupported[error.primary.start..error.primary.end],
-        "async"
-    );
+    // SPEC21 admits async syntax; invalid await operands are checked semantically.
+    parse(
+        "invalid.ubi",
+        include_str!("../examples/invalid/unsupported-async.ubi"),
+    )
+    .unwrap();
 
     let unterminated = include_str!("../examples/invalid/unterminated-string.ubi");
     let error = parse("invalid.ubi", unterminated).unwrap_err();

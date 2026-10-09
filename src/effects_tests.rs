@@ -94,7 +94,8 @@ export fn get(s: Storage) -> Result<Option<string>,HostError> effects(storage) {
 export fn status(s: Storage) -> int effects(storage) {
   match (storageGet(s,"task")) {
     Result.Ok(Option.Some(text)) => length(text), Result.Ok(Option.None) => 0,
-    Result.Err(HostError.Failure(message)) => length(message), Result.Err(HostError.Decode(_)) => -2
+    Result.Err(HostError.Failure(message)) => length(message), Result.Err(HostError.Decode(_)) => -2,
+    Result.Err(HostError.Cancelled(_)) => -3
   }
 }
 export fn validate(c: Console,n: int) -> Result<unit,HostError> effects(console) { consoleLog(c,toString(n)) }

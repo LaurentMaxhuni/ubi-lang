@@ -727,19 +727,19 @@
         {
           "id": "main.ubi",
           "path": "invalid/unsupported-async.ubi",
-          "revision": "sha256:0875dcf7d9eaaea6aca78004ccc13889f4007a92e2c917bf8e8a8035b260b127"
+          "revision": "sha256:7bd0c8b9587be8f83cb5b93cc5bbf8f6830cf66ad5e5f82c033dd06a9d6596e6"
         }
       ],
       "check": {
         "outcome": "reject",
         "requiredDiagnostics": [
           {
-            "code": "UBI0003",
+            "code": "UBI0041",
             "severity": "error",
             "primary": {
               "sourceId": "main.ubi",
-              "start": 0,
-              "end": 5
+              "start": 26,
+              "end": 31
             }
           }
         ],
