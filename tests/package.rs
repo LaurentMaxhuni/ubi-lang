@@ -286,3 +286,24 @@ fn public_asset_symlink_escape_cannot_be_packaged() {
         "private"
     );
 }
+
+#[test]
+fn packaging_replaces_hardlinked_output_without_mutating_unrelated_inode() {
+    let p = Project::new();
+    p.init();
+    let sentinel = p.0.join("external-user-data.txt");
+    let contents = b"preserve external bytes\0exactly\n";
+    fs::write(&sentinel, contents).unwrap();
+    let output = p.0.join("app/.ubi-dist/web");
+    fs::create_dir_all(&output).unwrap();
+    let artifact = output.join("app.js");
+    fs::hard_link(&sentinel, &artifact).unwrap();
+    p.package("web");
+    assert!(
+        fs::read(&sentinel).unwrap() == contents,
+        "packaging mutated unrelated hardlink target"
+    );
+    let generated = fs::read_to_string(artifact).unwrap();
+    assert!(generated.contains("./modules/"));
+    assert_ne!(generated.as_bytes(), contents);
+}

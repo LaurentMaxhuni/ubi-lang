@@ -162,3 +162,29 @@ fn package_compiler_errors_are_json_and_leave_existing_output_untouched() {
     );
     assert_eq!(fs::read_dir(p.0.join("dist")).unwrap().count(), 1);
 }
+
+#[test]
+fn build_replaces_hardlinked_artifact_without_mutating_unrelated_data() {
+    let p = Project::new();
+    p.write("main.ubi", "export fn main() -> int { 42 }");
+    p.write("external-user-data.txt", "preserve\0external\n");
+    fs::create_dir_all(p.0.join(".ubi-build")).unwrap();
+    fs::hard_link(
+        p.0.join("external-user-data.txt"),
+        p.0.join(".ubi-build/main.mjs"),
+    )
+    .unwrap();
+    let result = p.run(&["build", "main.ubi"]);
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert_eq!(
+        fs::read(p.0.join("external-user-data.txt")).unwrap(),
+        b"preserve\0external\n"
+    );
+    assert!(fs::read_to_string(p.0.join(".ubi-build/main.mjs"))
+        .unwrap()
+        .contains("export"));
+}
