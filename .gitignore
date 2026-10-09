@@ -1,2 +1,4 @@
 /target/
 .ubi-build/
+.ubi-dist/
+node_modules/

@@ -1,5 +1,27 @@
 # Ubi implementation plan
 
+## Current work: v1 integration, authorized 2026-10-09
+
+User requested autonomous completion for web, app/mobile, CLI, and desktop.
+Execute [the v1 plan](docs/superpowers/plans/2026-10-09-v1.md) across remaining
+M2-M6 application/tooling work. Historical gates below remain historical;
+do not invent human sign-off or claim unexecuted platform checks.
+Sections 21-22 of SPEC.md define the current asynchronous and portable-host
+contracts. [Platform evidence](docs/PLATFORMS.md) records actual readiness.
+
+- [ ] Checked async/await with storage/HTTP capabilities and cancellation.
+- [ ] Independently evaluated async permission escapes and backend agreement.
+- [ ] Shared task application with durable web/CLI/desktop/mobile hosts.
+- [ ] Project creation, production packaging, formatting, version command.
+- [ ] Windows desktop package and launch; Android APK and emulator lifecycle.
+- [ ] Cross-platform CI and reproducible native build instructions.
+- [ ] Final independent review, fuzzing, formatting, Clippy, and full suite.
+- [ ] macOS/Linux native checks, iOS device/simulator checks, release signing
+      where required, and evaluator-owned hidden conformance.
+
+Release 1.0 remains pending until required platform evidence exists. Missing
+SDKs/build hosts/devices/credentials are recorded, never counted as passes.
+
 User direction, 2026-10-01: set aside milestone gates for the current task.
 Current work: generics, Result/propagation, maps, and scoped host access/effects
 extend the programming foundation:
