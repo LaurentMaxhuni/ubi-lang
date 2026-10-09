@@ -243,7 +243,9 @@ Only public web assets under `<root>/web` and the current compiler's generated
 modules are served. Import generated modules from `/__ubi/modules/<source-path>.mjs`.
 The server supports GET/HEAD, correct MIME types, no-cache responses, 8 KiB
 request headers, 200ms socket read/write timeouts, a 500ms total header-read limit,
-and an 8 MiB public-asset limit. It refuses traversal, hidden paths, out-of-web-root
+and an 8 MiB public-asset limit. Oversized headers close the connection without
+a response, preserving the bound without writing into an unread request stream.
+It refuses traversal, hidden paths, out-of-web-root
 symlinks, and non-loopback Host headers. It never serves source/config files or
 arbitrary build-directory files. A developer script injected into index.html polls
 `/__ubi/status` for revision/error state; errors appear as text in an overlay.

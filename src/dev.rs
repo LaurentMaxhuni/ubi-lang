@@ -245,13 +245,7 @@ fn respond(stream: &mut TcpStream, web: &Path, port: u16, state: &State) -> std:
         };
         request.extend_from_slice(&buffer[..count]);
         if request.len() > 8192 {
-            return response(
-                stream,
-                431,
-                "text/plain",
-                b"Request headers too large",
-                false,
-            );
+            return Ok(());
         }
         if started.elapsed() > Duration::from_millis(500) {
             return response(stream, 408, "text/plain", b"Request timeout", false);
