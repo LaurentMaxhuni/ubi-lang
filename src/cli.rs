@@ -1,12 +1,12 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 
 use ubi_lang::{
-    BuildResult, CheckResult, Compiler, Diagnostic, Severity, SourceError, MAX_MODULES,
-    MAX_PROJECT_BYTES, MAX_SOURCE_BYTES,
+    format_source, BuildResult, CheckResult, Compiler, Diagnostic, Severity, SourceError,
+    MAX_MODULES, MAX_PROJECT_BYTES, MAX_SOURCE_BYTES,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,6 +15,10 @@ enum Command {
     Build,
     Run,
     Dev,
+    Init,
+    Package,
+    Format,
+    Version,
 }
 
 #[derive(Debug)]
@@ -28,6 +32,7 @@ struct Arguments {
     function: Option<String>,
     call_args: Option<String>,
     port: u16,
+    format_check: bool,
 }
 
 pub(crate) fn run(
@@ -50,8 +55,17 @@ fn run_inner(
     stderr: &mut impl Write,
 ) -> Result<u8, String> {
     let arguments = parse_arguments(arguments)?;
+    if arguments.command == Command::Version {
+        writeln!(stdout, "ubi {}", env!("CARGO_PKG_VERSION"))
+            .map_err(|error| format!("cannot write version: {error}"))?;
+        return Ok(0);
+    }
     let working_directory = std::env::current_dir()
         .map_err(|error| format!("cannot read current working directory: {error}"))?;
+    if arguments.command == Command::Init {
+        return crate::package::init(&working_directory.join(arguments.entry.as_deref().unwrap()))
+            .map(|()| 0);
+    }
     let root_argument = arguments.root.as_deref().unwrap_or(&working_directory);
     let root = fs::canonicalize(root_argument).map_err(|error| {
         format!(
@@ -66,14 +80,25 @@ fn run_inner(
         ));
     }
     let (entry, target) = match &arguments.entry {
-        Some(entry) => (entry.clone(), None),
+        Some(entry) => (
+            entry.clone(),
+            if arguments.command == Command::Package {
+                arguments.target.clone()
+            } else {
+                None
+            },
+        ),
         None => {
-            let selected = arguments
-                .target
-                .as_deref()
-                .or((arguments.command == Command::Dev).then_some("web"));
-            let (entry, target) = crate::project::select(&root, selected)?;
-            (entry, Some(target))
+            if arguments.command == Command::Format {
+                (crate::project::entry(&root)?, None)
+            } else {
+                let selected = arguments
+                    .target
+                    .as_deref()
+                    .or((arguments.command == Command::Dev).then_some("web"));
+                let (entry, target) = crate::project::select(&root, selected)?;
+                (entry, Some(target))
+            }
         }
     };
     if !valid_source_id(&entry) {
@@ -95,7 +120,9 @@ fn run_inner(
             Ok(status)
         }
         Command::Dev => unreachable!(),
-        Command::Build | Command::Run => {
+        Command::Init | Command::Version => unreachable!(),
+        Command::Format => format_project(&root, &compiler, arguments.format_check, stdout, stderr),
+        Command::Build | Command::Run | Command::Package => {
             let build = compiler.build();
             if has_errors(&build.diagnostics) {
                 return report_build(&compiler, &build, arguments.json, stdout, stderr);
@@ -103,7 +130,10 @@ fn run_inner(
             let out_dir = match arguments.out_dir.as_deref() {
                 Some(out_dir) if out_dir.is_absolute() => out_dir.to_path_buf(),
                 Some(out_dir) => working_directory.join(out_dir),
-                None => match target {
+                None => match &target {
+                    Some(target) if arguments.command == Command::Package => {
+                        root.join(".ubi-dist").join(target)
+                    }
                     Some(target) => root.join(".ubi-build").join(target),
                     None => root.join(".ubi-build"),
                 },
@@ -112,7 +142,17 @@ fn run_inner(
                 .javascript
                 .as_ref()
                 .ok_or_else(|| "compiler produced no JavaScript output".to_owned())?;
-            write_artifacts(&out_dir, files)?;
+            if arguments.command == Command::Package {
+                crate::package::package(
+                    &root,
+                    &entry,
+                    target.as_deref().unwrap(),
+                    &out_dir,
+                    files,
+                )?;
+            } else {
+                write_artifacts(&out_dir, files)?;
+            }
             if arguments.command == Command::Run {
                 report_build(&compiler, &build, false, stdout, stderr)?;
                 let module = fs::canonicalize(
@@ -156,13 +196,21 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
         })
         .collect::<Result<Vec<_>, _>>()?
         .into_iter();
-    let command = match args.next().as_deref() {
-        Some("check") => Command::Check,
-        Some("build") => Command::Build,
-        Some("run") => Command::Run,
-        Some("dev") => Command::Dev,
-        _ => return Err("expected `check`, `build`, `run`, or `dev`".to_owned()),
-    };
+    let command =
+        match args.next().as_deref() {
+            Some("check") => Command::Check,
+            Some("build") => Command::Build,
+            Some("run") => Command::Run,
+            Some("dev") => Command::Dev,
+            Some("init") => Command::Init,
+            Some("package") => Command::Package,
+            Some("fmt") => Command::Format,
+            Some("--version") => Command::Version,
+            _ => return Err(
+                "expected `check`, `build`, `run`, `dev`, `init`, `package`, `fmt`, or `--version`"
+                    .to_owned(),
+            ),
+        };
 
     let mut entry = None;
     let mut target = None;
@@ -172,8 +220,19 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     let mut function = None;
     let mut call_args = None;
     let mut port = None;
+    let mut format_check = false;
     while let Some(argument) = args.next() {
+        if command == Command::Version {
+            return Err("`--version` accepts no additional arguments".to_owned());
+        }
+        if command == Command::Init && (argument.starts_with('-') || entry.is_some()) {
+            return Err("expected `init <directory>`".to_owned());
+        }
         match argument.as_str() {
+            "--check" if command == Command::Format && !format_check => format_check = true,
+            "--check" if command == Command::Format => {
+                return Err("`--check` may be specified only once".to_owned())
+            }
             "--port" if command == Command::Dev => {
                 if port.is_some() {
                     return Err("`--port` may be specified only once".to_owned());
@@ -212,6 +271,9 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
             "--json" if !json => json = true,
             "--json" => return Err("`--json` may be specified only once".to_owned()),
             "--target" => {
+                if command == Command::Format {
+                    return Err("`--target` is not supported by `fmt`".to_owned());
+                }
                 if target.is_some() {
                     return Err("`--target` may be specified only once".to_owned());
                 }
@@ -234,7 +296,7 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
                         .ok_or_else(|| "`--root` needs a directory".to_owned())?,
                 ));
             }
-            "--out-dir" if command == Command::Build => {
+            "--out-dir" if matches!(command, Command::Build | Command::Package) => {
                 if out_dir.is_some() {
                     return Err("`--out-dir` may be specified only once".to_owned());
                 }
@@ -243,18 +305,27 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
                         .ok_or_else(|| "`--out-dir` needs a directory".to_owned())?,
                 ));
             }
-            "--out-dir" => return Err("`--out-dir` is valid only for `build`".to_owned()),
+            "--out-dir" => {
+                return Err("`--out-dir` is valid only for `build` and `package`".to_owned())
+            }
             option if option.starts_with('-') => return Err(format!("unknown option: {option}")),
             value if entry.is_none() => entry = Some(value.to_owned()),
             _ => return Err("expected exactly one entry source ID".to_owned()),
         }
     }
 
-    if entry.is_some() && target.is_some() {
+    if command == Command::Init && entry.is_none() {
+        return Err("expected `init <directory>`".to_owned());
+    }
+    if command == Command::Package && target.is_none() {
+        return Err("expected `package [entry] --target <target>`".to_owned());
+    }
+
+    if command != Command::Package && entry.is_some() && target.is_some() {
         return Err("`--target` requires project config mode; omit the entry source ID".to_owned());
     }
-    if matches!(command, Command::Run | Command::Dev) && json {
-        return Err("`--json` is supported only by `check` and `build`".to_owned());
+    if !matches!(command, Command::Check | Command::Build | Command::Package) && json {
+        return Err("`--json` is supported only by `check`, `build`, and `package`".to_owned());
     }
     if command == Command::Dev && target.as_deref().is_some_and(|value| value != "web") {
         return Err("`dev` supports only the web target".to_owned());
@@ -269,6 +340,7 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
         function,
         call_args,
         port: port.unwrap_or(3000),
+        format_check,
     })
 }
 
@@ -282,6 +354,237 @@ pub(crate) fn load_compiler(root: &Path, entry: &str) -> Result<Compiler, String
     Ok(compiler)
 }
 
+fn format_project(
+    root: &Path,
+    compiler: &Compiler,
+    check_only: bool,
+    stdout: &mut impl Write,
+    stderr: &mut impl Write,
+) -> Result<u8, String> {
+    let check = compiler.check();
+    let mut diagnostics: Vec<_> = check
+        .diagnostics
+        .into_iter()
+        .filter(|diagnostic| diagnostic.code.starts_with("UBI000") || diagnostic.code == "UBI0090")
+        .collect();
+    if has_errors(&diagnostics) {
+        return report(compiler, &diagnostics, false, stdout, stderr);
+    }
+    for import in check.imports {
+        if !import
+            .target_id
+            .as_deref()
+            .is_some_and(|id| compiler.contains_source(id))
+        {
+            return Err(format!(
+                "cannot format unresolved import `{}` in `{}`",
+                import.path, import.importer_id
+            ));
+        }
+    }
+
+    let mut budget = SourceBudget::default();
+    let mut snapshot = Compiler::new();
+    let mut changes = BTreeMap::new();
+    let mut formatted_bytes = 0;
+    for source in compiler.source_revisions() {
+        let bytes = load_source(root, &source.id, true, &mut budget)?
+            .ok_or_else(|| format!("source disappeared before formatting: {}", source.id))?;
+        add_source(&mut snapshot, &source.id, bytes.clone())?;
+        let text = std::str::from_utf8(&bytes).map_err(|error| {
+            format!(
+                "source changed to invalid UTF-8 before formatting: {}: {error}",
+                source.id
+            )
+        })?;
+        match format_source(text) {
+            Ok(formatted) if formatted.as_bytes() != bytes => {
+                formatted_bytes += formatted.len();
+                let path = fs::canonicalize(root.join(&source.id))
+                    .map_err(|error| format!("cannot resolve source `{}`: {error}", source.id))?;
+                if !path.starts_with(root) {
+                    return Err(format!(
+                        "source escapes canonical project root: {}",
+                        source.id
+                    ));
+                }
+                changes.insert(
+                    path.clone(),
+                    FormatChange {
+                        path,
+                        original: bytes,
+                        formatted,
+                        staged: None,
+                        backup: None,
+                    },
+                );
+            }
+            Ok(formatted) => formatted_bytes += formatted.len(),
+            Err(mut diagnostic) => {
+                diagnostic.primary.source_id = source.id;
+                diagnostics.push(diagnostic);
+            }
+        }
+    }
+    if snapshot.source_revisions() != compiler.source_revisions() {
+        return Err("source changed while preparing formatting; retry the command".to_owned());
+    }
+    if has_errors(&diagnostics) {
+        return report(compiler, &diagnostics, false, stdout, stderr);
+    }
+    if formatted_bytes > MAX_PROJECT_BYTES {
+        return Err("UBI0090: formatted project exceeds the project byte limit".to_owned());
+    }
+    if check_only {
+        return Ok(u8::from(!changes.is_empty()));
+    }
+    replace_sources(&mut changes.into_values().collect::<Vec<_>>())?;
+    Ok(0)
+}
+
+struct FormatChange {
+    path: PathBuf,
+    original: Vec<u8>,
+    formatted: String,
+    staged: Option<PathBuf>,
+    backup: Option<PathBuf>,
+}
+
+fn format_temp(path: &Path, suffix: &str) -> Result<(PathBuf, fs::File), String> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SERIAL: AtomicU64 = AtomicU64::new(0);
+    let parent = path.parent().unwrap();
+    loop {
+        let serial = SERIAL.fetch_add(1, Ordering::Relaxed);
+        let temporary = parent.join(format!(".ubi-fmt-{}-{serial}.{suffix}", std::process::id()));
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+        {
+            Ok(file) => return Ok((temporary, file)),
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(error) => {
+                return Err(format!(
+                    "cannot stage formatting for `{}`: {error}",
+                    path.display()
+                ))
+            }
+        }
+    }
+}
+
+fn replace_sources(changes: &mut [FormatChange]) -> Result<(), String> {
+    let operation = (|| {
+        for change in changes.iter_mut() {
+            let metadata = fs::metadata(&change.path).map_err(|error| {
+                format!("cannot inspect source `{}`: {error}", change.path.display())
+            })?;
+            if metadata.permissions().readonly() {
+                return Err(format!("source is read-only: {}", change.path.display()));
+            }
+            // Opening without truncation catches read-only sources before any replacement.
+            fs::OpenOptions::new()
+                .write(true)
+                .open(&change.path)
+                .map_err(|error| {
+                    format!("cannot replace source `{}`: {error}", change.path.display())
+                })?;
+            let (path, mut file) = format_temp(&change.path, "stage")?;
+            change.staged = Some(path);
+            file.write_all(change.formatted.as_bytes())
+                .and_then(|()| file.sync_all())
+                .map_err(|error| {
+                    format!("cannot stage source `{}`: {error}", change.path.display())
+                })?;
+            file.set_permissions(metadata.permissions())
+                .map_err(|error| {
+                    format!(
+                        "cannot preserve source permissions `{}`: {error}",
+                        change.path.display()
+                    )
+                })?;
+        }
+        for change in changes.iter() {
+            if !source_unchanged(&change.path, &change.original)? {
+                return Err(format!(
+                    "source changed before formatting: {}",
+                    change.path.display()
+                ));
+            }
+        }
+        for change in changes.iter_mut() {
+            let (backup, file) = format_temp(&change.path, "backup")?;
+            drop(file);
+            fs::remove_file(&backup).map_err(|error| {
+                format!(
+                    "cannot prepare source backup `{}`: {error}",
+                    backup.display()
+                )
+            })?;
+            fs::rename(&change.path, &backup).map_err(|error| {
+                format!("cannot back up source `{}`: {error}", change.path.display())
+            })?;
+            change.backup = Some(backup);
+        }
+        for change in changes.iter() {
+            if !source_unchanged(change.backup.as_ref().unwrap(), &change.original)? {
+                return Err(format!(
+                    "source changed before formatting: {}",
+                    change.path.display()
+                ));
+            }
+        }
+        for change in changes.iter_mut() {
+            fs::rename(change.staged.as_ref().unwrap(), &change.path).map_err(|error| {
+                format!("cannot replace source `{}`: {error}", change.path.display())
+            })?;
+            change.staged = None;
+        }
+        Ok(())
+    })();
+    if let Err(mut message) = operation {
+        for change in changes.iter_mut().rev() {
+            if let Some(backup) = change.backup.take() {
+                let restored = if change.staged.is_none() {
+                    fs::remove_file(&change.path).and_then(|()| fs::rename(&backup, &change.path))
+                } else {
+                    fs::rename(&backup, &change.path)
+                };
+                if let Err(error) = restored {
+                    message.push_str(&format!(
+                        "; restoration failed: {error}; original preserved at `{}`",
+                        backup.display()
+                    ));
+                }
+            }
+        }
+        for change in changes.iter_mut() {
+            if let Some(path) = change.staged.take() {
+                let _ = fs::remove_file(path);
+            }
+        }
+        return Err(message);
+    }
+    for change in changes.iter_mut() {
+        if let Some(path) = change.backup.take() {
+            let _ = fs::remove_file(path);
+        }
+    }
+    Ok(())
+}
+
+fn source_unchanged(path: &Path, original: &[u8]) -> Result<bool, String> {
+    let mut current = Vec::with_capacity(original.len());
+    fs::File::open(path)
+        .and_then(|file| {
+            file.take(original.len() as u64 + 1)
+                .read_to_end(&mut current)
+        })
+        .map_err(|error| format!("cannot recheck source `{}`: {error}", path.display()))?;
+    Ok(current == original)
+}
+
 const NODE_RUNNER: &str = r#"
 (async () => {
   const [file, name, text] = process.argv.slice(1);
@@ -293,7 +596,7 @@ const NODE_RUNNER: &str = r#"
       return;
     }
     const args = JSON.parse(text).map(value => value === null ? undefined : value);
-    const value = module[name](...args);
+    const value = await module[name](...args);
     if (value !== undefined) {
       console.log(typeof value === 'string' ? value : JSON.stringify(value, (_, item) => {
         if (item === undefined) return null;

@@ -1,5 +1,6 @@
 mod cli;
 mod dev;
+mod package;
 mod project;
 
 use std::io;

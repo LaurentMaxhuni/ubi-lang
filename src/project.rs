@@ -20,7 +20,7 @@ pub(crate) fn valid_target(target: &str) -> bool {
     matches!(target, "web" | "mobile" | "desktop" | "cli")
 }
 
-pub(crate) fn select(root: &Path, target: Option<&str>) -> Result<(String, String), String> {
+fn load(root: &Path) -> Result<Project, String> {
     let path = fs::canonicalize(root.join("ubi.json"))
         .map_err(|error| format!("cannot open ubi.json: {error}"))?;
     if !path.starts_with(root) {
@@ -67,6 +67,15 @@ pub(crate) fn select(root: &Path, target: Option<&str>) -> Result<(String, Strin
             return Err(format!("duplicate ubi.json target: {platform}"));
         }
     }
+    Ok(project)
+}
+
+pub(crate) fn entry(root: &Path) -> Result<String, String> {
+    Ok(load(root)?.entry)
+}
+
+pub(crate) fn select(root: &Path, target: Option<&str>) -> Result<(String, String), String> {
+    let project = load(root)?;
     let selected = match target {
         Some(target) if project.targets.iter().any(|platform| platform == target) => target,
         Some(target) => return Err(format!("target `{target}` is not declared in ubi.json")),

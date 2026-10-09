@@ -3,6 +3,7 @@
 mod analyzer;
 mod diagnostics;
 mod effects;
+mod formatter;
 #[cfg(test)]
 mod interpreter;
 mod ir;
@@ -20,6 +21,7 @@ use parser::Module;
 use source::SourceSet;
 
 pub use diagnostics::{Diagnostic, RelatedDiagnostic, Severity};
+pub use formatter::format_source;
 pub use source::SourceError;
 pub use span::Span;
 
@@ -204,3 +206,11 @@ mod maps_tests;
 #[cfg(test)]
 #[path = "effects_tests.rs"]
 mod effects_tests;
+
+#[cfg(test)]
+#[path = "async_tests.rs"]
+mod async_tests;
+
+#[cfg(test)]
+#[path = "formatter_tests.rs"]
+mod formatter_tests;
