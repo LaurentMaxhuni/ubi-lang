@@ -12,6 +12,7 @@ fn deterministic_mutations_never_crash_the_parser_or_checker() {
         "import { value } from \"./lib.ubi\"; export fn main() -> string { value() }",
         "fn recurse(n: int) -> int { if n == 0 { 0 } else { recurse(n - 1) } }",
         "export fn choose(flag: bool) -> float { if flag { 0.0 } else { -0.0 } }",
+        "record Box { callback: fn(int) -> int } fn make(n: int) -> fn(int) -> int { (x: int) => x + n } export fn f() -> int { let box = Box { callback: make(3) }; let xs: List<fn(int) -> int> = [box.callback]; match (xs[0]) { Option.Some(f) => f(4), Option.None => 0 } }",
         "record Point { x: int, y: int } export fn f() -> int { let p = Point { y: 2, x: 1 }; let q = Point { ...p, x: 7, }; q.x + p.y }",
         "export fn f(x: int) -> int { let mut y = x; y = { let mut y = y + 1; y = y + 2; y }; if (y > 2) { return y; } else { y = 0; }; y }",
         "record Inner { value: float } record Outer { inner: Inner } export fn f() -> bool { let p = Outer { inner: Inner { value: 0.0 / 0.0 } }; let alias = p; p == alias }",

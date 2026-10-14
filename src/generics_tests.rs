@@ -162,10 +162,6 @@ fn generic_bodies_are_universal_and_inference_is_invariant() {
         "record Box<T> { value: T } fn run(x: Box) {}",
         "record Box<T> { value: T } fn run(x: Box<int, int>) {}",
         "fn bad<Option>(x: Option) -> Option { x }",
-        "fn wrap<T>(x: T) -> List<T> { [x] } fn run() { wrap((n: int) => n); }",
-        "fn wrap<T>(x: T) -> Option<T> { Option.Some(x) } fn run() { wrap((n: int) => n); }",
-        "record Box<T> { value: T } fn wrap<T>(x: T) -> Box<T> { Box { value: x } } fn run() { wrap((n: int) => n); }",
-        "enum E<T> { A(T) } fn wrap<T>(x: T) -> E<T> { E.A(x) } fn run() { wrap((n: int) => n); }",
         "fn wrap<T>(x: T) -> List<T> { [x] } fn run() { wrap(range(0,1)); }",
     ] {
         rejected(&[("main.ubi", source)], "UBI0020");

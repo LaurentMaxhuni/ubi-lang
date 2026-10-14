@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::analyzer::{FunctionKey, ValueType};
+use crate::analyzer::{contains_function, FunctionKey, ValueType};
 use crate::diagnostics::Diagnostic;
 use crate::ir::{BlockIr, ExprIr, ExprKind, FunctionIr, ModuleIr, Program, StatementKind};
 use crate::lexer::Symbol;
@@ -145,6 +145,7 @@ fn emit_module(
                 .get(key)
                 .ok_or_else(|| invariant(module_id, 0))?,
             binding,
+            program,
         ));
     }
     if !names.exports.is_empty() {
@@ -678,7 +679,12 @@ impl<'a> FunctionEmitter<'a> {
     }
 }
 
-fn emit_export_wrapper(function: &FunctionIr, implementation: &str, binding: &str) -> String {
+fn emit_export_wrapper(
+    function: &FunctionIr,
+    implementation: &str,
+    binding: &str,
+    program: &Program,
+) -> String {
     let count = function.parameters.len();
     let argument_checks = function
         .parameters
@@ -697,6 +703,14 @@ fn emit_export_wrapper(function: &FunctionIr, implementation: &str, binding: &st
         if function.asynchronous { "async " } else { "" }
     );
     output.push_str(&format!("  if ($ubi_args.length !== {count}) throw new TypeError(\"Invalid Ubi function arguments\");\n  const $ubi_budget = $ubi_new_budget();\n"));
+    if function
+        .parameters
+        .iter()
+        .any(|parameter| contains_function(parameter.ty, &program.records, &program.types))
+        || contains_function(function.return_type, &program.records, &program.types)
+    {
+        output.push_str("  throw new TypeError(\"Function-containing Ubi signatures cannot be invoked by hosts\");\n");
+    }
     if function.generic {
         output.push_str("  throw new TypeError(\"Generic Ubi functions require a concrete exported wrapper\");\n");
     }

@@ -196,6 +196,9 @@ mod enums_tests;
 mod generics_tests;
 
 #[cfg(test)]
+mod function_values_tests;
+
+#[cfg(test)]
 #[path = "result_tests.rs"]
 mod result_tests;
 

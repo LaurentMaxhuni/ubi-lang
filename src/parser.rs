@@ -506,6 +506,29 @@ impl Parser {
         if self.at_eof() {
             return Err(self.error("Expected a type name"));
         }
+        if let Some(start) = self.eat_keyword("fn") {
+            let start = start.span;
+            self.expect_symbol(Symbol::LParen)?;
+            let mut arguments = Vec::new();
+            if !self.at_symbol(Symbol::RParen) {
+                loop {
+                    arguments.push(self.parse_type()?);
+                    if self.eat_symbol(Symbol::Comma).is_none() || self.at_symbol(Symbol::RParen) {
+                        break;
+                    }
+                }
+            }
+            self.expect_symbol(Symbol::RParen)?;
+            self.expect_symbol(Symbol::ThinArrow)?;
+            let result = self.parse_type()?;
+            let span = cover(&start, &result.span);
+            arguments.push(result);
+            return Ok(Type {
+                name: "fn".to_owned(),
+                arguments,
+                span,
+            });
+        }
         let token = self.advance().clone();
         let name = match token.kind {
             TokenKind::Identifier(name) => name,

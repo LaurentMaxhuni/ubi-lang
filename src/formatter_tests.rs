@@ -26,6 +26,7 @@ fn format_preserves_spelling_comments_order_and_is_idempotent() {
         "record Box<T>{value:T} fn id<T>(x:T)->T{x} export fn main()->int{let b:Box<int> =Box{value:id(2)};b.value}",
         "export async fn main()->int{let n=await value();n} async fn value()->int{1}",
         "export fn main()->int{let mut n=0;while(n<3){n=n+1;}n}",
+        "record Callbacks{value:List<fn(int,)->fn()->int>} fn make(n:int)->fn(int)->fn()->int{(x:int)=>()=>n+x}",
     ] {
         let formatted=format_source(source).unwrap();
         assert_eq!(spellings(source),spellings(&formatted));

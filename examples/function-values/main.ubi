@@ -1,0 +1,12 @@
+import { Step, add, twice } from "./transforms.ubi";
+export fn main() -> int {
+    let step = Step {
+        apply: add(3)
+    };
+    let transforms: List < fn(int) -> int > =[step.apply, add(1)];
+    let mut result = 0;
+    for (transform in transforms) {
+        result = result + twice(transform, 10);
+    }
+    result
+}

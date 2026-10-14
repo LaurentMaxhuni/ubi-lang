@@ -203,6 +203,46 @@ pub(crate) struct RecordInfo {
     pub(crate) fields: BTreeMap<String, ValueType>,
 }
 
+pub(crate) fn contains_function(ty: ValueType, records: &[RecordInfo], types: &[TypeInfo]) -> bool {
+    let mut pending = vec![ty];
+    let mut visited = BTreeSet::new();
+    while let Some(ty) = pending.pop() {
+        if !visited.insert(ty) {
+            continue;
+        }
+        match ty {
+            ValueType::Function(_) => return true,
+            ValueType::Record(id) => {
+                pending.extend(records[id].arguments.iter().copied());
+                pending.extend(records[id].fields.values().copied());
+            }
+            ValueType::Enum(id) => {
+                if let TypeInfo::Enum {
+                    arguments,
+                    variants,
+                    ..
+                } = &types[id]
+                {
+                    pending.extend(arguments.iter().copied());
+                    pending.extend(variants.values().flatten().copied());
+                }
+            }
+            ValueType::List(id) | ValueType::Option(id) => {
+                if let TypeInfo::List(inner) | TypeInfo::Option(inner) = types[id] {
+                    pending.push(inner);
+                }
+            }
+            ValueType::Map(id) => {
+                if let TypeInfo::Map { key, value } = types[id] {
+                    pending.extend([key, value]);
+                }
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 #[cfg(test)]
 pub(crate) fn check(sources: &SourceSet) -> Vec<Diagnostic> {
     analyze(sources).diagnostics
@@ -927,9 +967,19 @@ fn check_public_type(
                     pending.extend([key, value]);
                 }
             }
-            ValueType::Function(_) | ValueType::Range => diagnostics.push(Diagnostic::error(
+            ValueType::Function(id) => {
+                if let TypeInfo::Function {
+                    parameters,
+                    return_type,
+                } = &types[id]
+                {
+                    pending.extend(parameters.iter().copied());
+                    pending.push(*return_type);
+                }
+            }
+            ValueType::Range => diagnostics.push(Diagnostic::error(
                 "UBI0020",
-                "Function and range values cannot be exported",
+                "Range values cannot be exported",
                 span.clone(),
             )),
             _ => {}
@@ -1061,6 +1111,16 @@ fn type_from_syntax(
                 )
             })
             .collect();
+        if ty.name == "fn" {
+            let (return_type, parameters) = arguments.split_last()?;
+            return Some(intern_type(
+                types,
+                TypeInfo::Function {
+                    parameters: parameters.to_vec(),
+                    return_type: *return_type,
+                },
+            ));
+        }
         if ty.name == "Map" {
             if arguments.len() != 2 {
                 return None;
@@ -2988,11 +3048,8 @@ impl FunctionChecker<'_> {
     }
 
     fn aggregate_allowed(&mut self, ty: ValueType, span: &Span) -> bool {
-        if matches!(ty, ValueType::Function(_) | ValueType::Range) {
-            self.error(
-                span,
-                "Function and range values cannot be stored in aggregates",
-            );
+        if ty == ValueType::Range {
+            self.error(span, "Range values cannot be stored in aggregates");
             false
         } else {
             true
@@ -3832,6 +3889,9 @@ impl FunctionChecker<'_> {
     }
 
     fn equatable(&self, ty: ValueType) -> bool {
+        if contains_function(ty, self.records, self.types) {
+            return false;
+        }
         let mut pending = vec![ty];
         let mut visited = BTreeSet::new();
         while let Some(ty) = pending.pop() {
@@ -4099,7 +4159,17 @@ pub(crate) fn validate_instantiated_aggregates(
             continue;
         }
         match ty {
-            ValueType::Function(_) | ValueType::Range => forbidden_function = true,
+            ValueType::Range => forbidden_function = true,
+            ValueType::Function(id) => {
+                if let TypeInfo::Function {
+                    parameters,
+                    return_type,
+                } = &types[id]
+                {
+                    pending.extend(parameters.iter().copied());
+                    pending.push(*return_type);
+                }
+            }
             ValueType::Capability(_) => forbidden_capability = true,
             ValueType::Record(id) => {
                 pending.extend(records[id].fields.values().copied());
@@ -4125,7 +4195,7 @@ pub(crate) fn validate_instantiated_aggregates(
     if forbidden_function {
         diagnostics.push(Diagnostic::error(
             "UBI0020",
-            "Function and range values cannot be stored in instantiated aggregates",
+            "Range values cannot be stored in instantiated aggregates",
             span.clone(),
         ));
     }

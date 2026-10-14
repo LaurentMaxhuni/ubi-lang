@@ -98,7 +98,7 @@ pub fn format_source(source: &str) -> Result<String, Diagnostic> {
                     }
                     Some(Symbol::LParen | Symbol::LBracket) => {
                         let spaced = symbol == Some(Symbol::LParen)
-                            && matches!(previous, Some(TokenKind::Keyword(_)));
+                            && matches!(previous, Some(TokenKind::Keyword(word)) if word != "fn");
                         append(&mut output, spelling, indent, spaced);
                         delimiters.push((symbol.unwrap(), false));
                     }

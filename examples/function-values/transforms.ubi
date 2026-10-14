@@ -1,0 +1,9 @@
+export record Step {
+    apply: fn(int) -> int
+}
+export fn add(amount: int) -> fn(int) -> int {
+    (value: int) => value + amount
+}
+export fn twice(transform: fn(int) -> int, value: int) -> int {
+    transform(transform(value))
+}

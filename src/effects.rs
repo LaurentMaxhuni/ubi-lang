@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::analyzer::{infer_type_arguments, Analysis, FunctionKey, TypeInfo, ValueType};
+use crate::analyzer::{
+    contains_function, infer_type_arguments, Analysis, FunctionKey, TypeInfo, ValueType,
+};
 use crate::diagnostics::Diagnostic;
 use crate::parser::{
     Block, Declaration, Expr, ExprKind, Pattern, PatternKind, StatementKind, Type,
@@ -64,6 +66,20 @@ pub(crate) fn check(analysis: &Analysis) -> Vec<Diagnostic> {
                 }
                 Declaration::Function(function) => {
                     let key = (id.clone(), function.name.name.clone());
+                    if let Some(signature) = analysis.signatures.get(&key) {
+                        for (parameter, ty) in function.parameters.iter().zip(&signature.parameters)
+                        {
+                            if contains_function(*ty, &analysis.records, &analysis.types)
+                                && contains_capability(analysis, *ty)
+                            {
+                                diagnostics.push(Diagnostic::error(
+                                    "UBI0040",
+                                    "Function signatures cannot contain capabilities",
+                                    parameter.ty.span.clone(),
+                                ));
+                            }
+                        }
+                    }
                     let mut seen = BTreeSet::new();
                     for effect in &function.effects {
                         if !seen.insert(&effect.name) {
@@ -128,19 +144,33 @@ pub(crate) fn contains_capability(analysis: &Analysis, ty: ValueType) -> bool {
         match ty {
             ValueType::Capability(_) => return true,
             ValueType::Record(id) if seen.insert((false, id)) => {
-                pending.extend(analysis.records[id].fields.values().copied())
+                pending.extend(analysis.records[id].arguments.iter().copied());
+                pending.extend(analysis.records[id].fields.values().copied());
             }
             ValueType::List(id)
             | ValueType::Option(id)
             | ValueType::Enum(id)
             | ValueType::Map(id)
+            | ValueType::Function(id)
                 if seen.insert((true, id)) =>
             {
                 match &analysis.types[id] {
                     TypeInfo::List(inner) | TypeInfo::Option(inner) => pending.push(*inner),
                     TypeInfo::Map { key, value } => pending.extend([*key, *value]),
-                    TypeInfo::Enum { variants, .. } => {
-                        pending.extend(variants.values().flatten().copied())
+                    TypeInfo::Enum {
+                        arguments,
+                        variants,
+                        ..
+                    } => {
+                        pending.extend(arguments.iter().copied());
+                        pending.extend(variants.values().flatten().copied());
+                    }
+                    TypeInfo::Function {
+                        parameters,
+                        return_type,
+                    } => {
+                        pending.extend(parameters.iter().copied());
+                        pending.push(*return_type);
                     }
                     _ => {}
                 }
@@ -280,6 +310,17 @@ impl Checker<'_> {
             self.async_error(
                 expression,
                 "Async function values and aliases are unsupported",
+            );
+        }
+        if !direct_callee
+            && self.ty(expression).is_some_and(|ty| {
+                contains_function(ty, &self.analysis.records, &self.analysis.types)
+                    && contains_capability(self.analysis, ty)
+            })
+        {
+            self.error(
+                expression,
+                "Function signatures cannot contain capabilities",
             );
         }
         if arrow

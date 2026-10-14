@@ -184,6 +184,28 @@ named functions declare `effects(console, storage)`. Trusted adapters return
 typed Result JSON. Missing effects, effectful callbacks, and capability escapes
 are compile errors. CLI JSON never grants authority. See [contracts](SPEC.md#17-basic-generics-2026-10-05).
 
+## Typed function values
+
+Use `fn(int) -> int` to annotate pure callbacks, return captured functions, or
+store functions in records, lists, Options, Results and map values:
+
+```ubi
+fn add(amount: int) -> fn(int) -> int {
+    (value: int) => value + amount
+}
+
+fn twice(transform: fn(int) -> int, value: int) -> int {
+    transform(transform(value))
+}
+```
+
+Ubi modules can export/import these signatures. Public host calls require
+signatures without function values; use a concrete Ubi wrapper for host entry.
+Captures remain snapshots, calls share runtime budgets, and effectful/async
+functions cannot become callbacks. Run the [function-values example](examples/function-values/README.md)
+with `cargo run -- run main.ubi --root examples/function-values`; it returns `28`.
+See [the function-value contract](SPEC.md#23-typed-pure-function-values-2026-10-14).
+
 ## Run a program
 
 Async named functions declare their resolved return type. `run` awaits async

@@ -8,6 +8,12 @@ function-containing aggregates across Ubi modules; preserve effect checking,
 public host validation and runtime budgets. Follow with tuples/destructuring,
 evidence-driven generic constraints, standard-library growth and editor/test tools.
 
+- [x] Typed pure function values, independent conformance, shared budgets and host guards.
+- [x] Cross-module example; all 195 tests, formatting, Clippy and mutation watchdog.
+- [ ] Tuples and destructuring.
+- [ ] Generic constraints/traits driven by reusable-library examples.
+- [ ] Standard-library growth and language test/editor tooling.
+
 ## Current work: v1 integration, authorized 2026-10-09
 
 User requested autonomous completion for web, app/mobile, CLI, and desktop.

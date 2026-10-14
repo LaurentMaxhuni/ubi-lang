@@ -2,8 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
 use crate::analyzer::{
-    builtin_name, infer_type_arguments, substitute_type_existing, Analysis, CapabilityKind,
-    FunctionKey, Signature, TypeInfo, ValueType,
+    builtin_name, contains_function, infer_type_arguments, substitute_type_existing, Analysis,
+    CapabilityKind, FunctionKey, Signature, TypeInfo, ValueType,
 };
 use crate::diagnostics::Severity;
 use crate::lexer::Symbol;
@@ -244,7 +244,16 @@ pub(crate) fn invoke(
         .signatures
         .get(key)
         .ok_or(InvocationError::InvalidProgram)?;
-    if !signature.type_parameters.is_empty() {
+    if !signature.type_parameters.is_empty()
+        || signature
+            .parameters
+            .iter()
+            .copied()
+            .any(|ty| contains_function(ty, &analysis.records, &analysis.types))
+        || signature
+            .return_type
+            .is_some_and(|ty| contains_function(ty, &analysis.records, &analysis.types))
+    {
         return Err(InvocationError::InvalidArguments);
     }
     if !valid_arguments(&arguments, signature, analysis, true) {

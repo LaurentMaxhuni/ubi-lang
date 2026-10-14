@@ -484,8 +484,6 @@ fn invalid_foundation_types_coverage_callbacks_and_loop_placement_are_rejected()
         "fn f() { for (x in [1]) { x } }",
         "fn f() { while (true) { let c = (x: int) => { break; }; } }",
         "fn f() { while (true) { let c = (x: int) => { continue; }; } }",
-        "fn f() { let xs = [(x: int) => x]; }",
-        "fn f() { let x = Option.Some((x: int) => x); }",
         "fn f() { let c = (x: int) => x; c == c; }",
         "fn f() { map([1], (x: bool) => x); }",
         "fn f() { filter([1], (x: int) => x); }",

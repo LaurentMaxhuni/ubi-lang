@@ -26,30 +26,30 @@
 
 ### Task 1: Independent conformance
 
-**Files:** tests/function_values.rs and targeted existing tests in src/lib.rs.
-- [ ] Derive positive, negative and host-boundary expectations independently from SPEC23.
-- [ ] Cover function parameters/returns, nested generics, aggregates/imports, captures, evaluation order, equality, effects and runtime budgets.
-- [ ] Observe failures before implementation; retain exact expected values/diagnostics.
+**Files:** src/function_values_tests.rs; targeted foundations/generics/formatter tests, src/lib.rs registration and tests/fuzz_frontend.rs.
+- [x] Derive positive, negative and host-boundary expectations independently from SPEC23.
+- [x] Cover function parameters/returns, nested generics, aggregates/imports, captures, evaluation order, equality, effects and runtime budgets.
+- [x] Observe failures before implementation; retain exact expected values/diagnostics.
 
 ### Task 2: Frontend and effect checking
 
 **Files:** src/parser.rs, src/analyzer.rs, src/effects.rs; formatter only if required.
-- [ ] Parse `fn(T, ...) -> R` using current recursive type/nesting machinery.
-- [ ] Intern structural signatures and permit function storage/Ubi exports while preserving privacy and equality checks.
-- [ ] Preserve generic inference/substitution and prohibit capability-containing function signatures.
-- [ ] Make independent positive/negative conformance pass; resolve concrete failures.
+- [x] Parse `fn(T, ...) -> R` using current recursive type/nesting machinery.
+- [x] Intern structural signatures and permit function storage/Ubi exports while preserving privacy and equality checks.
+- [x] Preserve generic inference/substitution and prohibit capability-containing function signatures.
+- [x] Make independent positive/negative conformance pass; resolve concrete failures.
 
 ### Task 3: Runtime host boundary and integration
 
 **Files:** src/interpreter.rs, src/js_backend.rs; src/ir.rs only if required.
-- [ ] Reject public calls whose declared signatures contain functions before body execution, recursively including empty aggregates.
-- [ ] Preserve internal Ubi imports, function invocation/captures and shared budgets.
-- [ ] Pass interpreter/JavaScript independent expectations, host checks and full suite.
+- [x] Reject public calls whose declared signatures contain functions before body execution, recursively including empty aggregates.
+- [x] Preserve internal Ubi imports, function invocation/captures and shared budgets.
+- [x] Pass interpreter/JavaScript independent expectations, host checks and full suite.
 
 ### Task 4: Examples, review and evidence
 
 **Files:** examples/function-values/**, README.md, PLAN.md, DECISIONS.md.
-- [ ] Add focused reusable-callback example and document current language scope.
-- [ ] Independently review final diff and fix validated findings.
-- [ ] Run formatting, denied-warning Clippy, full suite and relevant fuzz/watchdog checks.
-- [ ] Commit changes and record actual evidence; leave unexecuted release requirements explicit.
+- [x] Add focused reusable-callback example and document current language scope.
+- [x] Independently review final diff and fix validated findings.
+- [x] Run formatting, denied-warning Clippy, full suite and relevant fuzz/watchdog checks.
+- [x] Commit changes and record actual evidence; leave unexecuted release requirements explicit.

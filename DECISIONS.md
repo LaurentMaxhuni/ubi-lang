@@ -15,6 +15,25 @@ This enables library composition without trusting serialized function values or
 introducing effect polymorphism. Independent tests cover both execution paths,
 negative type/effect cases, host boundaries and resource budgets.
 
+- Implemented source function types, exact structural checking, aggregate
+  storage and Ubi module exports/imports using existing closure representations.
+- Independently authored 15 conformance groups cover fixed interpreter/JavaScript
+  results, captures, call order, generic inference, aggregates, privacy, public
+  host rejection (including empty/phantom types), purity and runtime budgets.
+  The first test failed at missing syntax before implementation.
+- Independent review found phantom generic record/enum function arguments could
+  still be compared. Separate negative tests reproduced the gap; a recursive
+  function-type guard fixes it. Reviewer confirmed no remaining findings.
+- Final verification: all 195 tests pass, formatting and denied-warning Clippy
+  pass, and 10,000 parser/checker mutations plus expanding-instantiation checks
+  pass under a separate 55-second watchdog. The cross-module example returns 28
+  and passes canonical formatting. Full logs: ignored `.ubi-build/function-values-*`.
+- The first full Windows run encountered loopback socket abort 10053 in three
+  dev tests; isolated 6 and the final full 195 rerun pass without dev changes.
+  Windows symlink fixtures still lack privilege 1314; existing Linux evidence
+  remains separate. New language changes have not run on hosted CI or against
+  evaluator-owned hidden conformance. Version remains 0.1.0.
+
 ## Hosted CI follow-up, 2026-10-14
 
 - User approved publication; all 14 pending commits were pushed to `main`.
