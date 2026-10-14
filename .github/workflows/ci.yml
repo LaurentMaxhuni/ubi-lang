@@ -101,7 +101,7 @@ jobs:
           java-version: '21'
       - name: Install Android build SDK using runner licenses
         if: matrix.target == 'android'
-        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0' < /dev/null
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;36.0.0" < /dev/null'
       - name: Build Android debug APK
         if: matrix.target == 'android'
         run: ./gradlew --no-daemon assembleDebug
