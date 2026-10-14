@@ -1,5 +1,22 @@
 # Ubi decisions and milestone evidence
 
+## Hosted CI follow-up, 2026-10-14
+
+- User approved publication; all 14 pending commits were pushed to `main`.
+- First hosted run exposed an Android SDK command absent from `PATH`.
+  Commit `2b0382e` uses the runner SDK's explicit `cmdline-tools/latest/bin`
+  path. The subsequent Android debug APK build passes.
+- macOS desktop source/package launch and unsigned iOS simulator builds pass.
+  iOS UI, persistence/lifecycle, physical devices and signing are not established
+  by compilation. Hidden conformance remains evaluator-owned and unavailable.
+- The second run exposed intermittent HTTP 408 for a valid dev status request
+  on macOS/Node24. Accepted sockets can inherit the listener's nonblocking
+  mode; explicitly restore blocking I/O before applying the specified read/write
+  timeouts. This preserves the existing 200ms/500ms bounds and HTTP behavior.
+  An independent regression reproduced 408 before the fix; delayed-header and
+  idle-timeout checks both pass afterward. All 180 local tests, formatting and
+  denied-warning Clippy pass. Final hosted verification is pending.
+
 ## V1 direction, 2026-10-09
 
 User authorized autonomous work toward web, app/mobile, CLI, and desktop v1.

@@ -227,6 +227,7 @@ fn asset(web: &Path, relative: &str) -> Option<(Vec<u8>, &'static str)> {
 }
 
 fn respond(stream: &mut TcpStream, web: &Path, port: u16, state: &State) -> std::io::Result<()> {
+    stream.set_nonblocking(false)?;
     stream.set_read_timeout(Some(Duration::from_millis(200)))?;
     stream.set_write_timeout(Some(Duration::from_millis(200)))?;
     let started = Instant::now();
@@ -361,3 +362,72 @@ async function poll() {
 }
 poll();
 "#;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn nonblocking_connection_waits_for_headers_within_read_timeout() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let mut client = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        client
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        let (mut stream, _) = listener.accept().unwrap();
+        // BSD/macOS can preserve the listener's nonblocking mode on accept.
+        stream.set_nonblocking(true).unwrap();
+        let (start, ready) = std::sync::mpsc::channel();
+        let request = std::thread::spawn(move || {
+            ready.recv().unwrap();
+            std::thread::sleep(Duration::from_millis(50));
+            write!(
+                client,
+                "GET /__ubi/status HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n\r\n"
+            )
+            .unwrap();
+            let mut response = String::new();
+            client.read_to_string(&mut response).unwrap();
+            response
+        });
+        let state = State {
+            revision: 0,
+            modules: BTreeMap::new(),
+            errors: Vec::new(),
+        };
+        start.send(()).unwrap();
+        respond(&mut stream, Path::new("."), port, &state).unwrap();
+        drop(stream);
+        let response = request.join().unwrap();
+        assert!(
+            response.starts_with("HTTP/1.1 200 Response\r\n"),
+            "{response}"
+        );
+    }
+
+    #[test]
+    fn idle_connection_receives_request_timeout() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let mut client = TcpStream::connect(("127.0.0.1", port)).unwrap();
+        client
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        let (mut stream, _) = listener.accept().unwrap();
+        stream.set_nonblocking(true).unwrap();
+        let state = State {
+            revision: 0,
+            modules: BTreeMap::new(),
+            errors: Vec::new(),
+        };
+        respond(&mut stream, Path::new("."), port, &state).unwrap();
+        drop(stream);
+        let mut response = String::new();
+        client.read_to_string(&mut response).unwrap();
+        assert!(
+            response.starts_with("HTTP/1.1 408 Response\r\n"),
+            "{response}"
+        );
+    }
+}

@@ -245,6 +245,8 @@ The server supports GET/HEAD, correct MIME types, no-cache responses, 8 KiB
 request headers, 200ms socket read/write timeouts, a 500ms total header-read limit,
 and an 8 MiB public-asset limit. Oversized headers close the connection without
 a response, preserving the bound without writing into an unread request stream.
+Accepted connections use blocking I/O with these timeouts, regardless of whether
+the host inherits nonblocking mode from the listening socket.
 It refuses traversal, hidden paths, out-of-web-root
 symlinks, and non-loopback Host headers. It never serves source/config files or
 arbitrary build-directory files. A developer script injected into index.html polls
