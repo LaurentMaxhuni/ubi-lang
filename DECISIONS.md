@@ -15,7 +15,12 @@
   timeouts. This preserves the existing 200ms/500ms bounds and HTTP behavior.
   An independent regression reproduced 408 before the fix; delayed-header and
   idle-timeout checks both pass afterward. All 180 local tests, formatting and
-  denied-warning Clippy pass. Final hosted verification is pending.
+  denied-warning Clippy pass. Independent final review found no actionable issues.
+- [Final hosted run](https://github.com/LaurentMaxhuni/ubi-lang/actions/runs/38598365263)
+  passes all 11 jobs for `a6328bc`: 180 tests, formatting, denied-warning Clippy
+  and portable packaging on Windows/Linux/macOS with Node22/24; native desktop
+  source/package launches on all three OSes; Android APK and unsigned iOS build.
+  [Hosted evidence](docs/hosted-ci-verification.md) records scope and remaining checks.
 
 ## V1 direction, 2026-10-09
 
@@ -68,10 +73,9 @@ choices and continuous execution; no intermediate design approval is required.
   fix passes independent dev/full178 checks and100 oversized probes. File/directory
   symlink prerequisites and containment tests actually execute on Linux.
   A separate full Linux run with Node24.21.0 also passes all178 checks.
-  macOS/iOS, hosted CI, physical devices, release signing where applicable, and
-  evaluator-owned hidden corpus remain unverified. SSH access works; automatic
-  approval review rejected a public review-branch push, so explicit publication
-  approval is pending and no push occurred. Cargo version
+  At that stage macOS/iOS, hosted CI, physical devices, release signing and hidden
+  conformance remained unverified; publication was awaiting explicit approval.
+  The 2026-10-14 follow-up above records publication and hosted results. Cargo version
   remains 0.1.0; no 1.0 release, human milestone sign-off, or store publication is claimed.
 - Independent final CI review found Ubuntu24 Chromium sandbox prerequisites.
   Use Ubuntu22.04 for desktop CI without disabling the sandbox or changing system

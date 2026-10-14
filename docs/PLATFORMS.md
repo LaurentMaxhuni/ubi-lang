@@ -4,7 +4,7 @@ Scope: shared Ubi applications on web, Node CLI, desktop, and Android/iOS mobile
 "All versions" is interpreted as these platform targets, with supported runtime
 floors rather than arbitrary historical browser or OS versions.
 
-## Local prerequisite inventory, 2026-10-09
+## Local and hosted prerequisite inventory, updated 2026-10-14
 
 | Requirement | Available evidence | Status / owner |
 | --- | --- | --- |
@@ -16,12 +16,12 @@ floors rather than arbitrary historical browser or OS versions.
 | Android emulator | Emulator 37.1.11; Medium_Phone and Pixel_10_Pro_XL AVDs | Ready; agent |
 | Java | Project-local checksum-verified Temurin 21.0.12.1+1 builds Android | Passed; agent |
 | Android debug signing | Generated debug signing, no developer account required | Local route only; agent |
-| macOS/Xcode build host | No macOS execution host available in this session | blocked-on-human; user supplies host or CI execution |
+| macOS/Xcode build host | Hosted macOS 26.6.2 / Xcode 26.6 builds desktop and unsigned iOS simulator apps | Passed; hosted CI |
 | Linux execution host | Existing Ubuntu 24.04.4 WSL2 x86_64 with WSLg; project-local Rust 1.99.0, Node 22.22.1/24.21.0 and extracted compiler/runtime libraries | Passed; independent full suite, CLI and packaged desktop |
-| iOS simulator/device | Requires macOS/Xcode and simulator/device | blocked-on-human; user supplies host |
+| iOS simulator/device | Unsigned simulator application builds on hosted macOS; UI/lifecycle and device checks not executed | Build passed; runtime verification pending |
 | Store distribution/signing | No signing credentials requested or inspected | Not required for local debug/portable packages; required before store release |
 | Hidden conformance | Evaluator-owned corpus unavailable | blocked-on-human; independent evaluator |
-| GitHub CI execution | Existing SSH can access the public remote; CLI sign-in is unnecessary for a push-triggered run | Pending explicit public branch publication approval after automatic approval review rejected the push |
+| GitHub CI execution | All 11 compiler/desktop/mobile jobs pass for a6328bc | Passed; hosted CI |
 
 SDK licenses already installed are reused. No global Java/Android settings,
 signing identities, or developer accounts are changed. Test emulators use
@@ -42,15 +42,15 @@ Actual SDK targets and device floors come from the pinned generated projects.
 
 ## Executed application evidence
 
-Compiler baseline: 151 tests pass outside the Windows sandbox. Inside the
+Historical compiler baseline: 151 tests passed outside the Windows sandbox. Inside the
 sandbox, child compiler processes cannot canonicalize temporary project roots;
 this is an environmental restriction rather than a recorded compiler failure.
 
-V1 verification on this machine:
+Local and hosted V1 verification:
 
 | Target/check | Observed outcome |
 | --- | --- |
-| Compiler/conformance | 178 tests pass on Windows/Rust1.97/Node22 and Linux/Rust1.99/Node22+24; independent Linux Node22 evaluation and formatting/denied-warning Clippy on both OSes pass |
+| Compiler/conformance | 180 tests, formatting and denied-warning Clippy pass on hosted Windows/Linux/macOS with Node22/24; 180 tests also pass locally on Windows; earlier independent Linux evaluation passed178 |
 | Mutation watchdog | 10,000 parser/checker mutations and expanding-instantiation checks pass under separate 55-second process watchdog |
 | Web development | Keyboard create, complete, filter, reload persistence; narrow layout has no horizontal overflow |
 | Packaged web | Static HTTP bundle loads relative compiled imports; keyboard create/complete survives reload |
@@ -61,15 +61,19 @@ V1 verification on this machine:
 | Android | Capacitor 8.5.3 / Preferences 8.0.1 debug APK builds, installs, creates/completes tasks; completion survives background/resume and force-stop/relaunch on API37 emulator |
 | Formatter/project creation | Independent token/comment/idempotence and no-overwrite/invalid-input/read-only checks pass; replacement rollback reviewed; fresh init checks/packages for all four targets and is canonical |
 | Artifact data preservation | Independent red-to-green hardlink regressions verify build/package never mutate unrelated linked file bytes |
+| Accepted socket timeouts | Independent forced-nonblocking regression fails before blocking-mode fix and passes afterward; idle requests still return 408; hosted macOS Node22/24 dev checks pass |
 | Windows symlink cases | Unchecked: creation denied with Windows privilege error 1314; cross-platform CI includes these tests where supported |
 | Linux symlink cases | Independent file/directory fixture prerequisites and CLI/dev/package containment checks execute and pass without skipped fixtures |
-| Other native targets | macOS/iOS and hosted-runner jobs configured; not executed in this session |
+| macOS desktop | Hosted native source smoke, packaging and actual packaged executable launch pass |
+| iOS build | Xcode 26.6 builds unsigned arm64/x86_64 simulator App.app; no UI/lifecycle execution claimed |
 
 See [Android evidence](android-verification.md) for prerequisites, local SDK
 override, Gradle cache recovery, and device commands. `node scripts/verify-desktop.mjs`
 launches the actual packaged desktop executable and checks its smoke result.
 See [Linux evidence](linux-verification.md) for isolated prerequisites, native
 package checks, independent conformance and the oversized-request fix.
+See [hosted CI evidence](hosted-ci-verification.md) for the verified revision,
+all 11 job results, macOS launch and iOS build scope.
 
 CI runs compiler tests on Windows/Linux/macOS and Node22/24, builds/launches
 desktop packages, builds Android debug APKs, and builds unsigned iOS simulator

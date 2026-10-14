@@ -17,7 +17,8 @@ contracts. [Platform evidence](docs/PLATFORMS.md) records actual readiness.
 - [x] Linux independent full suite, symlink containment, CLI and packaged desktop launch.
 - [x] Cross-platform CI and reproducible native build instructions.
 - [x] Independent code review, fuzzing, formatting, Clippy, and full suite.
-- [ ] macOS native checks, iOS device/simulator checks, release signing
+- [x] Hosted macOS compiler/desktop package launch and unsigned iOS simulator build.
+- [ ] iOS simulator/device UI and lifecycle checks, release signing
       where required, and evaluator-owned hidden conformance.
 
 Release 1.0 remains pending until required platform evidence exists. Missing
