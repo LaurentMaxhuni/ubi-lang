@@ -1,5 +1,13 @@
 # Ubi implementation plan
 
+## Current language work: typed function values, authorized 2026-10-14
+
+Execute [the function-values plan](docs/superpowers/plans/2026-10-14-function-values.md)
+against SPEC section 23. Add reusable typed pure callbacks, returned closures and
+function-containing aggregates across Ubi modules; preserve effect checking,
+public host validation and runtime budgets. Follow with tuples/destructuring,
+evidence-driven generic constraints, standard-library growth and editor/test tools.
+
 ## Current work: v1 integration, authorized 2026-10-09
 
 User requested autonomous completion for web, app/mobile, CLI, and desktop.

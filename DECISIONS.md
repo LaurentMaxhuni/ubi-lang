@@ -1,5 +1,20 @@
 # Ubi decisions and milestone evidence
 
+## Base language direction, 2026-10-14
+
+User requested continued base-language development following the proposed
+function-values/tuples/generic-constraints/library/tooling roadmap. First slice:
+typed pure function values, including reusable callbacks, returned closures and
+storage in existing aggregates. SPEC section 23 is authoritative.
+
+D030: reuse the existing structural function-type representation, closure
+execution and immutable captures. Add `fn(T) -> R` source types; keep async/effects
+outside function values. Permit Ubi exports/imports while rejecting complete
+function-containing signatures at the public host boundary before execution.
+This enables library composition without trusting serialized function values or
+introducing effect polymorphism. Independent tests cover both execution paths,
+negative type/effect cases, host boundaries and resource budgets.
+
 ## Hosted CI follow-up, 2026-10-14
 
 - User approved publication; all 14 pending commits were pushed to `main`.

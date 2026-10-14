@@ -745,3 +745,48 @@ requires an actual package and launch on available hosts; mobile requires an
 Android emulator/device or iOS build host. Missing SDKs, macOS/Xcode, devices,
 signing credentials, and evaluator-owned hidden tests remain explicit unchecked
 requirements. No version-1.0 release assertion is made until required checks pass.
+
+## 23. Typed pure function values (2026-10-14)
+
+This section supersedes earlier function-type, function-storage and function-export
+deferrals. `fn(T1, T2) -> R` is a structural, synchronous, pure function type.
+Zero parameters use `fn() -> R`; a trailing parameter comma is permitted.
+Return types are mandatory and bind to the complete following type, allowing
+`fn(int) -> fn(int) -> int`. Function types can nest in existing type arguments.
+Malformed syntax uses existing parser diagnostics and nesting limits.
+
+Function types may annotate parameters, returns, locals, record fields, and enum
+payloads. Functions can be stored in immutable lists, Options, Results, maps
+(values only), records and enums, and passed/returned across Ubi modules.
+Signatures are invariant: parameter count, parameter types and return type must
+match exactly, including nominal identities. There is no subtyping or coercion.
+Arrows keep explicit parameter types, inferred results and snapshot captures;
+expected types may establish generic named-function instantiations using existing
+inference. Unresolved generic function values remain errors. Function-containing
+types participate in ordinary generic substitution and existing resource limits.
+
+Only pure synchronous named functions and arrows form function values. Existing
+`UBI0040` effect/authority checks and `UBI0041` async restrictions remain in force,
+including unreachable branches and indirect calls. Function signatures cannot
+contain capabilities, even through nested types or generic substitution; reject
+with `UBI0040`. Arrows cannot capture capabilities or acquire effects. Function
+types do not add effect annotations, async arrows, tasks or effect polymorphism.
+
+Invoking a function evaluates its callee once, then arguments once left to right.
+Returned/captured functions remain valid after the producing frame exits.
+Invocation uses the caller's shared step/frame budget, including functions
+retrieved from aggregates and imported modules. Captured local bindings stay
+immutable snapshots; closure-local reassignment remains allowed. Structural
+equality rejects functions and types containing functions, even empty lists or
+None values, using existing type-error diagnostics. Map key rules are unchanged.
+
+Ubi `export` permits function-containing types and retains public-type privacy
+checks recursively through function signatures. Public host invocation is a
+separate boundary: if any declared parameter or return type contains a function,
+reject the invocation before evaluating its body, even for empty containers or
+unused enum variants. The interpreter returns `InvalidArguments`; JavaScript
+public wrappers throw `TypeError` (async wrappers reject). Generic exported
+functions retain their existing host restriction. Ubi imports call internal
+implementations with shared budgets. No function-valued host input/output,
+serialization, unchecked foreign callbacks, or host-provided function authority
+is introduced.
