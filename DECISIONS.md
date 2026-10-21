@@ -1,5 +1,17 @@
 # Ubi decisions and milestone evidence
 
+## Ubi UI direction, 2026-10-21
+
+User requested an Ubi-first UI system like shadcn for web, mobile and desktop,
+then popular-framework support later. Proposed D033: source-owned Ubi components
+and typed state/messages with a bounded flat view arena, rendered through a small
+semantic DOM host shared by existing Electron/Capacitor packages. Generic Ubi
+helpers stay inside Ubi; concrete data-only exported wrappers preserve SPEC23's
+host boundary. This is a design proposal, not an implemented library or an
+assertion of native-widget support. The written design records options, visual
+tokens, component waves, accessibility, failure behavior and acceptance checks.
+Implementation planning follows human design review.
+
 ## Equality constraint direction, 2026-10-21
 
 User requested continued roadmap work. Reusable list membership/deduplication
