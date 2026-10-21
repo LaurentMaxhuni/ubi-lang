@@ -1,0 +1,101 @@
+export enum Kind {
+    Column,
+    Row,
+    Text,
+    Heading,
+    Card,
+    Badge,
+    Button
+}
+export enum Space {
+    None,
+    Xs,
+    Sm,
+    Md,
+    Lg,
+    Xl,
+    Xxl
+}
+export enum Tone {
+    Neutral,
+    Primary,
+    Success,
+    Warning,
+    Danger
+}
+export enum ButtonVariant {
+    Primary,
+    Secondary,
+    Outline,
+    Ghost,
+    Destructive
+}
+export enum Theme {
+    Light,
+    Dark,
+    System
+}
+export enum Prop < M > {
+    Content(string),
+    Level(int),
+    Gap(Space),
+    Tone(Tone),
+    Variant(ButtonVariant),
+    Disabled(bool),
+    Busy(bool),
+    Activate(M),
+    Pressed(bool),
+    Theme(Theme),
+}
+export record Node < M > {
+    key: string,
+    kind: Kind,
+    props: List < Prop < M > >,
+    children: List < string >,
+}
+export record View < M > {
+    schemaVersion: int,
+    root: string,
+    nodes: List < Node < M > >
+}
+export enum Event < M > {
+    Activate(M),
+    Input(M, string),
+    Toggle(M, bool),
+    Select(M, string),
+    Submit(M)
+}
+export fn node < M > (key: string, kind: Kind, props: List < Prop < M > >) -> View < M > {
+    View {
+        schemaVersion: 1,
+        root: key,
+        nodes:[Node {
+            key: key,
+            kind: kind,
+            props: props,
+            children:[]
+        }]
+    }
+}
+export fn group < M > (key: string, kind: Kind, props: List < Prop < M > >, children: List < View < M > >) -> View < M > {
+    let mut keys: List < string > =[];
+    for (child in children) {
+        keys = append(keys, child.root);
+    }
+    let mut nodes =[Node {
+        key: key,
+        kind: kind,
+        props: props,
+        children: keys
+    }];
+    for (child in children) {
+        for (item in child.nodes) {
+            nodes = append(nodes, item);
+        }
+    }
+    View {
+        schemaVersion: 1,
+        root: key,
+        nodes: nodes
+    }
+}

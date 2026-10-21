@@ -223,3 +223,7 @@ mod async_tests;
 #[cfg(test)]
 #[path = "formatter_tests.rs"]
 mod formatter_tests;
+
+#[cfg(test)]
+#[path = "ui_tests.rs"]
+mod ui_tests;

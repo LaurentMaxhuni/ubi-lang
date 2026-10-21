@@ -1,0 +1,66 @@
+import { View, Node, Kind, Prop, Space, Tone, ButtonVariant, Theme, node, group } from "./core.ubi";
+export fn text < M > (key: string, value: string) -> View < M > {
+    node(key, Kind.Text,[Prop.Content(value)])
+}
+export fn heading < M > (key: string, value: string, level: int) -> View < M > {
+    node(key, Kind.Heading,[Prop.Content(value), Prop.Level(level)])
+}
+export fn column < M > (key: string, gap: Space, children: List < View < M > >) -> View < M > {
+    group(key, Kind.Column,[Prop.Gap(gap)], children)
+}
+export fn row < M > (key: string, gap: Space, children: List < View < M > >) -> View < M > {
+    group(key, Kind.Row,[Prop.Gap(gap)], children)
+}
+export fn card < M > (key: string, children: List < View < M > >) -> View < M > {
+    group(key, Kind.Card,[], children)
+}
+export fn badge < M > (key: string, value: string, tone: Tone) -> View < M > {
+    node(key, Kind.Badge,[Prop.Content(value), Prop.Tone(tone)])
+}
+export fn button < M > (key: string, label: string, variant: ButtonVariant, disabled: bool, busy: bool, message: M) -> View < M > {
+    node(key, Kind.Button,[Prop.Content(label), Prop.Variant(variant), Prop.Disabled(disabled), Prop.Busy(busy), Prop.Activate(message)])
+}
+export fn themed < M > (view: View < M >, theme: Theme) -> View < M > {
+    let nodes = map(view.nodes, (item: Node < M >) => {
+        if (item.key == view.root) {
+            let props = filter(item.props, (prop: Prop < M >) => {
+                match (prop) {
+                    Prop.Theme(_) => false,
+                    _ => true
+                }
+            });
+            Node {
+                ... item,
+                props: append(props, Prop.Theme(theme))
+            }
+        } else {
+            item
+        }
+    });
+    View {
+        ... view,
+        nodes: nodes
+    }
+}
+export fn pressed < M > (view: View < M >, value: bool) -> View < M > {
+    let nodes = map(view.nodes, (item: Node < M >) => {
+        if (item.key == view.root) {
+            let props = filter(item.props, (prop: Prop < M >) => {
+                match (prop) {
+                    Prop.Pressed(_) => false,
+                    _ => true
+                }
+            });
+            Node {
+                ... item,
+                props: append(props, Prop.Pressed(value))
+            }
+        } else {
+            item
+        }
+    });
+    View {
+        ... view,
+        nodes: nodes
+    }
+}
