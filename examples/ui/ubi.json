@@ -1,0 +1,6 @@
+{
+  "schemaVersion": 1,
+  "name": "ubi-ui",
+  "entry": "src/main.ubi",
+  "targets": ["web", "desktop", "mobile"]
+}

@@ -1,9 +1,12 @@
 //! Independent contracts for the source-owned Ubi UI library.
+use crate::analyzer::{TypeInfo, ValueType};
 use crate::generics_tests::{analysis, checked, node, run};
-use crate::interpreter::Value;
+use crate::interpreter::{invoke, Value};
 use crate::Analysis;
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
+use std::rc::Rc;
 
 #[derive(Clone, Copy)]
 enum ExpectedValue<'a> {
@@ -67,6 +70,13 @@ fn string(value: &Value) -> &str {
         panic!("string expected: {value:?}");
     };
     value
+}
+
+fn integer(value: &Value) -> i32 {
+    let Value::Int(value) = value else {
+        panic!("integer expected: {value:?}");
+    };
+    *value
 }
 
 fn enum_parts(value: &Value) -> (&str, &[Value]) {
@@ -446,6 +456,253 @@ fn components_analysis(main: &str) -> Analysis {
         ("ui/components.ubi", &components),
         ("main.ubi", main),
     ])
+}
+
+fn explorer_analysis() -> Analysis {
+    let core = ui_source("ui/core.ubi");
+    let components = ui_source("ui/components.ubi");
+    let app = ui_source("main.ubi");
+    checked(&[
+        ("src/ui/core.ubi", &core),
+        ("src/ui/components.ubi", &components),
+        ("src/main.ubi", &app),
+        (
+            "main.ubi",
+            r#"
+import { State, Message, initial, validate, update, view } from "./src/main.ubi";
+import { Event, View } from "./src/ui/core.ubi";
+export fn testInitial() -> State { initial() }
+export fn testValidate(state: State) -> Result<State, string> { validate(state) }
+export fn testUpdate(state: State, event: Event<Message>) -> Result<State, string> { update(state, event) }
+export fn testView(state: State) -> View<Message> { view(state) }
+"#,
+        ),
+    ])
+}
+
+fn app_call(a: &Analysis, name: &str, arguments: Vec<Value>) -> Value {
+    invoke(a, &("main.ubi".into(), name.into()), arguments).unwrap()
+}
+
+fn app_state(initial: &Value, section: &str, theme: &str, count: i32) -> Value {
+    let Value::Record { type_id, fields } = initial else {
+        panic!("state record expected: {initial:?}");
+    };
+    let Value::Enum {
+        type_id: theme_type,
+        ..
+    } = field(initial, "theme")
+    else {
+        panic!("theme enum expected");
+    };
+    let mut fields = fields.as_ref().clone();
+    fields.insert("section".into(), Value::String(section.into()));
+    fields.insert(
+        "theme".into(),
+        Value::Enum {
+            type_id: *theme_type,
+            tag: Rc::new(theme.into()),
+            values: Rc::new(Vec::new()),
+        },
+    );
+    fields.insert("count".into(), Value::Int(count));
+    Value::Record {
+        type_id: *type_id,
+        fields: Rc::new(fields),
+    }
+}
+
+fn app_event(a: &Analysis, event: &str, message: &str) -> Value {
+    let signature = &a.signatures[&("main.ubi".into(), "testUpdate".into())];
+    let ValueType::Enum(event_type) = signature.parameters[1] else {
+        panic!("Event enum expected");
+    };
+    let TypeInfo::Enum { variants, .. } = &a.types[event_type] else {
+        panic!("Event type expected");
+    };
+    let arguments = variants.get(event).expect("known Event variant");
+    let ValueType::Enum(message_type) = arguments[0] else {
+        panic!("Message enum expected");
+    };
+    let message = Value::Enum {
+        type_id: message_type,
+        tag: Rc::new(message.into()),
+        values: Rc::new(Vec::new()),
+    };
+    let values = match event {
+        "Activate" | "Submit" => vec![message],
+        "Input" | "Select" => vec![message, Value::String("ignored".into())],
+        "Toggle" => vec![message, Value::Bool(true)],
+        _ => panic!("unknown Event variant {event}"),
+    };
+    assert_eq!(arguments.len(), values.len());
+    Value::Enum {
+        type_id: event_type,
+        tag: Rc::new(event.into()),
+        values: Rc::new(values),
+    }
+}
+
+fn app_update(a: &Analysis, state: Value, event: &str, message: &str) -> Value {
+    app_call(a, "testUpdate", vec![state, app_event(a, event, message)])
+}
+
+fn ok_state(result: &Value) -> &Value {
+    let (tag, values) = enum_parts(result);
+    assert_eq!(tag, "Ok");
+    assert_eq!(values.len(), 1);
+    &values[0]
+}
+
+fn assert_error_result(result: &Value) {
+    let (tag, values) = enum_parts(result);
+    assert_eq!(tag, "Err");
+    assert_eq!(values.len(), 1);
+    assert!(!string(&values[0]).is_empty());
+}
+
+fn assert_state(value: &Value, section: &str, theme: &str, count: i32) {
+    assert_eq!(record_keys(value), ["count", "section", "theme"]);
+    assert_eq!(integer(field(value, "count")), count);
+    assert_eq!(string(field(value, "section")), section);
+    let (actual_theme, values) = enum_parts(field(value, "theme"));
+    assert_eq!(actual_theme, theme);
+    assert!(values.is_empty());
+}
+
+fn assert_view_for_theme(value: &Value, theme: &str) {
+    assert_eq!(record_keys(value), ["nodes", "root", "schemaVersion"]);
+    assert_eq!(integer(field(value, "schemaVersion")), 1);
+    assert_eq!(string(field(value, "root")), "explorer");
+    let nodes = list(field(value, "nodes"));
+    assert!(!nodes.is_empty());
+    assert_eq!(string(field(&nodes[0], "key")), "explorer");
+    let (kind, values) = enum_parts(field(&nodes[0], "kind"));
+    assert_eq!(kind, "Column");
+    assert!(values.is_empty());
+
+    let root_props = list(field(&nodes[0], "props"));
+    let themes: Vec<_> = root_props
+        .iter()
+        .filter_map(|prop| {
+            let (tag, values) = enum_parts(prop);
+            (tag == "Theme").then_some(values)
+        })
+        .collect();
+    assert_eq!(themes.len(), 1);
+    assert_eq!(themes[0].len(), 1);
+    let (actual_theme, theme_values) = enum_parts(&themes[0][0]);
+    assert_eq!(actual_theme, theme);
+    assert!(theme_values.is_empty());
+}
+
+#[test]
+fn explorer_transitions_and_views_follow_contract() {
+    let a = explorer_analysis();
+    let initial = call(&a, "testInitial");
+    assert_state(&initial, "buttons", "System", 0);
+    let validated = app_call(&a, "testValidate", vec![initial.clone()]);
+    assert_state(ok_state(&validated), "buttons", "System", 0);
+
+    let invalid_section = app_state(&initial, "unknown", "System", 0);
+    assert_error_result(&app_call(&a, "testValidate", vec![invalid_section]));
+    let negative_count = app_state(&initial, "buttons", "System", -1);
+    assert_error_result(&app_call(&a, "testValidate", vec![negative_count]));
+    let high_count = app_state(&initial, "buttons", "System", 1000);
+    assert_error_result(&app_call(&a, "testValidate", vec![high_count]));
+
+    let incremented = app_update(&a, initial.clone(), "Activate", "Increment");
+    assert_state(ok_state(&incremented), "buttons", "System", 1);
+    assert_state(&initial, "buttons", "System", 0);
+    let near_limit = app_state(&initial, "buttons", "System", 998);
+    let at_limit = app_update(&a, near_limit, "Activate", "Increment");
+    assert_state(ok_state(&at_limit), "buttons", "System", 999);
+    let at_limit = app_state(&initial, "buttons", "System", 999);
+    assert_error_result(&app_update(&a, at_limit.clone(), "Activate", "Increment"));
+    assert_state(&at_limit, "buttons", "System", 999);
+    let reset = app_update(&a, at_limit, "Activate", "Reset");
+    assert_state(ok_state(&reset), "buttons", "System", 0);
+
+    for (message, section, theme, expected_section, expected_theme) in [
+        ("ChooseButtons", "composition", "Light", "buttons", "Light"),
+        (
+            "ChooseComposition",
+            "buttons",
+            "Dark",
+            "composition",
+            "Dark",
+        ),
+        (
+            "ChooseLight",
+            "composition",
+            "System",
+            "composition",
+            "Light",
+        ),
+        ("ChooseDark", "buttons", "Light", "buttons", "Dark"),
+        (
+            "ChooseSystem",
+            "composition",
+            "Dark",
+            "composition",
+            "System",
+        ),
+    ] {
+        let state = app_state(&initial, section, theme, 47);
+        let updated = app_update(&a, state, "Activate", message);
+        assert_state(ok_state(&updated), expected_section, expected_theme, 47);
+    }
+
+    for event in ["Input", "Toggle", "Select", "Submit"] {
+        let state = app_state(&initial, "composition", "Dark", 23);
+        assert_error_result(&app_update(&a, state, event, "Increment"));
+    }
+
+    for section in ["buttons", "composition"] {
+        for theme in ["Light", "Dark", "System"] {
+            let state = app_state(&initial, section, theme, 7);
+            let view = app_call(&a, "testView", vec![state]);
+            assert_view_for_theme(&view, theme);
+        }
+    }
+
+    node(
+        &a,
+        r#"
+const initial = m.testInitial();
+assert.deepEqual(initial, {section:'buttons',theme:{tag:'System',values:[]},count:0});
+assert.deepEqual(m.testValidate(JSON.stringify(initial)), {tag:'Ok',values:[initial]});
+assert.equal(m.testValidate(JSON.stringify({...initial,section:'unknown'})).tag, 'Err');
+assert.equal(m.testValidate(JSON.stringify({...initial,count:-1})).tag, 'Err');
+assert.equal(m.testValidate(JSON.stringify({...initial,count:1000})).tag, 'Err');
+const event = message => JSON.stringify({tag:'Activate',values:[{tag:message,values:[]}]});
+const state = (section,theme,count) => JSON.stringify({section,theme:{tag:theme,values:[]},count});
+assert.deepEqual(m.testUpdate(JSON.stringify(initial),event('Increment')), {tag:'Ok',values:[{section:'buttons',theme:{tag:'System',values:[]},count:1}]});
+assert.deepEqual(m.testUpdate(state('buttons','System',998),event('Increment')), {tag:'Ok',values:[{section:'buttons',theme:{tag:'System',values:[]},count:999}]});
+assert.equal(m.testUpdate(state('buttons','System',999),event('Increment')).tag, 'Err');
+assert.deepEqual(m.testUpdate(state('buttons','System',999),event('Reset')), {tag:'Ok',values:[{section:'buttons',theme:{tag:'System',values:[]},count:0}]});
+assert.deepEqual(m.testUpdate(state('composition','Light',47),event('ChooseButtons')), {tag:'Ok',values:[{section:'buttons',theme:{tag:'Light',values:[]},count:47}]});
+assert.deepEqual(m.testUpdate(state('buttons','Dark',47),event('ChooseComposition')), {tag:'Ok',values:[{section:'composition',theme:{tag:'Dark',values:[]},count:47}]});
+for (const [message,theme] of [['ChooseLight','Light'],['ChooseDark','Dark'],['ChooseSystem','System']]) {
+  assert.deepEqual(m.testUpdate(state('buttons','System',47),event(message)), {tag:'Ok',values:[{section:'buttons',theme:{tag:theme,values:[]},count:47}]});
+}
+const nonActivateEvents = [
+  ['Input', [{tag:'Increment',values:[]}, 'ignored']],
+  ['Toggle', [{tag:'Increment',values:[]}, true]],
+  ['Select', [{tag:'Increment',values:[]}, 'ignored']],
+  ['Submit', [{tag:'Increment',values:[]}]],
+];
+for (const [tag,values] of nonActivateEvents) {
+  assert.equal(m.testUpdate(state('buttons','System',0),JSON.stringify({tag,values})).tag, 'Err');
+}
+for (const section of ['buttons','composition']) for (const theme of ['Light','Dark','System']) {
+  const view = m.testView(state(section,theme,7));
+  assert.equal(view.schemaVersion,1); assert.equal(view.root,'explorer'); assert.ok(view.nodes.length>0);
+  assert.equal(view.nodes[0].key,'explorer'); assert.equal(view.nodes[0].kind.tag,'Column');
+  assert.deepEqual(view.nodes[0].props.find(prop=>prop.tag==='Theme'), {tag:'Theme',values:[{tag:theme,values:[]}]});
+}
+"#,
+    );
 }
 
 #[test]

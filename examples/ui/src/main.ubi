@@ -1,0 +1,100 @@
+import { View, Event, Theme, Space, Tone, ButtonVariant } from "./ui/core.ubi";
+import { text, heading, column, row, card, badge, button, themed, pressed } from "./ui/components.ubi";
+export enum Message {
+    ChooseButtons,
+    ChooseComposition,
+    ChooseLight,
+    ChooseDark,
+    ChooseSystem,
+    Increment,
+    Reset
+}
+export record State {
+    section: string,
+    theme: Theme,
+    count: int
+}
+export fn initial() -> State {
+    State {
+        section: "buttons",
+        theme: Theme.System,
+        count: 0
+    }
+}
+export fn validate(state: State) -> Result < State, string > {
+    if (state.section != "buttons" && state.section != "composition") {
+        Result.Err("Unknown component section")
+    } else if (state.count < 0 || state.count > 999) {
+        Result.Err("Counter must be between 0 and 999")
+    } else {
+        Result.Ok(state)
+    }
+}
+export fn update(state: State, event: Event < Message >) -> Result < State, string > {
+    validate(state)?;
+    match (event) {
+        Event.Activate(message) => {
+            match (message) {
+                Message.ChooseButtons => Result.Ok(State {
+                    ... state,
+                    section: "buttons"
+                }),
+                Message.ChooseComposition => Result.Ok(State {
+                    ... state,
+                    section: "composition"
+                }),
+                Message.ChooseLight => Result.Ok(State {
+                    ... state,
+                    theme: Theme.Light
+                }),
+                Message.ChooseDark => Result.Ok(State {
+                    ... state,
+                    theme: Theme.Dark
+                }),
+                Message.ChooseSystem => Result.Ok(State {
+                    ... state,
+                    theme: Theme.System
+                }),
+                Message.Reset => Result.Ok(State {
+                    ... state,
+                    count: 0
+                }),
+                Message.Increment => {
+                    if (state.count >= 999) {
+                        Result.Err("Counter is full. Reset it to continue.")
+                    } else {
+                        Result.Ok(State {
+                            ... state,
+                            count: state.count + 1
+                        })
+                    }
+                },
+            }
+        },
+        _ => Result.Err("This showcase accepts button activation only"),
+    }
+}
+fn themeChoice(key: string, label: string, theme: Theme, message: Message, state: State) -> View < Message > {
+    pressed(button(key, label, ButtonVariant.Ghost, false, false, message), state.theme == theme)
+}
+fn buttonExamples(state: State) -> View < Message > {
+    column("button-examples", Space.Lg,[row("section-heading", Space.Md,[heading("section-title", "Buttons", 1), badge("component-status", "Interactive", Tone.Success)]), text("section-description", "A clear next step. Five variants, one familiar interaction."), card("preview",[row("preview-header", Space.Sm,[text("preview-label", "Live preview"), badge("preview-platforms", "Web · Mobile · Desktop", Tone.Neutral)]), column("button-stage", Space.Lg,[row("variants", Space.Sm,[button("primary", "Primary", ButtonVariant.Primary, state.count == 999, false, Message.Increment), button("secondary", "Secondary", ButtonVariant.Secondary, state.count == 999, false, Message.Increment), button("outline", "Outline", ButtonVariant.Outline, state.count == 999, false, Message.Increment), button("ghost", "Ghost", ButtonVariant.Ghost, state.count == 999, false, Message.Increment), button("destructive", "Destructive", ButtonVariant.Destructive, state.count == 999, false, Message.Increment)]), text("interaction-count", toString(state.count) + " interactions"), button("reset", "Reset counter", ButtonVariant.Ghost, state.count == 0, false, Message.Reset)])]), row("detail-panels", Space.Lg,[card("states",[heading("states-title", "Ready for the real world", 2), text("states-copy", "Disabled and busy states share native button behavior."), row("state-buttons", Space.Sm,[button("disabled", "Disabled", ButtonVariant.Outline, true, false, Message.Increment), button("busy", "Saving…", ButtonVariant.Primary, false, true, Message.Increment)])]), card("source",[row("source-heading", Space.Sm,[heading("source-title", "Make it yours", 2), badge("source-language", "Ubi", Tone.Primary)]), text("source-content", "button(\n    \"save\", \"Save changes\",\n    ButtonVariant.Primary,\n    false, false, Message.Save\n)")])])])
+}
+fn composition(state: State) -> View < Message > {
+    column("composition-examples", Space.Lg,[row("section-heading", Space.Md,[heading("section-title", "Better together", 1), badge("component-status", "Composition", Tone.Primary)]), text("section-description", "The same small pieces, composed into a workspace."), card("workspace",[row("workspace-header", Space.Md,[badge("workspace-icon", "S", Tone.Primary), column("workspace-name", Space.Xs,[heading("workspace-title", "Studio workspace", 2), text("workspace-subtitle", "A little space for your next big thing.")]), badge("workspace-plan", "Pro", Tone.Neutral)]), row("workspace-summary", Space.Lg,[column("project-metric", Space.Xs,[heading("project-count", toString(state.count), 2), text("project-label", "Ideas explored")]), column("platform-metric", Space.Xs,[heading("platform-count", "3", 2), text("platform-label", "Platforms, shared source")])]), text("workspace-description", "Start with a component. Shape it into something that feels like you."), row("workspace-actions", Space.Sm,[button("explore-idea", "Explore an idea", ButtonVariant.Primary, state.count == 999, false, Message.Increment), button("reset-ideas", "Start fresh", ButtonVariant.Outline, state.count == 0, false, Message.Reset)])]), row("composition-notes", Space.Lg,[column("ownership-note", Space.Sm,[heading("ownership-title", "Your source. Your style.", 2), text("ownership-copy", "Edit the Ubi components and theme tokens directly. Build around your product.")]), column("behavior-note", Space.Sm,[heading("behavior-title", "Small pieces. Solid behavior.", 2), text("behavior-copy", "Keyboard access, visible focus and predictable state are part of the foundation.")])])])
+}
+export fn view(state: State) -> View < Message > {
+    let stage = if (state.section == "composition") {
+        composition(state)
+    } else {
+        buttonExamples(state)
+    };
+    themed(column("explorer", Space.None,[row("masthead", Space.Md,[row("brand", Space.Sm,[badge("brand-symbol", "u", Tone.Primary), heading("brand-name", "Ubi UI", 2)]), text("brand-note", "Good interfaces start here."), badge("release", "Foundation 0.1", Tone.Neutral)]), row("workbench", Space.None,[column("navigator", Space.Sm,[text("nav-label", "Library"), pressed(button("nav-buttons", "Buttons", ButtonVariant.Ghost, false, false, Message.ChooseButtons), state.section == "buttons"), pressed(button("nav-composition", "Composition", ButtonVariant.Ghost, false, false, Message.ChooseComposition), state.section == "composition"), text("nav-description", "Thoughtful defaults.\nRoom to make them yours."), badge("nav-source", "Written in Ubi", Tone.Primary)]), column("main-stage", Space.Lg,[row("stage-toolbar", Space.Md,[text("breadcrumb", "Components / " + if (state.section == "buttons") {
+        "Buttons"
+    } else {
+        "Composition"
+    }), row("theme-picker", Space.None,[themeChoice("theme-light", "Light", Theme.Light, Message.ChooseLight, state), themeChoice("theme-dark", "Dark", Theme.Dark, Message.ChooseDark, state), themeChoice("theme-system", "System", Theme.System, Message.ChooseSystem, state)])]), stage, text("stage-footer", "Compose in Ubi. Bring your own point of view.")])])]), state.theme)
+}
+export fn main() -> string {
+    "Ubi UI foundation"
+}

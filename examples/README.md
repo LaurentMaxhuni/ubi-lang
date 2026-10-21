@@ -1,5 +1,10 @@
 # Public conformance fixtures
 
+The [Ubi UI foundation](ui/README.md) is a separate executable example/library:
+editable Ubi components, a themed explorer and web/desktop/mobile packages. Its
+independent contracts live in `src/ui_tests.rs` and `tests/ui_package.rs`; it does
+not change the historical conformance corpus below.
+
 Milestone 0 review artifacts for [SPEC.md](../SPEC.md). No compiler or interpreter exists yet. These expectations were hand-derived from the specification by a separate corpus author; source generation, source hashing and byte-offset calculations did not use implementation output. Independent review and human sign-off are recorded in [DECISIONS.md](../DECISIONS.md).
 
 The corpus contains 40 cases (19 accepted source graphs, 21 rejected source graphs), 64 selected exported invocations, and 43 source files. Minimum milestones mark the first profile that must support a case. Milestone 2 fixtures are future contracts; their presence does not assert implemented support.
