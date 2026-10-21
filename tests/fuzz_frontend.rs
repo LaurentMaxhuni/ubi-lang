@@ -30,6 +30,8 @@ fn deterministic_mutations_never_crash_the_parser_or_checker() {
         "export fn f() -> bool { let empty: Map<string,Option<List<int>>> = mapEmpty(); let one = mapSet(empty,\"__proto__\",Option.Some([])); let two = mapSet(one,\"constructor\",Option.None); mapGet(two,\"__proto__\") == Option.Some(Option.Some([])) && mapKeys(mapRemove(two,\"constructor\")) == [\"__proto__\"] }",
         "fn pair<T>(value: T) -> (T, T) { (value, value) } export fn f() -> int { let (first, _) = pair(7); let singleton = (first,); let (answer,) = singleton; answer }",
         "fn pair<T>(value: T) -> (T, T) { (value, value) } fn discard<T>(value: T) -> unit { () } fn build<T>(seed: T) -> int { let a1 = pair(seed); let a2 = pair(a1); let a3 = pair(a2); let a4 = pair(a3); let a5 = pair(a4); let a6 = pair(a5); let a7 = pair(a6); let a8 = pair(a7); let (d8, _) = a8; let (d7, _) = d8; let (d6, _) = d7; let (d5, _) = d6; let (d4, _) = d5; let (d3, _) = d4; let (result, _) = d3; discard(result); 1 } export fn f() -> int { build(7) }",
+        "fn same<T: Equatable,>(left: T, right: T) -> bool { left == right } fn check<T: Equatable>(value: T) -> bool { same(value, value) } export fn f() -> bool { check((7, Option.Some(\"x\"))) }",
+        "fn pair<T: Equatable>(value: T) -> (T, T) { (value, value) } fn discard<T: Equatable>(value: T) -> unit { () } fn build<T: Equatable>(seed: T) -> int { let a1 = pair(seed); let a2 = pair(a1); let a3 = pair(a2); let a4 = pair(a3); let a5 = pair(a4); let a6 = pair(a5); let a7 = pair(a6); let a8 = pair(a7); let (d8, _) = a8; let (d7, _) = d8; let (d6, _) = d7; let (d5, _) = d6; let (d4, _) = d5; let (d3, _) = d4; let (result, _) = d3; discard(result); 1 } export fn f() -> int { build(7) }",
         "fn write(c: Console,text: string) -> Result<unit,HostError> effects(console) { consoleLog(c,text) } export fn f(c: Console,s: Storage) -> Result<Option<string>,HostError> effects(console,storage) { let alias = c; write(alias,\"hello😀\")?; storageSet(s,\"key\",\"value\")?; let found = storageGet(s,\"key\")?; storageRemove(s,\"key\")?; Result.Ok(found) }",
         "fn plain(x: int) -> int { x + 1 } fn generic<T>(x: T) -> int { let capture = () => x; 2 } export fn f(b: bool) -> int { (if (b) { plain } else { generic })(5) }",
         "async fn value(n: int) -> int { n } export async fn f() -> int { let mut n = 0; for (x in [1,2,3]) { n = n + await value(x); } n }",
@@ -108,6 +110,7 @@ fn growing_nominal_substitutions_report_resource_exhaustion() {
         "record First<T> { child: Option<Second<List<T>>> } enum Second<U> { End, Next(First<U>) } export fn f(x: First<int>) -> int { 0 }",
         "fn expand<T>(x: T) -> int { expand([x]) } export fn f() -> int { expand(1) }",
         "fn expand<T>(x: T) -> int { expand((x, x)) } export fn f() -> int { expand(1) }",
+        "fn expand<T: Equatable>(x: T) -> int { expand((x, x)) } export fn f() -> int { expand(1) }",
     ] {
         let mut compiler = Compiler::new();
         compiler.add_source("resource.ubi", source.as_bytes().to_vec()).unwrap();

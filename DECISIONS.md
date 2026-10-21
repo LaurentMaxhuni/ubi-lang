@@ -11,6 +11,40 @@ contextual function values, phantom arguments and recursive nominal types.
 Keep arithmetic, ordering and user-defined traits deferred. No model judgment
 or additional dependency is needed for exact compiler rules.
 
+Equality constraint implementation evidence, 2026-10-21:
+
+- Added optional Equatable bounds on function, record and enum parameters.
+  Universal equality eligibility follows all aggregate components and nominal
+  type arguments. Checked substitutions cover calls, contextual function values,
+  constructors and type applications; a final scan revalidates forward nominal
+  instantiations after fields/variants are populated. Constraint errors retain
+  `UBI0020`, separately from genuine `UBI0090` resource failures.
+- A separate author derived 10 interpreter/Node conformance groups covering
+  collection algorithms, primitives/NaN, recursive and phantom aggregates,
+  transitive/contextual callbacks, imports, host guards, invalid constraints,
+  effects/capabilities and canonical formatting. The initial test failed with
+  `UBI0002` at the new colon syntax before implementation; evidence is retained
+  in ignored `.ubi-build/constraints-red.log`.
+- Independent audit reproduced the old unconstrained phantom-argument equality
+  escape and a forward-declared function-containing type accepted through an
+  empty constrained record. Separate regressions now reject both with `UBI0020`.
+  Composite conformance also exposed generic JavaScript equality using identity;
+  generic operands now use the existing structural comparator. Fixed results
+  agree with the independent AST interpreter, including nested NaN behavior.
+- The imported reusable library implements membership, deduplication and
+  frequency counting using Equatable, closures and tuples. The example prints
+  `constraints: pear, apple, plum; pear=3, apple=2, plum=1; pear=true` and formats
+  idempotently; a separate reviewer verified those expectations.
+- Final full suite: all 222 tests pass under a separate 55-second process
+  watchdog, including 10,000 mutations, new constrained seeds and growing-type
+  checks. Formatting, denied-warning Clippy and whitespace checks pass.
+  Independent final review found no unresolved blocker. Full logs are ignored
+  under `.ubi-build/constraints-full-tests*`.
+- Windows loopback tests pass with network permission; symlink fixtures still
+  lack privilege 1314. New changes have not run on hosted platforms or against
+  evaluator-owned hidden conformance. Crate version remains 0.1.0; no release or
+  historical milestone gate is asserted.
+
 ## Tuples and destructuring direction, 2026-10-21
 
 User requested autonomous progress on unfinished work and critical bugs. The

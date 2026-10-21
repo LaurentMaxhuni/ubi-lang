@@ -202,6 +202,9 @@ mod function_values_tests;
 mod tuples_tests;
 
 #[cfg(test)]
+mod constraints_tests;
+
+#[cfg(test)]
 #[path = "result_tests.rs"]
 mod result_tests;
 

@@ -1,6 +1,6 @@
 # Ubi language specification
 
-Version: 0.8 draft. Current work: typed pure function values, tuples and destructuring. Release validation remains recorded separately from implementation.
+Version: 0.9 draft. Current work: Equatable generic constraints and reusable collections. Release validation remains recorded separately from implementation.
 
 ## 1. Scope and conformance
 
@@ -833,6 +833,7 @@ representation. No implicit tuple/list conversion or tuple iteration is added.
 
 ## 25. Equality constraints (2026-10-21)
 
+This section supersedes section 17's unbounded-only restriction.
 Generic function, record and enum parameters may declare the built-in constraint
 `T: Equatable`, for example `fn includes<T: Equatable>(xs: List<T>, x: T) -> bool`.
 One optional constraint per parameter is supported, with ordinary trailing-comma

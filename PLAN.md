@@ -1,5 +1,13 @@
 # Ubi implementation plan
 
+## Current language work: Equatable constraints, authorized 2026-10-21
+
+Continue [the constraint plan](docs/superpowers/plans/2026-10-21-equatable.md)
+against SPEC25. Generic list membership, deduplication and frequency counting
+motivate one built-in equality constraint. Preserve universal body checking,
+invariant inference, effect/host boundaries and finite compiler/runtime budgets.
+User-defined traits and arithmetic/ordering constraints await library evidence.
+
 ## Current language work: tuples and destructuring, authorized 2026-10-21
 
 User requested autonomous unfinished-work progress and critical bug fixes.
@@ -20,7 +28,7 @@ evidence-driven generic constraints, standard-library growth and editor/test too
 - [x] Typed pure function values, independent conformance, shared budgets and host guards.
 - [x] Cross-module example; all 195 tests, formatting, Clippy and mutation watchdog.
 - [x] Tuples and destructuring; independent conformance, shared-graph fixes and host guards.
-- [ ] Generic constraints/traits driven by reusable-library examples.
+- [x] Built-in Equatable generic constraints, backed by reusable collection examples.
 - [ ] Standard-library growth and language test/editor tooling.
 
 ## Current work: v1 integration, authorized 2026-10-09

@@ -216,6 +216,19 @@ destructuring and Result tuple payloads:
 cargo run -- run main.ubi --root examples/tuples
 ```
 
+`T: Equatable` permits equality in generic functions and aggregates while
+rejecting function/capability-containing instantiations:
+
+```ubi
+fn equal<T: Equatable>(left: T, right: T) -> bool {
+    left == right
+}
+```
+
+The [constrained collection example](examples/constraints/README.md) shares list
+membership, deduplication and frequency counting across element types. Run it
+with `cargo run -- run main.ubi --root examples/constraints`.
+
 ## Run a program
 
 Async named functions declare their resolved return type. `run` awaits async

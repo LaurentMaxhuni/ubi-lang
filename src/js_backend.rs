@@ -601,6 +601,7 @@ impl<'a> FunctionEmitter<'a> {
                             | ValueType::Option(_)
                             | ValueType::Enum(_)
                             | ValueType::Map(_)
+                            | ValueType::Parameter(_)
                     ) && matches!(operator, Symbol::EqualEqual | Symbol::BangEqual);
                 let left = self.expression(left, indent)?;
                 let right = self.expression(right, indent)?;

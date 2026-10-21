@@ -35,7 +35,7 @@ pub(crate) enum Declaration {
 pub(crate) struct Enum {
     pub(crate) exported: bool,
     pub(crate) name: Identifier,
-    pub(crate) type_parameters: Vec<Identifier>,
+    pub(crate) type_parameters: Vec<TypeParameter>,
     pub(crate) variants: Vec<Variant>,
     pub(crate) span: Span,
 }
@@ -50,7 +50,7 @@ pub(crate) struct Variant {
 pub(crate) struct Record {
     pub(crate) exported: bool,
     pub(crate) name: Identifier,
-    pub(crate) type_parameters: Vec<Identifier>,
+    pub(crate) type_parameters: Vec<TypeParameter>,
     pub(crate) fields: Vec<Parameter>,
     pub(crate) span: Span,
 }
@@ -60,7 +60,7 @@ pub(crate) struct Function {
     pub(crate) exported: bool,
     pub(crate) asynchronous: bool,
     pub(crate) name: Identifier,
-    pub(crate) type_parameters: Vec<Identifier>,
+    pub(crate) type_parameters: Vec<TypeParameter>,
     pub(crate) parameters: Vec<Parameter>,
     pub(crate) return_type: Option<Type>,
     pub(crate) effects: Vec<Identifier>,
@@ -86,6 +86,13 @@ pub(crate) struct Type {
 pub(crate) struct Identifier {
     pub(crate) name: String,
     pub(crate) span: Span,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct TypeParameter {
+    pub(crate) name: String,
+    pub(crate) span: Span,
+    pub(crate) bound: Option<Identifier>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -485,11 +492,21 @@ impl Parser {
         })
     }
 
-    fn parse_generics(&mut self) -> Result<Vec<Identifier>, ParseError> {
+    fn parse_generics(&mut self) -> Result<Vec<TypeParameter>, ParseError> {
         let mut parameters = Vec::new();
         if self.eat_symbol(Symbol::Less).is_some() {
             loop {
-                parameters.push(self.parse_identifier()?);
+                let name = self.parse_identifier()?;
+                let bound = if self.eat_symbol(Symbol::Colon).is_some() {
+                    Some(self.parse_identifier()?)
+                } else {
+                    None
+                };
+                parameters.push(TypeParameter {
+                    name: name.name,
+                    span: name.span,
+                    bound,
+                });
                 if self.eat_symbol(Symbol::Comma).is_none() || self.at_symbol(Symbol::Greater) {
                     break;
                 }

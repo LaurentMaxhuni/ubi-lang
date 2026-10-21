@@ -1,0 +1,9 @@
+import { includes, unique, frequencies } from "./collections.ubi";
+export fn main() -> string {
+    let values =["pear", "apple", "pear", "plum", "apple", "pear"];
+    let summary = map(frequencies(values), (entry: (string, int)) => {
+        let (name, count) = entry;
+        name + "=" + toString(count)
+    });
+    "constraints: " + join(unique(values), ", ") + "; " + join(summary, ", ") + "; pear=" + toString(includes(values, "pear"))
+}

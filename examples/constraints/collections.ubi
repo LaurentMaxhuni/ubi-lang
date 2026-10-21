@@ -1,0 +1,31 @@
+export fn includes < T: Equatable > (values: List < T >, needle: T) -> bool {
+    for (value in values) {
+        if (value == needle) {
+            return true;
+        }
+    }
+    false
+}
+export fn unique < T: Equatable > (values: List < T >) -> List < T > {
+    let mut result: List < T > =[];
+    for (value in values) {
+        if (! includes(result, value)) {
+            result = append(result, value);
+        }
+    }
+    result
+}
+export fn frequencies < T: Equatable > (values: List < T >) -> List < (T, int) > {
+    let mut result: List < (T, int) > =[];
+    for (key in unique(values)) {
+        let count = fold(values, 0, (total: int, value: T) => {
+            if (value == key) {
+                total + 1
+            } else {
+                total
+            }
+        });
+        result = append(result, (key, count));
+    }
+    result
+}
