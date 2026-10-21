@@ -1,5 +1,16 @@
 # Ubi decisions and milestone evidence
 
+## Equality constraint direction, 2026-10-21
+
+User requested continued roadmap work. Reusable list membership/deduplication
+needs equality on generic elements; current universal generics correctly reject
+`T == T` without evidence. D032: add the single built-in `T: Equatable` constraint
+to generic functions/records/enums (SPEC section 25). Reuse existing equality,
+inference and erased runtime generics. Check every instantiation, including
+contextual function values, phantom arguments and recursive nominal types.
+Keep arithmetic, ordering and user-defined traits deferred. No model judgment
+or additional dependency is needed for exact compiler rules.
+
 ## Tuples and destructuring direction, 2026-10-21
 
 User requested autonomous progress on unfinished work and critical bugs. The

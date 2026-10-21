@@ -830,3 +830,41 @@ exactly the declared arity and recursively validated element types; live arrays
 are rejected, as for other aggregates. Inputs are copied and frozen, preserving
 existing depth/value limits. Unit keeps its existing host
 representation. No implicit tuple/list conversion or tuple iteration is added.
+
+## 25. Equality constraints (2026-10-21)
+
+Generic function, record and enum parameters may declare the built-in constraint
+`T: Equatable`, for example `fn includes<T: Equatable>(xs: List<T>, x: T) -> bool`.
+One optional constraint per parameter is supported, with ordinary trailing-comma
+rules. `Equatable` is contextual in constraint position; it is not a value or a
+type. Unknown constraint names use `UBI0020` at that name. Malformed syntax keeps
+existing parser diagnostics. Unconstrained parameters keep their existing rules.
+
+Equatable guarantees eligibility for existing `==` and `!=`, including inside
+aggregates; it does not guarantee reflexivity (NaN remains unequal to itself).
+Primitive int, float, bool, string and unit qualify. Lists, Options, maps, tuples,
+records and enums qualify only when all component types and all nominal type
+arguments qualify, including phantom arguments and unused variants. A parameter
+qualifies only when it declares Equatable. Functions, capabilities and ranges
+never qualify, even in empty containers. Recursive nominal types are checked
+with finite visited-type traversal and existing compiler bounds.
+
+Bodies are checked universally under their declared constraints. Passing an
+unconstrained parameter where Equatable is required is an error even if currently
+observed callers use int. Constraints do not permit arithmetic, ordering, map
+keys of arbitrary type, effectful callbacks, or host authority. Constraint
+failure uses `UBI0020` before execution; capability violations retain `UBI0040`.
+
+Every inferred instantiation must satisfy declared constraints: direct/imported
+calls, recursive/transitive calls, named-function values specialized from
+expected types, record/enum construction and type applications, including
+phantom parameters and nested substitutions. An unconstrained generic wrapper
+cannot hide a constraint by storing a constrained function in an aggregate or
+returning it. All substitutions remain invariant and obey existing depth and
+type-pool limits; constraint failures must not be mislabeled resource exhaustion.
+
+Constraints have no runtime representation or dynamic dispatch. Both execution
+paths retain existing structural equality, evaluation order, immutable captures
+and budgets. Generic public host calls remain forbidden; concrete wrappers use
+the existing validated host ABI. User-defined traits, multiple bounds, ordering
+and arithmetic constraints remain deferred pending separate library evidence.
