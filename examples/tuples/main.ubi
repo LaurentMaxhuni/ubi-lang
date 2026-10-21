@@ -1,0 +1,9 @@
+import { swap, divide } from "./pairs.ubi";
+export fn main() -> string {
+    let (label, count) = swap((3, "right"));
+    let result = match (divide(17, 5)) {
+        Result.Ok((quotient, remainder)) => "quotient=" + toString(quotient) + ", remainder=" + toString(remainder),
+        Result.Err(message) => message,
+    };
+    "tuples: " + result + ", swapped=" + label + ", count=" + toString(count)
+}

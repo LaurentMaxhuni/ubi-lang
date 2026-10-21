@@ -98,7 +98,30 @@ pub fn format_source(source: &str) -> Result<String, Diagnostic> {
                     }
                     Some(Symbol::LParen | Symbol::LBracket) => {
                         let spaced = symbol == Some(Symbol::LParen)
-                            && matches!(previous, Some(TokenKind::Keyword(word)) if word != "fn");
+                            && (matches!(previous, Some(TokenKind::Keyword(word)) if word != "fn")
+                                || matches!(
+                                    previous,
+                                    Some(TokenKind::Symbol(
+                                        Symbol::Comma
+                                            | Symbol::Colon
+                                            | Symbol::Equal
+                                            | Symbol::FatArrow
+                                            | Symbol::ThinArrow
+                                            | Symbol::Plus
+                                            | Symbol::Minus
+                                            | Symbol::Star
+                                            | Symbol::Slash
+                                            | Symbol::Percent
+                                            | Symbol::AndAnd
+                                            | Symbol::OrOr
+                                            | Symbol::EqualEqual
+                                            | Symbol::BangEqual
+                                            | Symbol::Less
+                                            | Symbol::LessEqual
+                                            | Symbol::Greater
+                                            | Symbol::GreaterEqual
+                                    ))
+                                ));
                         append(&mut output, spelling, indent, spaced);
                         delimiters.push((symbol.unwrap(), false));
                     }

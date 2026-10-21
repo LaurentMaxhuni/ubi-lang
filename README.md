@@ -40,7 +40,7 @@ SDKs/build hosts. Packages remain unsigned; no store release is claimed.
 Ubi source files use `.ubi`. The Rust compiler checks source and emits JavaScript
 ES modules; supported language behavior is documented in [SPEC.md](SPEC.md).
 
-Current support includes typed variables/functions, records, immutable lists,
+Current support includes typed variables/functions, records, immutable tuples/lists,
 `Option`/`Result`, generics, immutable maps, user-defined enums and exhaustive matching, loops/ranges, snapshot
 closures, collection helpers, and pure string/math/conversion utilities. Record fields and collection
 elements stay immutable; updates create new values:
@@ -205,6 +205,16 @@ Captures remain snapshots, calls share runtime budgets, and effectful/async
 functions cannot become callbacks. Run the [function-values example](examples/function-values/README.md)
 with `cargo run -- run main.ubi --root examples/function-values`; it returns `28`.
 See [the function-value contract](SPEC.md#23-typed-pure-function-values-2026-10-14).
+
+Tuples group different types without a record declaration: `(int, string)` and
+`(3, "ready")`. Destructure with `let (count, label) = pair;` or nested match
+patterns. A singleton needs a trailing comma; `()` remains unit. The
+[tuple example](examples/tuples/README.md) combines generic imported functions,
+destructuring and Result tuple payloads:
+
+```powershell
+cargo run -- run main.ubi --root examples/tuples
+```
 
 ## Run a program
 

@@ -62,6 +62,10 @@ pub(crate) enum StatementKind {
         mutable: bool,
         value: ExprIr,
     },
+    LetPattern {
+        pattern: Pattern,
+        value: ExprIr,
+    },
     Assign {
         name: String,
         value: ExprIr,
@@ -98,6 +102,7 @@ pub(crate) enum ExprKind {
     Unit,
     Local(String),
     List(Vec<ExprIr>),
+    Tuple(Vec<ExprIr>),
     Some(Box<ExprIr>),
     None,
     Propagate(Box<ExprIr>),
@@ -313,6 +318,20 @@ impl FunctionLowerer<'_> {
                         value,
                     }
                 }
+                AstStatementKind::LetPattern { pattern, value, .. } => {
+                    let value = self.lower_expr(value)?;
+                    if value.ty == ValueType::Never {
+                        completes = false;
+                    } else {
+                        let mut bindings = BTreeSet::new();
+                        pattern_bindings(pattern, &mut bindings);
+                        self.scopes.last_mut().unwrap().extend(bindings);
+                    }
+                    StatementKind::LetPattern {
+                        pattern: pattern.clone(),
+                        value,
+                    }
+                }
                 AstStatementKind::Return(value) => {
                     let value = value
                         .as_ref()
@@ -423,6 +442,12 @@ impl FunctionLowerer<'_> {
                 }
             }
             AstExprKind::List(elements) => ExprKind::List(
+                elements
+                    .iter()
+                    .map(|element| self.lower_expr(element))
+                    .collect::<Result<_, _>>()?,
+            ),
+            AstExprKind::Tuple(elements) => ExprKind::Tuple(
                 elements
                     .iter()
                     .map(|element| self.lower_expr(element))
@@ -679,6 +704,11 @@ fn pattern_bindings(pattern: &Pattern, bindings: &mut BTreeSet<String>) {
             bindings.insert(name.name.clone());
         }
         PatternKind::Some(inner) => pattern_bindings(inner, bindings),
+        PatternKind::Tuple(patterns) => {
+            for pattern in patterns {
+                pattern_bindings(pattern, bindings);
+            }
+        }
         PatternKind::Variant { payloads, .. } => {
             for payload in payloads {
                 pattern_bindings(payload, bindings);

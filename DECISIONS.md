@@ -11,6 +11,40 @@ coverage. Defer positional access, mutable destructuring and record patterns.
 Keep conformance expectations independently owned. Platform release gates and
 hidden evaluator evidence remain separate.
 
+Tuple implementation evidence, 2026-10-21:
+
+- Implemented tuple types/literals, singleton/grouped/unit syntax, immutable
+  nested let destructuring and correlated tuple match coverage across parser,
+  analyzer, effects, IR, independent AST interpreter and JavaScript backend.
+  Generic inference/substitution, captures, privacy, function-containing types,
+  exact serialized host validation and existing limits include tuples.
+- A separate author derived 17 conformance groups with fixed interpreter/Node
+  expectations, negative diagnostics, host rejection before execution, ordered
+  evaluation/early exits, aggregate depth, callback budgets and formatting.
+  The initial smoke test against clean `a055a48` failed at missing tuple syntax
+  (`UBI0002`); `.ubi-build/tuple-red-head.log` retains the result.
+- Review identified exponentially copied/traversed shared tuple graphs. Reuse
+  immutable Rc storage and memoize type substitution/traversal and aggregate
+  depth within each operation. Type-substitution cache keys retain depth, so
+  reuse cannot bypass the 32-level expansion bound.
+- Independent audit reproduced a pre-existing shared-list equality hang and
+  the same defect for tuples: 27 levels exceeded 15 seconds without exhausting
+  the runtime step budget. Both backends now memoize aggregate comparison pairs
+  per equality operation. They still inspect values before caching, preserving
+  NaN inequality and nominal/ordered/map equality semantics. Separate tests
+  compare shared and distinct graphs and retain a NaN control.
+- Independent final review confirmed the cache limits, immutable bindings,
+  product coverage, effect checks and host contracts; no unresolved findings.
+- All 212 tests pass under a separate 55-second process watchdog, including
+  10,000 frontend mutations and expanding tuple substitutions. Denied-warning
+  Clippy, formatting and whitespace checks pass. Full logs are ignored under
+  `.ubi-build/tuples-full-tests*`; the runnable cross-module tuple example prints
+  `tuples: quotient=3, remainder=2, swapped=right, count=3` and formats idempotently.
+- The sandbox denied loopback binding in two baseline dev tests; the complete
+  suite passes with local network permission. Windows symlink fixtures still
+  lack privilege 1314. New changes have not run on hosted platforms or against
+  evaluator-owned hidden conformance; release requirements remain unchanged.
+
 ## Base language direction, 2026-10-14
 
 User requested continued base-language development following the proposed

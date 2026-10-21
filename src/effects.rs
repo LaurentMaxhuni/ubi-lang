@@ -148,6 +148,7 @@ pub(crate) fn contains_capability(analysis: &Analysis, ty: ValueType) -> bool {
                 pending.extend(analysis.records[id].fields.values().copied());
             }
             ValueType::List(id)
+            | ValueType::Tuple(id)
             | ValueType::Option(id)
             | ValueType::Enum(id)
             | ValueType::Map(id)
@@ -155,6 +156,7 @@ pub(crate) fn contains_capability(analysis: &Analysis, ty: ValueType) -> bool {
                 if seen.insert((true, id)) =>
             {
                 match &analysis.types[id] {
+                    TypeInfo::Tuple(elements) => pending.extend(elements.iter().copied()),
                     TypeInfo::List(inner) | TypeInfo::Option(inner) => pending.push(*inner),
                     TypeInfo::Map { key, value } => pending.extend([*key, *value]),
                     TypeInfo::Enum {
@@ -274,6 +276,17 @@ impl Checker<'_> {
                     }
                     self.expression(value, arrow, false);
                     self.scopes.last_mut().unwrap().insert(name.name.clone());
+                }
+                StatementKind::LetPattern {
+                    pattern,
+                    annotation,
+                    value,
+                } => {
+                    if let Some(ty) = annotation {
+                        reject_capability_type(ty, self.diagnostics);
+                    }
+                    self.expression(value, arrow, false);
+                    pattern_bindings(pattern, self.scopes.last_mut().unwrap());
                 }
                 StatementKind::Assign { target, value } => {
                     self.expression(target, arrow, false);
@@ -478,13 +491,13 @@ impl Checker<'_> {
                 self.expression(body, true, false);
                 self.scopes.pop();
             }
-            ExprKind::List(values) => {
+            ExprKind::List(values) | ExprKind::Tuple(values) => {
                 for value in values {
                     if self
                         .ty(value)
                         .is_some_and(|ty| contains_capability(self.analysis, ty))
                     {
-                        self.error(value, "Capabilities cannot be stored in lists");
+                        self.error(value, "Capabilities cannot be stored in aggregates");
                     }
                     self.expression(value, arrow, false);
                 }
@@ -558,7 +571,7 @@ fn pattern_bindings(pattern: &Pattern, bindings: &mut BTreeSet<String>) {
             bindings.insert(name.name.clone());
         }
         PatternKind::Some(inner) => pattern_bindings(inner, bindings),
-        PatternKind::Variant { payloads, .. } => {
+        PatternKind::Tuple(payloads) | PatternKind::Variant { payloads, .. } => {
             for payload in payloads {
                 pattern_bindings(payload, bindings);
             }

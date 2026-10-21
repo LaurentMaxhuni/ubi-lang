@@ -1,0 +1,11 @@
+export fn swap < A, B > (pair: (A, B)) -> (B, A) {
+    let (first, second) = pair;
+    (second, first)
+}
+export fn divide(numerator: int, denominator: int) -> Result < (int, int), string > {
+    if (denominator == 0) {
+        Result.Err("division by zero")
+    } else {
+        Result.Ok((numerator / denominator, numerator % denominator))
+    }
+}

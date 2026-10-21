@@ -30,6 +30,10 @@ pub(crate) enum Value {
         type_id: usize,
         elements: Rc<Vec<Value>>,
     },
+    Tuple {
+        type_id: usize,
+        elements: Rc<Vec<Value>>,
+    },
     Map {
         type_id: usize,
         entries: Rc<Vec<(Value, Value)>>,
@@ -94,76 +98,173 @@ pub(crate) enum FunctionValue {
     },
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum AggregateKey {
+    Record(usize, usize),
+    List(usize, usize),
+    Tuple(usize, usize),
+    Map(usize, usize),
+    Option(usize, usize),
+    Enum(usize, usize, usize),
+}
+
+fn aggregate_key(value: &Value) -> Option<AggregateKey> {
+    match value {
+        Value::Record { type_id, fields } => {
+            Some(AggregateKey::Record(*type_id, Rc::as_ptr(fields) as usize))
+        }
+        Value::List { type_id, elements } => {
+            Some(AggregateKey::List(*type_id, Rc::as_ptr(elements) as usize))
+        }
+        Value::Tuple { type_id, elements } => {
+            Some(AggregateKey::Tuple(*type_id, Rc::as_ptr(elements) as usize))
+        }
+        Value::Map { type_id, entries } => {
+            Some(AggregateKey::Map(*type_id, Rc::as_ptr(entries) as usize))
+        }
+        Value::Option {
+            type_id,
+            value: Some(value),
+        } => Some(AggregateKey::Option(*type_id, Rc::as_ptr(value) as usize)),
+        Value::Enum {
+            type_id,
+            tag,
+            values,
+        } => Some(AggregateKey::Enum(
+            *type_id,
+            Rc::as_ptr(tag) as usize,
+            Rc::as_ptr(values) as usize,
+        )),
+        _ => None,
+    }
+}
+
+fn values_equal(
+    left: &Value,
+    right: &Value,
+    cache: &mut BTreeMap<(AggregateKey, AggregateKey), bool>,
+) -> bool {
+    let pair = aggregate_key(left).zip(aggregate_key(right));
+    if let Some(result) = pair.and_then(|pair| cache.get(&pair)) {
+        return *result;
+    }
+    let equal = match (left, right) {
+        (Value::Int(a), Value::Int(b)) => a == b,
+        (Value::Float(a), Value::Float(b)) => a == b,
+        (Value::Bool(a), Value::Bool(b)) => a == b,
+        (Value::String(a), Value::String(b)) => a == b,
+        (Value::Unit, Value::Unit) => true,
+        (
+            Value::Record {
+                type_id: a,
+                fields: af,
+            },
+            Value::Record {
+                type_id: b,
+                fields: bf,
+            },
+        ) => {
+            a == b
+                && af.len() == bf.len()
+                && af.iter().all(|(name, value)| {
+                    bf.get(name)
+                        .is_some_and(|other| values_equal(value, other, cache))
+                })
+        }
+        (
+            Value::Tuple {
+                type_id: a,
+                elements: av,
+            },
+            Value::Tuple {
+                type_id: b,
+                elements: bv,
+            },
+        )
+        | (
+            Value::List {
+                type_id: a,
+                elements: av,
+            },
+            Value::List {
+                type_id: b,
+                elements: bv,
+            },
+        ) => {
+            a == b
+                && av.len() == bv.len()
+                && av
+                    .iter()
+                    .zip(bv.iter())
+                    .all(|(left, right)| values_equal(left, right, cache))
+        }
+        (
+            Value::Map {
+                type_id: a,
+                entries: av,
+            },
+            Value::Map {
+                type_id: b,
+                entries: bv,
+            },
+        ) => {
+            a == b
+                && av.len() == bv.len()
+                && av.iter().all(|(key, value)| {
+                    bv.iter().any(|(other_key, other_value)| {
+                        values_equal(key, other_key, cache)
+                            && values_equal(value, other_value, cache)
+                    })
+                })
+        }
+        (
+            Value::Option {
+                type_id: a,
+                value: av,
+            },
+            Value::Option {
+                type_id: b,
+                value: bv,
+            },
+        ) => {
+            a == b
+                && match (av, bv) {
+                    (None, None) => true,
+                    (Some(left), Some(right)) => values_equal(left, right, cache),
+                    _ => false,
+                }
+        }
+        (
+            Value::Enum {
+                type_id: a,
+                tag: at,
+                values: av,
+            },
+            Value::Enum {
+                type_id: b,
+                tag: bt,
+                values: bv,
+            },
+        ) => {
+            a == b
+                && at == bt
+                && av.len() == bv.len()
+                && av
+                    .iter()
+                    .zip(bv.iter())
+                    .all(|(left, right)| values_equal(left, right, cache))
+        }
+        _ => false,
+    };
+    if let Some(pair) = pair {
+        cache.insert(pair, equal);
+    }
+    equal
+}
+
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Int(a), Self::Int(b)) => a == b,
-            (Self::Float(a), Self::Float(b)) => a == b,
-            (Self::Bool(a), Self::Bool(b)) => a == b,
-            (Self::String(a), Self::String(b)) => a == b,
-            (Self::Unit, Self::Unit) => true,
-            (
-                Self::Record {
-                    type_id: a,
-                    fields: af,
-                },
-                Self::Record {
-                    type_id: b,
-                    fields: bf,
-                },
-            ) => a == b && af == bf,
-            (
-                Self::List {
-                    type_id: a,
-                    elements: av,
-                },
-                Self::List {
-                    type_id: b,
-                    elements: bv,
-                },
-            ) => a == b && av == bv,
-            (
-                Self::Map {
-                    type_id: a,
-                    entries: av,
-                },
-                Self::Map {
-                    type_id: b,
-                    entries: bv,
-                },
-            ) => {
-                a == b
-                    && av.len() == bv.len()
-                    && av.iter().all(|(key, value)| {
-                        bv.iter().any(|(other_key, other_value)| {
-                            key == other_key && value == other_value
-                        })
-                    })
-            }
-            (
-                Self::Option {
-                    type_id: a,
-                    value: av,
-                },
-                Self::Option {
-                    type_id: b,
-                    value: bv,
-                },
-            ) => a == b && av == bv,
-            (
-                Self::Enum {
-                    type_id: a,
-                    tag: at,
-                    values: av,
-                },
-                Self::Enum {
-                    type_id: b,
-                    tag: bt,
-                    values: bv,
-                },
-            ) => a == b && at == bt && av == bv,
-            _ => false,
-        }
+        values_equal(self, other, &mut BTreeMap::new())
     }
 }
 
@@ -177,6 +278,7 @@ impl Value {
             Self::Unit => ValueType::Unit,
             Self::Record { type_id, .. } => ValueType::Record(*type_id),
             Self::List { type_id, .. } => ValueType::List(*type_id),
+            Self::Tuple { type_id, .. } => ValueType::Tuple(*type_id),
             Self::Map { type_id, .. } => ValueType::Map(*type_id),
             Self::Option { type_id, .. } => ValueType::Option(*type_id),
             Self::Enum { type_id, .. } => ValueType::Enum(*type_id),
@@ -284,7 +386,13 @@ fn valid_arguments(
         && arguments
             .iter()
             .zip(&signature.parameters)
-            .all(|(value, expected)| valid_value(value, *expected, analysis, 0, host))
+            .all(|(value, expected)| {
+                if host {
+                    valid_value(value, *expected, analysis, 0, true)
+                } else {
+                    value.ty() == *expected
+                }
+            })
 }
 
 fn valid_value(
@@ -313,6 +421,17 @@ fn valid_value(
             depth < 32
                 && matches!(analysis.types.get(*type_id), Some(TypeInfo::List(ty))
             if elements.iter().all(|value| valid_value(value, *ty, analysis, depth + 1, host)))
+        }
+        Value::Tuple { type_id, elements } => {
+            let Some(TypeInfo::Tuple(types)) = analysis.types.get(*type_id) else {
+                return false;
+            };
+            depth < 32
+                && elements.len() == types.len()
+                && elements
+                    .iter()
+                    .zip(types)
+                    .all(|(value, ty)| valid_value(value, *ty, analysis, depth + 1, host))
         }
         Value::Map { type_id, entries } => {
             let Some(TypeInfo::Map { key, value }) = analysis.types.get(*type_id) else {
@@ -352,20 +471,64 @@ fn valid_value(
 }
 
 fn aggregate_depth(value: &Value) -> usize {
-    match value {
-        Value::Record { fields, .. } => 1 + fields.values().map(aggregate_depth).max().unwrap_or(0),
-        Value::List { elements, .. } => 1 + elements.iter().map(aggregate_depth).max().unwrap_or(0),
-        Value::Map { entries, .. } => {
-            1 + entries
-                .iter()
-                .map(|(key, value)| aggregate_depth(key).max(aggregate_depth(value)))
-                .max()
-                .unwrap_or(0)
+    fn depth(value: &Value, cache: &mut BTreeMap<(u8, usize), usize>) -> usize {
+        let key = match value {
+            Value::Record { fields, .. } => Some((0, Rc::as_ptr(fields) as usize)),
+            Value::List { elements, .. } => Some((1, Rc::as_ptr(elements) as usize)),
+            Value::Tuple { elements, .. } => Some((2, Rc::as_ptr(elements) as usize)),
+            Value::Map { entries, .. } => Some((3, Rc::as_ptr(entries) as usize)),
+            Value::Option {
+                value: Some(value), ..
+            } => Some((4, Rc::as_ptr(value) as usize)),
+            Value::Enum { values, .. } => Some((5, Rc::as_ptr(values) as usize)),
+            _ => None,
+        };
+        if let Some(key) = key {
+            if let Some(depth) = cache.get(&key) {
+                return *depth;
+            }
         }
-        Value::Option { value, .. } => 1 + value.as_ref().map_or(0, |value| aggregate_depth(value)),
-        Value::Enum { values, .. } => 1 + values.iter().map(aggregate_depth).max().unwrap_or(0),
-        _ => 0,
+        let depth = match value {
+            Value::Record { fields, .. } => {
+                1 + fields
+                    .values()
+                    .map(|value| depth(value, cache))
+                    .max()
+                    .unwrap_or(0)
+            }
+            Value::List { elements, .. } | Value::Tuple { elements, .. } => {
+                1 + elements
+                    .iter()
+                    .map(|value| depth(value, cache))
+                    .max()
+                    .unwrap_or(0)
+            }
+            Value::Map { entries, .. } => {
+                1 + entries
+                    .iter()
+                    .map(|(key, value)| depth(key, cache).max(depth(value, cache)))
+                    .max()
+                    .unwrap_or(0)
+            }
+            Value::Option { value, .. } => {
+                1 + value.as_ref().map_or(0, |value| depth(value, cache))
+            }
+            Value::Enum { values, .. } => {
+                1 + values
+                    .iter()
+                    .map(|value| depth(value, cache))
+                    .max()
+                    .unwrap_or(0)
+            }
+            _ => 0,
+        };
+        if let Some(key) = key {
+            cache.insert(key, depth);
+        }
+        depth
     }
+
+    depth(value, &mut BTreeMap::new())
 }
 
 fn decode_host_value(
@@ -382,6 +545,7 @@ fn decode_host_value(
                 | ValueType::Option(_)
                 | ValueType::Enum(_)
                 | ValueType::Map(_)
+                | ValueType::Tuple(_)
         )
     {
         return None;
@@ -433,6 +597,25 @@ fn decode_host_value(
             Value::List {
                 type_id,
                 elements: Rc::new(elements),
+            }
+        }
+        ValueType::Tuple(type_id) => {
+            let TypeInfo::Tuple(types) = analysis.types.get(type_id)? else {
+                return None;
+            };
+            let elements = json.as_array()?;
+            if elements.len() != types.len() {
+                return None;
+            }
+            Value::Tuple {
+                type_id,
+                elements: Rc::new(
+                    elements
+                        .iter()
+                        .zip(types)
+                        .map(|(element, ty)| decode_host_value(element, *ty, analysis, depth + 1))
+                        .collect::<Option<_>>()?,
+                ),
             }
         }
         ValueType::Option(type_id) => {
@@ -654,7 +837,7 @@ impl Interpreter<'_> {
                     || !arguments
                         .iter()
                         .zip(types)
-                        .all(|(value, ty)| valid_value(value, *ty, self.analysis, 0, false))
+                        .all(|(value, ty)| value.ty() == *ty)
                 {
                     return Err(invariant_error());
                 }
@@ -722,6 +905,21 @@ impl Interpreter<'_> {
                     .last_mut()
                     .ok_or_else(invariant_error)?
                     .insert(name.name.clone(), value);
+            }
+            StatementKind::LetPattern {
+                pattern,
+                value: expression,
+                ..
+            } => {
+                let value = value!(self.eval_expr(expression));
+                let mut bindings = BTreeMap::new();
+                if !match_pattern(pattern, &value, &mut bindings) {
+                    return Err(invariant_error());
+                }
+                self.scopes
+                    .last_mut()
+                    .ok_or_else(invariant_error)?
+                    .extend(bindings);
             }
             StatementKind::Assign {
                 target,
@@ -946,6 +1144,26 @@ impl Interpreter<'_> {
                     values.push(value!(self.eval_expr(element)));
                 }
                 self.list(self.expression_type(expression)?, values)?
+            }
+            ExprKind::Tuple(elements) if elements.is_empty() => Value::Unit,
+            ExprKind::Tuple(elements) => {
+                let mut values = Vec::with_capacity(elements.len());
+                for element in elements {
+                    values.push(value!(self.eval_expr(element)));
+                }
+                let ValueType::Tuple(type_id) = self.expression_type(expression)? else {
+                    return Err(invariant_error());
+                };
+                let Some(TypeInfo::Tuple(types)) = self.analysis.types.get(type_id) else {
+                    return Err(invariant_error());
+                };
+                if types.len() != values.len() {
+                    return Err(invariant_error());
+                }
+                bounded(Value::Tuple {
+                    type_id,
+                    elements: Rc::new(values),
+                })?
             }
             ExprKind::Arrow { parameters, body } => {
                 let ValueType::Function(type_id) = self.expression_type(expression)? else {
@@ -1635,6 +1853,14 @@ fn match_pattern(pattern: &Pattern, value: &Value, bindings: &mut BTreeMap<Strin
         (PatternKind::Binding(name), _) => {
             bindings.insert(name.name.clone(), value.clone());
             true
+        }
+        (PatternKind::Tuple(patterns), Value::Unit) if patterns.is_empty() => true,
+        (PatternKind::Tuple(patterns), Value::Tuple { elements, .. }) => {
+            patterns.len() == elements.len()
+                && patterns
+                    .iter()
+                    .zip(elements.iter())
+                    .all(|(pattern, value)| match_pattern(pattern, value, bindings))
         }
         (PatternKind::Integer(integer), Value::Int(value)) => {
             integer.parse::<i32>().ok() == Some(*value)

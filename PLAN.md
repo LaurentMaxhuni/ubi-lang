@@ -1,5 +1,14 @@
 # Ubi implementation plan
 
+## Current language work: tuples and destructuring, authorized 2026-10-21
+
+User requested autonomous unfinished-work progress and critical bug fixes.
+Execute [the tuple plan](docs/superpowers/plans/2026-10-21-tuples.md) against SPEC
+section 24. Extend both execution paths and independently evaluated conformance;
+preserve exact types, capability checks, host validation and resource limits.
+Typed pure function values below are complete. Generic constraints remain driven
+by reusable-library examples; standard-library/editor/test tooling follows.
+
 ## Current language work: typed function values, authorized 2026-10-14
 
 Execute [the function-values plan](docs/superpowers/plans/2026-10-14-function-values.md)
@@ -10,7 +19,7 @@ evidence-driven generic constraints, standard-library growth and editor/test too
 
 - [x] Typed pure function values, independent conformance, shared budgets and host guards.
 - [x] Cross-module example; all 195 tests, formatting, Clippy and mutation watchdog.
-- [ ] Tuples and destructuring.
+- [x] Tuples and destructuring; independent conformance, shared-graph fixes and host guards.
 - [ ] Generic constraints/traits driven by reusable-library examples.
 - [ ] Standard-library growth and language test/editor tooling.
 

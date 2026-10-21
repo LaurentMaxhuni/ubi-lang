@@ -34,6 +34,7 @@ pub(crate) enum ValueType {
     Bool,
     String,
     Unit,
+    Tuple(usize),
     Record(usize),
     List(usize),
     Option(usize),
@@ -55,6 +56,7 @@ impl ValueType {
             Self::Bool => "bool",
             Self::String => "string",
             Self::Unit => "unit",
+            Self::Tuple(_) => "tuple",
             Self::Record(_) => "record",
             Self::List(_) => "List",
             Self::Option(_) => "Option",
@@ -79,6 +81,7 @@ pub(crate) enum TypeInfo {
         name: String,
     },
     List(ValueType),
+    Tuple(Vec<ValueType>),
     Option(ValueType),
     Map {
         key: ValueType,
@@ -104,6 +107,7 @@ fn intern_type(types: &mut Vec<TypeInfo>, info: TypeInfo) -> ValueType {
     match info {
         TypeInfo::Parameter { .. } => ValueType::Parameter(id),
         TypeInfo::List(_) => ValueType::List(id),
+        TypeInfo::Tuple(_) => ValueType::Tuple(id),
         TypeInfo::Option(_) => ValueType::Option(id),
         TypeInfo::Map { .. } => ValueType::Map(id),
         TypeInfo::Enum { .. } => ValueType::Enum(id),
@@ -211,6 +215,11 @@ pub(crate) fn contains_function(ty: ValueType, records: &[RecordInfo], types: &[
             continue;
         }
         match ty {
+            ValueType::Tuple(id) => {
+                if let TypeInfo::Tuple(elements) = &types[id] {
+                    pending.extend(elements.iter().copied());
+                }
+            }
             ValueType::Function(_) => return true,
             ValueType::Record(id) => {
                 pending.extend(records[id].arguments.iter().copied());
@@ -926,8 +935,17 @@ fn check_public_type(
     diagnostics: &mut Vec<Diagnostic>,
 ) {
     let mut pending = vec![ty];
+    let mut visited = BTreeSet::new();
     while let Some(ty) = pending.pop() {
+        if !visited.insert(ty) {
+            continue;
+        }
         match ty {
+            ValueType::Tuple(id) => {
+                if let TypeInfo::Tuple(elements) = &types[id] {
+                    pending.extend(elements.iter().copied());
+                }
+            }
             ValueType::Record(id) => {
                 if !records[id].exported {
                     diagnostics.push(Diagnostic::error(
@@ -1111,6 +1129,9 @@ fn type_from_syntax(
                 )
             })
             .collect();
+        if ty.name == "$tuple" {
+            return Some(intern_type(types, TypeInfo::Tuple(arguments)));
+        }
         if ty.name == "fn" {
             let (return_type, parameters) = arguments.split_last()?;
             return Some(intern_type(
@@ -1215,8 +1236,17 @@ fn contains_parameters(
     types: &[TypeInfo],
 ) -> bool {
     let mut pending = vec![ty];
+    let mut visited = BTreeSet::new();
     while let Some(ty) = pending.pop() {
+        if !visited.insert(ty) {
+            continue;
+        }
         match ty {
+            ValueType::Tuple(id) => {
+                if let TypeInfo::Tuple(elements) = &types[id] {
+                    pending.extend(elements.iter().copied());
+                }
+            }
             ValueType::Parameter(id) if parameters.contains(&id) => return true,
             ValueType::Record(id) => pending.extend(records[id].arguments.iter().copied()),
             ValueType::Enum(id) => {
@@ -1254,6 +1284,7 @@ fn needs_context(expression: &Expr) -> bool {
     match &expression.kind {
         ExprKind::Await(operand) => needs_context(operand),
         ExprKind::List(values) => values.is_empty() || values.iter().any(needs_context),
+        ExprKind::Tuple(values) => values.iter().any(needs_context),
         ExprKind::Member { .. }
         | ExprKind::Call { .. }
         | ExprKind::Record { .. }
@@ -1299,7 +1330,11 @@ pub(crate) fn infer_type_arguments(
     types: &[TypeInfo],
 ) -> bool {
     let mut pending = vec![(template, actual)];
+    let mut visited = BTreeSet::new();
     while let Some((template, actual)) = pending.pop() {
+        if !visited.insert((template, actual)) {
+            continue;
+        }
         if actual == ValueType::Error || actual == ValueType::Never || template == ValueType::Error
         {
             continue;
@@ -1318,6 +1353,15 @@ pub(crate) fn infer_type_arguments(
             continue;
         }
         match (template, actual) {
+            (ValueType::Tuple(a), ValueType::Tuple(b)) => {
+                let (TypeInfo::Tuple(a), TypeInfo::Tuple(b)) = (&types[a], &types[b]) else {
+                    return false;
+                };
+                if a.len() != b.len() {
+                    return false;
+                }
+                pending.extend(a.iter().copied().zip(b.iter().copied()));
+            }
             (ValueType::List(a), ValueType::List(b))
             | (ValueType::Option(a), ValueType::Option(b)) => {
                 let (
@@ -1399,7 +1443,7 @@ pub(crate) fn substitute_type(
     records: &mut Vec<RecordInfo>,
     types: &mut Vec<TypeInfo>,
 ) -> Result<ValueType, ()> {
-    substitute_inner(ty, mapping, records, types, 0)
+    substitute_inner(ty, mapping, records, types, 0, &mut BTreeMap::new())
 }
 
 fn substitute_inner(
@@ -1408,25 +1452,39 @@ fn substitute_inner(
     records: &mut Vec<RecordInfo>,
     types: &mut Vec<TypeInfo>,
     depth: usize,
+    cache: &mut BTreeMap<(ValueType, usize), ValueType>,
 ) -> Result<ValueType, ()> {
     if depth > 32 || records.len() + types.len() > 4096 {
         return Err(());
     }
+    if let Some(result) = cache.get(&(ty, depth)) {
+        return Ok(*result);
+    }
     let result = match ty {
+        ValueType::Tuple(id) => {
+            let TypeInfo::Tuple(elements) = types[id].clone() else {
+                return Err(());
+            };
+            let elements = elements
+                .into_iter()
+                .map(|element| substitute_inner(element, mapping, records, types, depth + 1, cache))
+                .collect::<Result<_, _>>()?;
+            intern_type(types, TypeInfo::Tuple(elements))
+        }
         ValueType::Parameter(id) => mapping.get(&id).copied().unwrap_or(ty),
         ValueType::Map(id) => {
             let TypeInfo::Map { key, value } = types[id] else {
                 return Err(());
             };
-            let key = substitute_inner(key, mapping, records, types, depth + 1)?;
-            let value = substitute_inner(value, mapping, records, types, depth + 1)?;
+            let key = substitute_inner(key, mapping, records, types, depth + 1, cache)?;
+            let value = substitute_inner(value, mapping, records, types, depth + 1, cache)?;
             intern_type(types, TypeInfo::Map { key, value })
         }
         ValueType::List(id) | ValueType::Option(id) => {
             let (TypeInfo::List(inner) | TypeInfo::Option(inner)) = types[id] else {
                 unreachable!()
             };
-            let inner = substitute_inner(inner, mapping, records, types, depth + 1)?;
+            let inner = substitute_inner(inner, mapping, records, types, depth + 1, cache)?;
             intern_type(
                 types,
                 if matches!(ty, ValueType::List(_)) {
@@ -1446,9 +1504,10 @@ fn substitute_inner(
             };
             let parameters = parameters
                 .into_iter()
-                .map(|p| substitute_inner(p, mapping, records, types, depth + 1))
+                .map(|p| substitute_inner(p, mapping, records, types, depth + 1, cache))
                 .collect::<Result<_, _>>()?;
-            let return_type = substitute_inner(return_type, mapping, records, types, depth + 1)?;
+            let return_type =
+                substitute_inner(return_type, mapping, records, types, depth + 1, cache)?;
             intern_type(
                 types,
                 TypeInfo::Function {
@@ -1462,7 +1521,7 @@ fn substitute_inner(
             let arguments = record
                 .arguments
                 .iter()
-                .map(|a| substitute_inner(*a, mapping, records, types, depth + 1))
+                .map(|a| substitute_inner(*a, mapping, records, types, depth + 1, cache))
                 .collect::<Result<Vec<_>, _>>()?;
             if arguments == record.arguments {
                 return Ok(ty);
@@ -1486,7 +1545,7 @@ fn substitute_inner(
                 .map(|(name, ty)| {
                     Ok((
                         name,
-                        substitute_inner(ty, mapping, records, types, depth + 1)?,
+                        substitute_inner(ty, mapping, records, types, depth + 1, cache)?,
                     ))
                 })
                 .collect::<Result<_, ()>>()?;
@@ -1505,7 +1564,7 @@ fn substitute_inner(
             };
             let args = arguments
                 .iter()
-                .map(|a| substitute_inner(*a, mapping, records, types, depth + 1))
+                .map(|a| substitute_inner(*a, mapping, records, types, depth + 1, cache))
                 .collect::<Result<Vec<_>, _>>()?;
             if args == arguments {
                 return Ok(ty);
@@ -1529,7 +1588,7 @@ fn substitute_inner(
                         name,
                         payloads
                             .into_iter()
-                            .map(|p| substitute_inner(p, mapping, records, types, depth + 1))
+                            .map(|p| substitute_inner(p, mapping, records, types, depth + 1, cache))
                             .collect::<Result<_, _>>()?,
                     ))
                 })
@@ -1548,6 +1607,7 @@ fn substitute_inner(
     if records.len() + types.len() > 4096 {
         return Err(());
     }
+    cache.insert((ty, depth), result);
     Ok(result)
 }
 
@@ -1558,14 +1618,39 @@ pub(crate) fn substitute_type_existing(
     records: &[RecordInfo],
     types: &[TypeInfo],
 ) -> Option<ValueType> {
-    Some(match ty {
+    substitute_existing_inner(ty, mapping, records, types, &mut BTreeMap::new())
+}
+
+#[cfg(test)]
+fn substitute_existing_inner(
+    ty: ValueType,
+    mapping: &BTreeMap<usize, ValueType>,
+    records: &[RecordInfo],
+    types: &[TypeInfo],
+    cache: &mut BTreeMap<ValueType, ValueType>,
+) -> Option<ValueType> {
+    if let Some(result) = cache.get(&ty) {
+        return Some(*result);
+    }
+    let result = match ty {
+        ValueType::Tuple(id) => {
+            let TypeInfo::Tuple(elements) = &types[id] else {
+                return None;
+            };
+            let elements = elements
+                .iter()
+                .map(|element| substitute_existing_inner(*element, mapping, records, types, cache))
+                .collect::<Option<Vec<_>>>()?;
+            let info = TypeInfo::Tuple(elements);
+            ValueType::Tuple(types.iter().position(|t| t == &info)?)
+        }
         ValueType::Parameter(id) => mapping.get(&id).copied().unwrap_or(ty),
         ValueType::Map(id) => {
             let TypeInfo::Map { key, value } = types[id] else {
                 return None;
             };
-            let key = substitute_type_existing(key, mapping, records, types)?;
-            let value = substitute_type_existing(value, mapping, records, types)?;
+            let key = substitute_existing_inner(key, mapping, records, types, cache)?;
+            let value = substitute_existing_inner(value, mapping, records, types, cache)?;
             ValueType::Map(
                 types
                     .iter()
@@ -1576,7 +1661,7 @@ pub(crate) fn substitute_type_existing(
             let (TypeInfo::List(inner) | TypeInfo::Option(inner)) = types[id] else {
                 return None;
             };
-            let inner = substitute_type_existing(inner, mapping, records, types)?;
+            let inner = substitute_existing_inner(inner, mapping, records, types, cache)?;
             let info = if matches!(ty, ValueType::List(_)) {
                 TypeInfo::List(inner)
             } else {
@@ -1599,9 +1684,10 @@ pub(crate) fn substitute_type_existing(
             };
             let parameters: Vec<ValueType> = parameters
                 .iter()
-                .map(|p| substitute_type_existing(*p, mapping, records, types))
+                .map(|p| substitute_existing_inner(*p, mapping, records, types, cache))
                 .collect::<Option<_>>()?;
-            let return_type = substitute_type_existing(*return_type, mapping, records, types)?;
+            let return_type =
+                substitute_existing_inner(*return_type, mapping, records, types, cache)?;
             ValueType::Function(types.iter().position(|t| {
                 t == &TypeInfo::Function {
                     parameters: parameters.clone(),
@@ -1614,7 +1700,7 @@ pub(crate) fn substitute_type_existing(
             let arguments = record
                 .arguments
                 .iter()
-                .map(|p| substitute_type_existing(*p, mapping, records, types))
+                .map(|p| substitute_existing_inner(*p, mapping, records, types, cache))
                 .collect::<Option<Vec<_>>>()?;
             ValueType::Record(
                 records
@@ -1628,14 +1714,16 @@ pub(crate) fn substitute_type_existing(
             };
             let arguments = arguments
                 .iter()
-                .map(|p| substitute_type_existing(*p, mapping, records, types))
+                .map(|p| substitute_existing_inner(*p, mapping, records, types, cache))
                 .collect::<Option<Vec<_>>>()?;
             ValueType::Enum(types.iter().position(
                 |t| matches!(t,TypeInfo::Enum{key:k,arguments:a,..} if k==key && a==&arguments),
             )?)
         }
         _ => ty,
-    })
+    };
+    cache.insert(ty, result);
+    Some(result)
 }
 
 fn refresh_nominals(
@@ -1812,6 +1900,12 @@ fn collect_block_calls(
                 collect_expression_calls(value, symbols, scopes, calls);
                 scopes.last_mut().unwrap().insert(name.name.clone());
             }
+            StatementKind::LetPattern { pattern, value, .. } => {
+                collect_expression_calls(value, symbols, scopes, calls);
+                let mut names = HashSet::new();
+                collect_pattern_names(pattern, &mut names);
+                scopes.last_mut().unwrap().extend(names);
+            }
             StatementKind::Assign { value, .. } => {
                 collect_expression_calls(value, symbols, scopes, calls);
             }
@@ -1860,7 +1954,7 @@ fn collect_expression_calls(
                 }
             }
         }
-        ExprKind::List(values) => {
+        ExprKind::List(values) | ExprKind::Tuple(values) => {
             for value in values {
                 collect_expression_calls(value, symbols, scopes, calls);
             }
@@ -2169,6 +2263,38 @@ impl FunctionChecker<'_> {
                         );
                     }
                 }
+                StatementKind::LetPattern {
+                    pattern,
+                    annotation,
+                    value,
+                } => {
+                    let expected = annotation.as_ref().map(|ty| {
+                        type_from_syntax(
+                            ty,
+                            self.module_id,
+                            self.module_symbols,
+                            self.record_keys,
+                            &self.type_parameters,
+                            self.records,
+                            self.types,
+                            &mut self.diagnostics,
+                        )
+                    });
+                    let actual = self.check_expr_expected(value, expected);
+                    let Some(actual) = actual else {
+                        completes = false;
+                        continue;
+                    };
+                    if let Some(expected) = expected {
+                        self.require_same_type(
+                            expected,
+                            actual,
+                            &value.span,
+                            "Binding initializer has the wrong type",
+                        );
+                    }
+                    self.check_let_pattern(pattern, expected.unwrap_or(actual));
+                }
                 StatementKind::Assign { target, value } => {
                     let target_type = self.check_assignment_target(target);
                     let value_type = self.check_expr_expected(value, target_type);
@@ -2311,6 +2437,7 @@ impl FunctionChecker<'_> {
         let expected = self.expected_expr.take();
         match &expression.kind {
             ExprKind::List(values) => self.check_list(expression, values, expected),
+            ExprKind::Tuple(values) => self.check_tuple(values, expected),
             ExprKind::Await(operand) => self.check_expr_expected(operand, expected),
             ExprKind::Arrow { parameters, body } => self.check_arrow(parameters, body, expected),
             ExprKind::Match { subject, arms } => {
@@ -3056,6 +3183,40 @@ impl FunctionChecker<'_> {
         }
     }
 
+    fn check_tuple(&mut self, values: &[Expr], expected: Option<ValueType>) -> Option<ValueType> {
+        let expected_elements = expected.and_then(|ty| {
+            if let ValueType::Tuple(id) = ty {
+                if let TypeInfo::Tuple(elements) = &self.types[id] {
+                    return Some(elements.clone());
+                }
+            }
+            None
+        });
+        let mut elements = Vec::new();
+        let mut completes = true;
+        for (index, value) in values.iter().enumerate() {
+            let expected = expected_elements
+                .as_ref()
+                .and_then(|elements| elements.get(index))
+                .copied();
+            if let Some(actual) = self.check_expr_expected(value, expected) {
+                self.aggregate_allowed(actual, &value.span);
+                if let Some(expected) = expected {
+                    self.require_same_type(
+                        expected,
+                        actual,
+                        &value.span,
+                        "Tuple element has the wrong type",
+                    );
+                }
+                elements.push(actual);
+            } else {
+                completes = false;
+            }
+        }
+        completes.then(|| intern_type(self.types, TypeInfo::Tuple(elements)))
+    }
+
     fn check_list(
         &mut self,
         expression: &Expr,
@@ -3222,8 +3383,83 @@ impl FunctionChecker<'_> {
         }
     }
 
+    fn check_let_pattern(&mut self, pattern: &Pattern, expected: ValueType) {
+        match &pattern.kind {
+            PatternKind::Wildcard => {}
+            PatternKind::Binding(name) => {
+                let scope = self.scopes.last_mut().unwrap();
+                if scope.contains_key(&name.name) {
+                    self.diagnostics.push(Diagnostic::error(
+                        "UBI0011",
+                        "Duplicate pattern binding",
+                        name.span.clone(),
+                    ));
+                } else {
+                    scope.insert(
+                        name.name.clone(),
+                        Binding {
+                            ty: expected,
+                            mutable: false,
+                        },
+                    );
+                }
+            }
+            PatternKind::Tuple(patterns) => {
+                let elements = match expected {
+                    ValueType::Unit if patterns.is_empty() => Some(Vec::new()),
+                    ValueType::Tuple(id) => match &self.types[id] {
+                        TypeInfo::Tuple(elements) if elements.len() == patterns.len() => {
+                            Some(elements.clone())
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                if let Some(elements) = elements {
+                    for (pattern, ty) in patterns.iter().zip(elements) {
+                        self.check_let_pattern(pattern, ty);
+                    }
+                } else {
+                    self.diagnostics.push(Diagnostic::error(
+                        "UBI0031",
+                        "Tuple pattern requires a tuple of the same arity",
+                        pattern.span.clone(),
+                    ));
+                }
+            }
+            _ => self.diagnostics.push(Diagnostic::error(
+                "UBI0031",
+                "Let patterns must be irrefutable names, wildcards or tuples",
+                pattern.span.clone(),
+            )),
+        }
+    }
+
     fn check_pattern(&mut self, pattern: &Pattern, expected: ValueType) {
         match &pattern.kind {
+            PatternKind::Tuple(patterns) => {
+                let elements = match expected {
+                    ValueType::Unit if patterns.is_empty() => Some(Vec::new()),
+                    ValueType::Tuple(id) => match &self.types[id] {
+                        TypeInfo::Tuple(elements) if elements.len() == patterns.len() => {
+                            Some(elements.clone())
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                if let Some(elements) = elements {
+                    for (pattern, ty) in patterns.iter().zip(elements) {
+                        self.check_pattern(pattern, ty);
+                    }
+                } else {
+                    self.diagnostics.push(Diagnostic::error(
+                        "UBI0031",
+                        "Tuple pattern requires a tuple of the same arity",
+                        pattern.span.clone(),
+                    ));
+                }
+            }
             PatternKind::Wildcard => {}
             PatternKind::Binding(name) => {
                 if self
@@ -3895,7 +4131,15 @@ impl FunctionChecker<'_> {
         let mut pending = vec![ty];
         let mut visited = BTreeSet::new();
         while let Some(ty) = pending.pop() {
+            if !visited.insert(ty) {
+                continue;
+            }
             match ty {
+                ValueType::Tuple(id) => {
+                    if let TypeInfo::Tuple(elements) = &self.types[id] {
+                        pending.extend(elements.iter().copied());
+                    }
+                }
                 ValueType::Function(_)
                 | ValueType::Range
                 | ValueType::Parameter(_)
@@ -3909,10 +4153,10 @@ impl FunctionChecker<'_> {
                         pending.extend([key, value]);
                     }
                 }
-                ValueType::Record(id) if visited.insert((false, id)) => {
+                ValueType::Record(id) => {
                     pending.extend(self.records[id].fields.values().copied());
                 }
-                ValueType::Enum(id) if visited.insert((true, id)) => {
+                ValueType::Enum(id) => {
                     let TypeInfo::Enum { variants, .. } = &self.types[id] else {
                         unreachable!()
                     };
@@ -4022,7 +4266,7 @@ fn collect_pattern_names(pattern: &Pattern, names: &mut HashSet<String>) {
             names.insert(name.name.clone());
         }
         PatternKind::Some(inner) => collect_pattern_names(inner, names),
-        PatternKind::Variant { payloads, .. } => {
+        PatternKind::Tuple(payloads) | PatternKind::Variant { payloads, .. } => {
             for payload in payloads {
                 collect_pattern_names(payload, names);
             }
@@ -4058,6 +4302,13 @@ fn patterns_exhaustive(
             continue;
         }
         let constructors = match columns[0] {
+            ValueType::Unit => vec![("tuple", vec![])],
+            ValueType::Tuple(id) => {
+                let TypeInfo::Tuple(elements) = &types[id] else {
+                    unreachable!()
+                };
+                vec![("tuple", elements.clone())]
+            }
             ValueType::Bool => vec![("true", vec![]), ("false", vec![])],
             ValueType::Option(id) => {
                 let TypeInfo::Option(inner) = types[id] else {
@@ -4094,6 +4345,9 @@ fn patterns_exhaustive(
                         vec![None; payload_types.len()]
                     } else {
                         match &row[0].unwrap().kind {
+                            PatternKind::Tuple(elements) if tag == "tuple" => {
+                                elements.iter().map(Some).collect()
+                            }
                             PatternKind::Bool(value)
                                 if tag == if *value { "true" } else { "false" } =>
                             {
@@ -4141,6 +4395,7 @@ pub(crate) fn validate_instantiated_aggregates(
     }
     for info in types {
         match info {
+            TypeInfo::Tuple(elements) => pending.extend(elements.iter().copied()),
             TypeInfo::List(inner) | TypeInfo::Option(inner) => pending.push(*inner),
             TypeInfo::Enum { variants, .. } => {
                 pending.extend(variants.values().flatten().copied());
@@ -4160,6 +4415,11 @@ pub(crate) fn validate_instantiated_aggregates(
         }
         match ty {
             ValueType::Range => forbidden_function = true,
+            ValueType::Tuple(id) => {
+                if let TypeInfo::Tuple(elements) = &types[id] {
+                    pending.extend(elements.iter().copied());
+                }
+            }
             ValueType::Function(id) => {
                 if let TypeInfo::Function {
                     parameters,

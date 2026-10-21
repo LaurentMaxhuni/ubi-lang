@@ -1,6 +1,6 @@
 # Ubi language specification
 
-Version: 0.7 draft. Current work: v1 asynchronous application behavior, portable hosts, packaging, and developer tooling. Release validation remains recorded separately from implementation.
+Version: 0.8 draft. Current work: typed pure function values, tuples and destructuring. Release validation remains recorded separately from implementation.
 
 ## 1. Scope and conformance
 
@@ -825,7 +825,8 @@ Pure functions stored in tuples obey section 23, including recursive public host
 rejection before execution and the caller's shared runtime budgets.
 
 The interpreter exposes tuple values as `Value::Tuple` with ordered elements.
-JavaScript uses frozen arrays. Public host tuples require arrays of exactly the
-declared arity and recursively validated element types; inputs are copied and
-frozen, preserving existing depth/value limits. Unit keeps its existing host
+JavaScript uses frozen arrays. Public host tuples use serialized JSON arrays of
+exactly the declared arity and recursively validated element types; live arrays
+are rejected, as for other aggregates. Inputs are copied and frozen, preserving
+existing depth/value limits. Unit keeps its existing host
 representation. No implicit tuple/list conversion or tuple iteration is added.

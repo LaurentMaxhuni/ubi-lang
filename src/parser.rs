@@ -110,6 +110,11 @@ pub(crate) enum StatementKind {
         annotation: Option<Type>,
         value: Expr,
     },
+    LetPattern {
+        pattern: Pattern,
+        annotation: Option<Type>,
+        value: Expr,
+    },
     Assign {
         target: Expr,
         value: Expr,
@@ -151,6 +156,7 @@ pub(crate) enum ExprKind {
     Bool(bool),
     Unit,
     List(Vec<Expr>),
+    Tuple(Vec<Expr>),
     Arrow {
         parameters: Vec<Parameter>,
         body: Box<Expr>,
@@ -216,6 +222,7 @@ pub(crate) enum PatternKind {
     Integer(String),
     String(String),
     Bool(bool),
+    Tuple(Vec<Pattern>),
     Some(Box<Pattern>),
     None,
     Variant {
@@ -506,6 +513,35 @@ impl Parser {
         if self.at_eof() {
             return Err(self.error("Expected a type name"));
         }
+        if let Some(open) = self.eat_symbol(Symbol::LParen) {
+            if let Some(close) = self.eat_symbol(Symbol::RParen) {
+                return Ok(Type {
+                    name: "unit".to_owned(),
+                    arguments: Vec::new(),
+                    span: cover(&open.span, &close.span),
+                });
+            }
+            let first = self.parse_type()?;
+            if self.eat_symbol(Symbol::Comma).is_none() {
+                let close = self.expect_symbol(Symbol::RParen)?.span;
+                let mut grouped = first;
+                grouped.span = cover(&open.span, &close);
+                return Ok(grouped);
+            }
+            let mut elements = vec![first];
+            while !self.at_symbol(Symbol::RParen) {
+                elements.push(self.parse_type()?);
+                if self.eat_symbol(Symbol::Comma).is_none() {
+                    break;
+                }
+            }
+            let close = self.expect_symbol(Symbol::RParen)?.span;
+            return Ok(Type {
+                name: "$tuple".to_owned(),
+                arguments: elements,
+                span: cover(&open.span, &close),
+            });
+        }
         if let Some(start) = self.eat_keyword("fn") {
             let start = start.span;
             self.expect_symbol(Symbol::LParen)?;
@@ -670,6 +706,28 @@ impl Parser {
     fn parse_let_statement(&mut self) -> Result<Statement, ParseError> {
         let start = self.expect_keyword("let")?.span;
         let mutable = self.eat_keyword("mut").is_some();
+        if self.at_symbol(Symbol::LParen) {
+            if mutable {
+                return Err(self.error("Mutable tuple destructuring is not supported"));
+            }
+            let pattern = self.parse_pattern()?;
+            let annotation = if self.eat_symbol(Symbol::Colon).is_some() {
+                Some(self.parse_type()?)
+            } else {
+                None
+            };
+            self.expect_symbol(Symbol::Equal)?;
+            let value = self.parse_expression(0)?;
+            let end = self.expect_symbol(Symbol::Semicolon)?.span;
+            return Ok(Statement {
+                span: cover(&start, &end),
+                kind: StatementKind::LetPattern {
+                    pattern,
+                    annotation,
+                    value,
+                },
+            });
+        }
         let name = self.parse_identifier()?;
         let annotation = if self.eat_symbol(Symbol::Colon).is_some() {
             Some(self.parse_type()?)
@@ -1001,10 +1059,29 @@ impl Parser {
                         nesting: 1,
                     });
                 }
-                let mut expression = self.parse_expression(0)?;
+                let first = self.parse_expression(0)?;
+                if self.eat_symbol(Symbol::Comma).is_none() {
+                    let close = self.expect_symbol(Symbol::RParen)?.span;
+                    let mut grouped = first;
+                    grouped.span = cover(&token.span, &close);
+                    return Ok(grouped);
+                }
+                let mut elements = vec![first];
+                while !self.at_symbol(Symbol::RParen) {
+                    elements.push(self.parse_expression(0)?);
+                    if self.eat_symbol(Symbol::Comma).is_none() {
+                        break;
+                    }
+                }
                 let close = self.expect_symbol(Symbol::RParen)?.span;
-                expression.span = cover(&token.span, &close);
-                Ok(expression)
+                let span = cover(&token.span, &close);
+                let nesting =
+                    self.nested_depth(elements.iter().map(|element| element.nesting), &span)?;
+                Ok(Expr {
+                    kind: ExprKind::Tuple(elements),
+                    span,
+                    nesting,
+                })
             }
             TokenKind::Symbol(Symbol::LBrace) => {
                 self.position -= 1;
@@ -1244,9 +1321,40 @@ impl Parser {
                 name,
                 span: span.clone(),
             }),
+            TokenKind::Symbol(Symbol::LParen) => {
+                return self.parse_parenthesized_pattern(span);
+            }
             _ => return Err(self.error_previous("Expected a pattern")),
         };
         Ok(Pattern { kind, span })
+    }
+
+    fn parse_parenthesized_pattern(&mut self, open: Span) -> Result<Pattern, ParseError> {
+        if let Some(close) = self.eat_symbol(Symbol::RParen) {
+            return Ok(Pattern {
+                kind: PatternKind::Tuple(Vec::new()),
+                span: cover(&open, &close.span),
+            });
+        }
+        let first = self.parse_pattern()?;
+        if self.eat_symbol(Symbol::Comma).is_none() {
+            let close = self.expect_symbol(Symbol::RParen)?.span;
+            let mut grouped = first;
+            grouped.span = cover(&open, &close);
+            return Ok(grouped);
+        }
+        let mut elements = vec![first];
+        while !self.at_symbol(Symbol::RParen) {
+            elements.push(self.parse_pattern()?);
+            if self.eat_symbol(Symbol::Comma).is_none() {
+                break;
+            }
+        }
+        let close = self.expect_symbol(Symbol::RParen)?.span;
+        Ok(Pattern {
+            kind: PatternKind::Tuple(elements),
+            span: cover(&open, &close),
+        })
     }
 
     fn parse_arguments(&mut self) -> Result<Vec<Expr>, ParseError> {
@@ -1463,7 +1571,9 @@ fn cover(first: &Span, last: &Span) -> Span {
 
 fn statement_nesting(statement: &Statement) -> usize {
     match &statement.kind {
-        StatementKind::Let { value, .. } | StatementKind::Expression(value) => value.nesting,
+        StatementKind::Let { value, .. }
+        | StatementKind::LetPattern { value, .. }
+        | StatementKind::Expression(value) => value.nesting,
         StatementKind::Assign { target, value } => target.nesting.max(value.nesting),
         StatementKind::Return(value) => value.as_ref().map_or(0, |expression| expression.nesting),
         StatementKind::While { condition, body } => condition.nesting.max(body.nesting),

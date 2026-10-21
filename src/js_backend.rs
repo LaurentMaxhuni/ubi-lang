@@ -98,6 +98,14 @@ fn emit_module(
             .map(|ty| match ty {
                 crate::analyzer::TypeInfo::List(inner)
                 | crate::analyzer::TypeInfo::Option(inner) => type_descriptor(*inner),
+                crate::analyzer::TypeInfo::Tuple(elements) => {
+                    let elements = elements
+                        .iter()
+                        .map(|ty| type_descriptor(*ty))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    format!("[{elements}]")
+                }
                 crate::analyzer::TypeInfo::Function { .. }
                 | crate::analyzer::TypeInfo::Parameter { .. } => "null".to_owned(),
                 crate::analyzer::TypeInfo::Map { key, value } => {
@@ -303,6 +311,29 @@ impl<'a> FunctionEmitter<'a> {
                         .ok_or_else(|| invariant_span(&statement.span))?
                         .insert(name.clone(), local);
                 }
+                StatementKind::LetPattern { pattern, value } => {
+                    let value = self.expression(value, indent)?;
+                    let subject = self.new_local();
+                    lines.push(format!("{prefix}const {subject} = {value};"));
+                    let mut bindings = BTreeMap::new();
+                    let mut declarations = Vec::new();
+                    let condition =
+                        self.pattern(pattern, &subject, &mut bindings, &mut declarations)?;
+                    if condition != "true" {
+                        lines.push(format!(
+                            "{prefix}if (!({condition})) throw new TypeError(\"Invalid irrefutable pattern\");"
+                        ));
+                    }
+                    lines.extend(
+                        declarations
+                            .into_iter()
+                            .map(|declaration| format!("{prefix}{declaration}")),
+                    );
+                    self.scopes
+                        .last_mut()
+                        .ok_or_else(|| invariant_span(&statement.span))?
+                        .extend(bindings);
+                }
                 StatementKind::Assign { name, value } => {
                     let local = self
                         .scopes
@@ -378,6 +409,14 @@ impl<'a> FunctionEmitter<'a> {
                     .map(|element| self.expression(element, indent))
                     .collect::<Result<Vec<_>, _>>()?;
                 format!("$ubi_make_list([{}])", elements.join(", "))
+            }
+            ExprKind::Tuple(elements) if elements.is_empty() => "undefined".to_owned(),
+            ExprKind::Tuple(elements) => {
+                let elements = elements
+                    .iter()
+                    .map(|element| self.expression(element, indent))
+                    .collect::<Result<Vec<_>, _>>()?;
+                format!("$ubi_make_tuple([{}])", elements.join(", "))
             }
             ExprKind::Some(value) => format!("$ubi_some({})", self.expression(value, indent)?),
             ExprKind::None => "$ubi_none".to_owned(),
@@ -558,6 +597,7 @@ impl<'a> FunctionEmitter<'a> {
                         left.ty,
                         ValueType::Record(_)
                             | ValueType::List(_)
+                            | ValueType::Tuple(_)
                             | ValueType::Option(_)
                             | ValueType::Enum(_)
                             | ValueType::Map(_)
@@ -675,6 +715,25 @@ impl<'a> FunctionEmitter<'a> {
                 }
                 format!("({})", conditions.join(" && "))
             }
+            PatternKind::Tuple(patterns) if patterns.is_empty() => {
+                format!("{value} === undefined")
+            }
+            PatternKind::Tuple(patterns) => {
+                let mut conditions = vec![
+                    format!("Array.isArray({value})"),
+                    format!("{value}.length === {}", patterns.len()),
+                ];
+                for (index, pattern) in patterns.iter().enumerate() {
+                    let condition = self.pattern(
+                        pattern,
+                        &format!("{value}[{index}]"),
+                        bindings,
+                        declarations,
+                    )?;
+                    conditions.push(format!("({condition})"));
+                }
+                format!("({})", conditions.join(" && "))
+            }
         })
     }
 }
@@ -719,6 +778,7 @@ fn emit_export_wrapper(
             parameter.ty,
             ValueType::Record(_)
                 | ValueType::List(_)
+                | ValueType::Tuple(_)
                 | ValueType::Option(_)
                 | ValueType::Enum(_)
                 | ValueType::Map(_)
@@ -753,7 +813,7 @@ fn js_argument_check(ty: crate::analyzer::ValueType, value: &str) -> String {
         ValueType::Bool => format!("typeof {value} === \"boolean\""),
         ValueType::String => format!("$ubi_is_scalar_string({value})"),
         ValueType::Unit => format!("{value} === undefined"),
-        ValueType::Record(_) | ValueType::List(_) | ValueType::Option(_) | ValueType::Enum(_) | ValueType::Map(_) => "true".to_owned(),
+        ValueType::Record(_) | ValueType::List(_) | ValueType::Tuple(_) | ValueType::Option(_) | ValueType::Enum(_) | ValueType::Map(_) => "true".to_owned(),
         ValueType::Capability(kind) => format!("$ubi_is_capability({value}, {})", js_string(kind.name())),
         ValueType::Parameter(_) => "true".to_owned(),
         ValueType::Never | ValueType::Error | ValueType::Function(_) | ValueType::Range => "false".to_owned(),
@@ -764,6 +824,7 @@ fn type_descriptor(ty: ValueType) -> String {
     match ty {
         ValueType::Record(id) => format!("[\"record\", {id}]"),
         ValueType::List(id) => format!("[\"list\", {id}]"),
+        ValueType::Tuple(id) => format!("[\"tuple\", {id}]"),
         ValueType::Option(id) => format!("[\"option\", {id}]"),
         ValueType::Enum(id) => format!("[\"enum\", {id}]"),
         ValueType::Map(id) => format!("[\"map\", {id}]"),
@@ -906,6 +967,10 @@ function $ubi_make_list(values) {
   if (values.length > 2147483647) $ubi_fault("UBI-R0003", "List length limit exceeded");
   return $ubi_freeze(values, values);
 }
+function $ubi_make_tuple(values) {
+  if (values.length > 2147483647) $ubi_fault("UBI-R0003", "Tuple length limit exceeded");
+  return $ubi_freeze(values, values);
+}
 function $ubi_some(value) { return $ubi_freeze({ tag: "Some", value }, [value]); }
 function $ubi_make_map(entries) {
   if (entries.length > 2147483647) $ubi_fault("UBI-R0003", "Map length limit exceeded");
@@ -918,17 +983,27 @@ function $ubi_make_enum(tag, values) {
   Object.freeze(values);
   return $ubi_freeze({ tag, values }, values);
 }
-function $ubi_equal(left, right) {
+function $ubi_equal(left, right, cache = new WeakMap()) {
   if (left === null || typeof left !== "object") return left === right;
   if (right === null || typeof right !== "object") return false;
+  let rightPairs = cache.get(left);
+  if (rightPairs?.has(right)) return rightPairs.get(right);
+  let equal;
   if (left[$ubi_map] === true || right[$ubi_map] === true) {
-    return left[$ubi_map] === true && right[$ubi_map] === true && left.length === right.length && left.every(([key, value]) => {
+    equal = left[$ubi_map] === true && right[$ubi_map] === true && left.length === right.length && left.every(([key, value]) => {
       const entry = right.find(([other]) => key === other);
-      return entry !== undefined && $ubi_equal(value, entry[1]);
+      return entry !== undefined && $ubi_equal(value, entry[1], cache);
     });
+  } else {
+    const names = Object.keys(left);
+    equal = names.length === Object.keys(right).length && names.every(name => Object.prototype.hasOwnProperty.call(right, name) && $ubi_equal(left[name], right[name], cache));
   }
-  const names = Object.keys(left);
-  return names.length === Object.keys(right).length && names.every(name => Object.prototype.hasOwnProperty.call(right, name) && $ubi_equal(left[name], right[name]));
+  if (rightPairs === undefined) {
+    rightPairs = new WeakMap();
+    cache.set(left, rightPairs);
+  }
+  rightPairs.set(right, equal);
+  return equal;
 }
 function $ubi_string(value) {
   if (Array.from(value).length > 2147483647) $ubi_fault("UBI-R0003", "String length limit exceeded");
@@ -969,6 +1044,11 @@ function $ubi_decode(data, type, depth) {
         entries.push([key, $ubi_decode(entry[1], $ubi_types[id][1], depth + 1)]);
       }
       return $ubi_make_map(entries);
+    }
+    if (kind === "tuple") {
+      const elements = $ubi_types[id];
+      if (!Array.isArray(data) || !Array.isArray(elements) || data.length !== elements.length) throw new TypeError("Invalid tuple arity");
+      return $ubi_make_tuple(elements.map((elementType, index) => $ubi_decode(data[index], elementType, depth + 1)));
     }
     if (Array.isArray(data)) throw new TypeError("Invalid aggregate data");
     if (kind === "option") {

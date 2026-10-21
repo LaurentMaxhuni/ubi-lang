@@ -199,6 +199,9 @@ mod generics_tests;
 mod function_values_tests;
 
 #[cfg(test)]
+mod tuples_tests;
+
+#[cfg(test)]
 #[path = "result_tests.rs"]
 mod result_tests;
 
