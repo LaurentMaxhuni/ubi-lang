@@ -6,8 +6,10 @@ User prioritized a source-owned, shadcn-style UI system for Ubi across web,
 mobile and desktop before adapters for popular frameworks. The proposed
 [Ubi UI design](docs/superpowers/specs/2026-10-21-ubi-ui-design.md) defines the
 authoring model, visual direction, platform scope, staged component catalog and
-acceptance requirements. Architecture review precedes production implementation;
-the library is not implemented by this design document. Keep the existing
+acceptance requirements. User delegated the platform-host choice after clarifying
+that components must be written in Ubi. The [foundation implementation plan](docs/superpowers/plans/2026-10-21-ubi-ui-foundation.md)
+defines the first working slice and awaits review before production implementation;
+the library is not implemented by these documents. Keep the existing
 compiler guarantees and completed language work below as the foundation.
 
 ## Current language work: Equatable constraints, authorized 2026-10-21

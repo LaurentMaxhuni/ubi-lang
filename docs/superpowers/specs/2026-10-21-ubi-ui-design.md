@@ -1,6 +1,7 @@
 # Ubi UI: component system for web, mobile and desktop
 
-Status: proposed architecture and design brief; implementation awaits review.
+Status: implementation direction selected after the user delegated the host
+choice on 2026-10-21; implementation plan awaits review.
 User direction: prioritize an Ubi-first system in the spirit of shadcn, with
 beautiful, composable components for all three platforms. Other framework
 adapters follow after the Ubi experience works.
@@ -11,6 +12,13 @@ Ubi UI consists of source-owned Ubi components, semantic design tokens, a small
 DOM renderer, local component distribution and a working component explorer.
 Application state, component composition and typed messages live in `.ubi`.
 Trusted JavaScript bootstraps the renderer and existing platform adapters.
+
+Authorship boundary: the public component library, composition, state and event
+behavior are Ubi source. JavaScript is the current compiler target and the small
+platform rendering bridge. Electron/Capacitor supply the app shell; application
+authors do not write Electron/Capacitor components. Local CSS supplies editable
+theme tokens and renderer styles. Keep host names and host-specific APIs out of
+the public Ubi component signatures so a future renderer can reuse them.
 
 Web renders semantic HTML. Desktop uses the existing sandboxed Electron host;
 mobile uses the existing Capacitor WebView host. These share the same Ubi
@@ -268,8 +276,11 @@ Missing platforms, screen readers and signing credentials remain explicit.
 
 ## Review handoff
 
-Approve or revise the architecture, source-owned component model, visual
-direction and delivery sequence above before production implementation. Then
-write the executable implementation plan with exact types, component signatures,
-files, ownership and independent expected tests. All subagents remain GPT 6 Luna
-at Max per user instruction.
+The user delegated the platform-host choice after clarifying that components
+must be written in Ubi. Retain the shared DOM approach for the first release;
+the authorship boundary above is mandatory. The first implementation plan covers
+the foundation/explorer vertical slice and its web/desktop/mobile packaging.
+Remaining foundation components, forms, composites, blocks and local copy-in CLI
+follow after that slice; none are claimed implemented by this document.
+Review the executable plan before production implementation. All subagents remain
+GPT 6 Luna at Max per user instruction.
