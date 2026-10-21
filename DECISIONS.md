@@ -1,5 +1,16 @@
 # Ubi decisions and milestone evidence
 
+## Tuples and destructuring direction, 2026-10-21
+
+User requested autonomous progress on unfinished work and critical bugs. The
+next language roadmap slice is immutable structural tuples and destructuring
+(SPEC section 24). D031: reuse interned structural types, existing match
+patterns, immutable aggregate validation and both execution paths. Add tuple
+literal/type syntax, irrefutable immutable let patterns and correlated match
+coverage. Defer positional access, mutable destructuring and record patterns.
+Keep conformance expectations independently owned. Platform release gates and
+hidden evaluator evidence remain separate.
+
 ## Base language direction, 2026-10-14
 
 User requested continued base-language development following the proposed

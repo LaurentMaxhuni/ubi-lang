@@ -790,3 +790,42 @@ functions retain their existing host restriction. Ubi imports call internal
 implementations with shared budgets. No function-valued host input/output,
 serialization, unchecked foreign callbacks, or host-provided function authority
 is introduced.
+
+## 24. Tuples and destructuring (2026-10-21)
+
+This section supersedes tuple deferrals. Tuples are immutable, ordered,
+heterogeneous products. `(T1, T2)` is a structural type and `(e1, e2)` constructs
+its value. A singleton requires a comma: `(T,)` and `(e,)`; `(T)` and `(e)` group
+one type/expression. A trailing comma is permitted. `()` remains unit, including
+in type position. Tuple elements evaluate exactly once, left to right, stopping
+on return, propagation or fault. Types match exactly by arity and element types.
+Expected types flow into elements, including empty collections and generic
+functions. Tuples participate in generic inference/substitution, exported-type
+privacy, aggregate storage and existing resource limits.
+
+`let (first, (_, last)) = value;` evaluates its initializer once and introduces
+immutable bindings simultaneously after that initializer. Nested tuple patterns,
+names and `_` are permitted; an optional type annotation applies to the entire
+pattern. Patterns must be irrefutable for the initializer type. `let mut` tuple
+destructuring is deferred. Duplicate names in a pattern or the current scope are
+errors (`UBI0011`); nested scopes may shadow outer bindings. Refutable patterns,
+wrong arity and non-tuple subjects use `UBI0031`. Tuple element assignment and
+positional member/index access are deferred; destructuring provides access.
+
+Tuple patterns also appear in `match`, including inside enum payloads, with
+ordinary literal/enum subpatterns and guards. Empty `()` patterns match unit.
+Exhaustiveness checks whole product combinations, preserving correlations;
+guards contribute no coverage. Existing pattern, type and non-exhaustiveness
+diagnostics apply. Grouped patterns `(pattern)` are permitted.
+
+Tuple equality compares elements in order and is allowed only if all element
+types are equatable; function-containing tuples remain non-equatable even in
+empty enclosing containers. Capabilities/ranges cannot be stored in tuples.
+Pure functions stored in tuples obey section 23, including recursive public host
+rejection before execution and the caller's shared runtime budgets.
+
+The interpreter exposes tuple values as `Value::Tuple` with ordered elements.
+JavaScript uses frozen arrays. Public host tuples require arrays of exactly the
+declared arity and recursively validated element types; inputs are copied and
+frozen, preserving existing depth/value limits. Unit keeps its existing host
+representation. No implicit tuple/list conversion or tuple iteration is added.
