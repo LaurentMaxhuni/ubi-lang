@@ -53,6 +53,9 @@ state can still contain invalid domain values.
 Theme colors/spacing/radii live in `web/style.css`. `themed(view, Theme.System)`
 follows the system setting without global document theme mutations. Layout rules
 for the explorer use its node keys; reusable components use the `ubi-*` classes.
+Library rules are scoped beneath renderer-owned `data-ubi-mount` containers.
+`web/shell.css` contains only the explorer's page reset and error boundary;
+embedders keep their own page shell.
 Controls support visible focus, native keyboard activation, disabled/busy states
 and optional pressed semantics. This slice has no persistence, forms, overlays,
 native OS widgets or external framework adapter.

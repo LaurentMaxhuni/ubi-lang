@@ -48,6 +48,7 @@ export function mount(root, app, options = {}) {
     if (themeElement) themeElement.setAttribute('data-ubi-theme', (theme === 'System' ? media.matches ? 'Dark' : 'Light' : theme).toLowerCase());
   }
   function patch(view) {
+    root.setAttribute('data-ubi-mount', id);
     const next = new Map(), nextBindings = new Map();
     for (let i = 0; i < view.nodes.length; i++) {
       const node = view.nodes[i], old = elements.get(node.key);

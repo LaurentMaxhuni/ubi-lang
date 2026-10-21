@@ -19,7 +19,7 @@ app.whenReady().then(async () => {
       const file = await realpath(path.join(root, name));
       const relative = path.relative(root, file);
       if (relative.startsWith('..') || path.isAbsolute(relative)) return new Response('Forbidden', { status: 403 });
-      if (!['index.html', 'app.js', 'storage.js', 'style.css', 'renderer.mjs', 'codec.mjs', 'validate.mjs'].includes(name) && !name.startsWith('modules/')) return new Response('Forbidden', { status: 403 });
+      if (!['index.html', 'app.js', 'storage.js', 'style.css', 'shell.css', 'renderer.mjs', 'codec.mjs', 'validate.mjs'].includes(name) && !name.startsWith('modules/')) return new Response('Forbidden', { status: 403 });
       const contentType = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css' }[path.extname(file)] ?? 'application/octet-stream';
       return new Response(await readFile(file), { headers: { 'Content-Type': contentType } });
     } catch { return new Response('Not found', { status: 404 }); }
@@ -54,6 +54,7 @@ app.whenReady().then(async () => {
       return forbidden.status === 403;
     })()`);
     console.log(passed ? 'UBI_UI_DESKTOP_SMOKE_OK' : 'UBI_UI_DESKTOP_SMOKE_FAILED');
+    console.log('UBI_UI_DESKTOP_ENGINE ' + await window.webContents.executeJavaScript('navigator.userAgent'));
     app.exit(passed ? 0 : 1);
   }
 }).catch(cause => { console.error(cause); app.exit(1); });

@@ -1,7 +1,8 @@
 # Ubi UI: component system for web, mobile and desktop
 
-Status: implementation direction selected after the user delegated the host
-choice on 2026-10-21; implementation plan awaits review.
+Status: first foundation slice implemented after user approval on 2026-10-21.
+See [verification evidence](../../ui-foundation-verification.md). Remaining
+component waves and installer are not implemented yet.
 User direction: prioritize an Ubi-first system in the spirit of shadcn, with
 beautiful, composable components for all three platforms. Other framework
 adapters follow after the Ubi experience works.

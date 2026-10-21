@@ -1,0 +1,4 @@
+/* Explorer page only. Embedders copy style.css without this reset. */
+body { margin: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+#error-boundary { position: fixed; bottom: 16px; left: 16px; right: 16px; padding: 16px; border: 2px solid; background: Canvas; color: CanvasText; z-index: 1; border-radius: 10px; }
+#recover { font: inherit; min-height: 44px; padding: 8px 16px; }

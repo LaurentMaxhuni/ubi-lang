@@ -8,9 +8,13 @@ mobile and desktop before adapters for popular frameworks. The proposed
 authoring model, visual direction, platform scope, staged component catalog and
 acceptance requirements. User delegated the platform-host choice after clarifying
 that components must be written in Ubi. The [foundation implementation plan](docs/superpowers/plans/2026-10-21-ubi-ui-foundation.md)
-defines the first working slice and awaits review before production implementation;
-the library is not implemented by these documents. Keep the existing
-compiler guarantees and completed language work below as the foundation.
+defined the first working slice, authorized with "go". The foundation now exists
+in `examples/ui/`: Ubi components/explorer, bounded views, keyed DOM renderer and
+three-platform packages. [Verification](docs/ui-foundation-verification.md)
+records browser, Windows executable and Android WebView evidence and remaining
+manual/platform limits. Continue with remaining primitives, forms, composites,
+blocks and installer; those are not implemented yet. Preserve the compiler
+guarantees and completed language work below.
 
 ## Current language work: Equatable constraints, authorized 2026-10-21
 

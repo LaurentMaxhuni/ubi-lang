@@ -3,7 +3,6 @@ use crate::analyzer::{TypeInfo, ValueType};
 use crate::generics_tests::{analysis, checked, node, run};
 use crate::interpreter::{invoke, Value};
 use crate::Analysis;
-use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 use std::rc::Rc;

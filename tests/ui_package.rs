@@ -62,6 +62,7 @@ fn ui_packages_share_components_renderer_and_safe_offline_hosts() {
         for asset in [
             "index.html",
             "style.css",
+            "shell.css",
             "app.js",
             "codec.mjs",
             "validate.mjs",

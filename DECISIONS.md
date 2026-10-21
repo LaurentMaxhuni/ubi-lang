@@ -12,8 +12,13 @@ assertion of native-widget support. The written design records options, visual
 tokens, component waves, accessibility, failure behavior and acceptance checks.
 After the user delegated the host choice, retain the shared DOM hosts for the
 first release. Electron/Capacitor are packaging/runtime details below the Ubi
-component API. The written foundation plan awaits review; no UI implementation
-is claimed yet.
+component API. User authorized execution with "go". The foundation is implemented:
+three Ubi modules, source-owned components/explorer, bounded codec/graph checks,
+keyed transactional DOM rendering and portable packages. Independent Ubi/package
+contracts, actual browser checks, Windows executable and Android WebView smokes
+pass. Final review's stylesheet leak was reproduced and fixed by mount scoping
+and separate shell CSS. See [UI evidence](docs/ui-foundation-verification.md) for
+versions, executed checks and remaining accessibility/platform coverage.
 
 ## Equality constraint direction, 2026-10-21
 

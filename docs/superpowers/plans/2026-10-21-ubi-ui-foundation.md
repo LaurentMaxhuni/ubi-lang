@@ -10,6 +10,11 @@
 
 **Spec:** [Ubi UI design](../specs/2026-10-21-ubi-ui-design.md)
 
+**Execution status, 2026-10-21:** foundation implemented and independently reviewed.
+See [executed checks and remaining platform/manual limits](../../ui-foundation-verification.md).
+The checklist preserves the approved plan; evidence records actual coverage,
+including checks that could not be completed on this host.
+
 ## Scope and file ownership
 
 This plan implements the first usable vertical slice: text, headings, column/row
@@ -35,6 +40,7 @@ File responsibilities:
 - `examples/ui/web/app.js`: import concrete app exports, mount, host error boundary.
 - `examples/ui/web/index.html`: metadata, CSP and mount; no component catalog markup.
 - `examples/ui/web/style.css`: semantic themes, layout and component states.
+- `examples/ui/web/shell.css`: explorer-only page reset/error boundary; embedders keep their own shell.
 - `examples/ui/tests/*.test.mjs`: independent codec/validation assertions using Node.
 - `examples/ui/tests/browser.html`, `browser.mjs`: actual DOM/focus/lifecycle checks.
 - `examples/ui/desktop/`, `mobile/`: scoped copies of existing packaging adapters.
@@ -202,4 +208,4 @@ Recommended method: native execution in this session, with one independent GPT
 6 Luna / Max reviewer after the slice. The six tasks share a small evolving
 contract; one implementer avoids parallel edits to it. No subagent is needed to
 start implementation. Review this plan before execution; the component library
-and UI runtime described here do not exist yet.
+and UI runtime described here were subsequently implemented after the user's "go".

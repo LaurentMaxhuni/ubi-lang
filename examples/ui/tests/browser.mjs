@@ -39,6 +39,13 @@ async function check(name, body) {
   catch (error) { lines.push(`FAIL ${name}: ${error.stack}`); }
   results.textContent = lines.join('\n');
 }
+await check('component stylesheet leaves the surrounding host page unchanged', () => {
+  assert(getComputedStyle(document.body).margin === '13px', 'Host page margin was reset');
+  assert(getComputedStyle(document.querySelector('#host-control')).borderRadius === '2px', 'Unrelated host control was restyled');
+  const root = fixture(), handle = mount(root, app());
+  assert(getComputedStyle(root.querySelector('button')).minHeight === '44px', 'Mounted component did not receive scoped styles');
+  handle.dispose();
+});
 await check('keyed element identity and focus survive a transition', () => {
   const root = fixture(), a = app(), handle = mount(root, a), b = root.querySelector('button');
   b.focus(); b.click();
