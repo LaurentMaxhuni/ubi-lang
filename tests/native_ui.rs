@@ -2,26 +2,11 @@
 use serde_json::json;
 use ubi_lang::{ui::NativeApplication, Compiler};
 use ubi_ui_platform::{Application, Event};
+#[path = "../ubi-ui/tools/sources.rs"]
+mod sources;
 
 fn gallery() -> NativeApplication {
-    let mut compiler = Compiler::new();
-    for path in [
-        "examples/gallery.ubi",
-        "packages/ubi-ui/core.ubi",
-        "packages/ubi-ui/components.ubi",
-    ] {
-        compiler
-            .add_source(
-                path,
-                std::fs::read(
-                    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                        .join("ubi-ui")
-                        .join(path),
-                )
-                .unwrap(),
-            )
-            .unwrap();
-    }
+    let compiler = sources::compiler("examples/gallery.ubi").unwrap();
     NativeApplication::new(compiler.runtime().unwrap(), "examples/gallery.ubi").unwrap()
 }
 

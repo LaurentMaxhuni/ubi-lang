@@ -382,6 +382,12 @@ fn style(node: &Node) -> taffy::Style {
     if node.kind == Kind::Grid {
         result.grid_template_columns = vec![fr(1.0); s.columns as usize];
     }
+    if matches!(node.kind, Kind::Avatar | Kind::Kbd | Kind::Link) {
+        result.align_self = Some(AlignSelf::START);
+    }
+    if node.kind == Kind::Avatar {
+        result.aspect_ratio = Some(1.0);
+    }
     if node.kind == Kind::ScrollView {
         result.overflow = Point {
             x: Overflow::Hidden,
@@ -406,16 +412,27 @@ fn intrinsic(node: &Node, max: f32, text: &mut impl TextMeasure) -> (f32, f32) {
     let (w, h) = text.measure(
         &node.content,
         node.style.font_size,
-        if matches!(node.kind, Kind::Text | Kind::Heading) {
+        if matches!(node.kind, Kind::Text | Kind::Heading | Kind::Label) {
             max
         } else {
             f32::INFINITY
         },
     );
     match node.kind {
-        Kind::Button | Kind::IconButton => (w + 32.0, 40.0),
-        Kind::Checkbox | Kind::Switch => (w + 56.0, 40.0),
-        Kind::TextInput | Kind::PasswordInput => (240.0, 40.0),
+        Kind::Button | Kind::IconButton | Kind::Tab | Kind::Toggle | Kind::ToggleItem => {
+            (w + 32.0, 40.0)
+        }
+        Kind::Checkbox | Kind::Switch | Kind::Radio => (w + 56.0, 40.0),
+        Kind::TextInput | Kind::PasswordInput | Kind::NumberInput => (240.0, 40.0),
+        Kind::TextArea => (280.0, 120.0),
+        Kind::Avatar => (40.0, 40.0),
+        Kind::Alert => {
+            let (w, h) = text.measure(&node.content, node.style.font_size, (max - 58.0).max(1.0));
+            (w + 58.0, (h + 24.0).max(72.0))
+        }
+        Kind::Kbd => (w + 16.0, 26.0),
+        Kind::Skeleton => (200.0, 20.0),
+        Kind::Label | Kind::Link => (w, h.max(24.0)),
         Kind::Slider => (240.0, 40.0),
         Kind::Badge => (w + 20.0, 28.0),
         Kind::Separator => (1.0, 1.0),

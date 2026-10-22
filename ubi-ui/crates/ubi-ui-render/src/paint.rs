@@ -343,12 +343,58 @@ impl Painter<'_> {
                 );
                 self.border(b, t.surface, t.border, t.card_radius, clip);
             }
-            Kind::Button | Kind::IconButton => {
-                let (fill, ink) = match n.variant.as_str() {
-                    "Primary" => (t.accent, t.on_accent),
-                    "Destructive" => (t.danger, t.on_accent),
-                    "Ghost" => (if hovered { t.raised } else { t.surface }, fg),
-                    _ => (t.surface, fg),
+            Kind::Button | Kind::IconButton | Kind::Tab | Kind::Toggle | Kind::ToggleItem => {
+                if n.expanded.is_some() {
+                    let fill = if hovered { t.raised } else { t.surface };
+                    self.rect(b, fill, t.radius, clip);
+                    self.rect(
+                        Rect {
+                            x: b.x,
+                            y: b.y + b.height - 1.0,
+                            width: b.width,
+                            height: 1.0,
+                        },
+                        t.border,
+                        0.0,
+                        clip,
+                    );
+                    self.label(
+                        &n.content,
+                        Rect {
+                            x: b.x + 12.0,
+                            width: (b.width - 48.0).max(0.0),
+                            ..b
+                        },
+                        n.style.font_size,
+                        fg,
+                        clip,
+                        false,
+                        false,
+                    )?;
+                    self.label(
+                        if n.checked { "−" } else { "+" },
+                        Rect {
+                            x: b.x + b.width - 32.0,
+                            width: 20.0,
+                            ..b
+                        },
+                        18.0,
+                        fg,
+                        clip,
+                        true,
+                        false,
+                    )?;
+                    return Ok(());
+                }
+                let (fill, ink) = if matches!(n.kind, Kind::Tab | Kind::Toggle | Kind::ToggleItem) {
+                    (if n.checked { t.raised } else { t.surface }, fg)
+                } else {
+                    match n.variant.as_str() {
+                        "Primary" => (t.accent, t.on_accent),
+                        "Destructive" => (t.danger, t.on_accent),
+                        "Ghost" => (if hovered { t.raised } else { t.surface }, fg),
+                        _ => (t.surface, fg),
+                    }
                 };
                 let fill = if disabled {
                     fill.mix(t.surface, 0.65)
@@ -379,14 +425,140 @@ impl Painter<'_> {
                     true,
                     false,
                 )?;
+                if n.kind == Kind::Tab && n.checked {
+                    self.rect(
+                        Rect {
+                            x: b.x + 8.0,
+                            y: b.y + b.height - 2.0,
+                            width: (b.width - 16.0).max(0.0),
+                            height: 2.0,
+                        },
+                        t.accent,
+                        1.0,
+                        clip,
+                    );
+                }
             }
-            Kind::Text | Kind::Heading => {
+            Kind::Text | Kind::Heading | Kind::Label => {
                 self.label(&n.content, b, n.style.font_size, fg, clip, false, true)?
             }
             Kind::Badge => {
                 let tone = t.tone(&n.tone);
                 self.rect(b, t.surface.mix(tone, 0.12), b.height * 0.5, clip);
                 self.label(&n.content, b, 12.0, tone, clip, true, false)?;
+            }
+            Kind::Link => {
+                let ink = if disabled { t.muted } else { t.accent };
+                self.label(&n.content, b, n.style.font_size, ink, clip, false, false)?;
+                if hovered || focused {
+                    let (w, _) = self
+                        .text
+                        .measure(&n.content, n.style.font_size, f32::INFINITY);
+                    self.rect(
+                        Rect {
+                            x: b.x,
+                            y: b.y + b.height - 2.0,
+                            width: w.min(b.width),
+                            height: 1.0,
+                        },
+                        ink,
+                        0.0,
+                        clip,
+                    );
+                }
+            }
+            Kind::Avatar => {
+                self.border(b, t.raised, t.border, b.height.min(b.width) * 0.5, clip);
+                self.label(&n.content, b, 16.0, t.text, clip, true, false)?;
+            }
+            Kind::Kbd => {
+                self.rect(Rect { y: b.y + 2.0, ..b }, t.border, 5.0, clip);
+                self.border(b, t.surface, t.border, 5.0, clip);
+                self.label(&n.content, b, 12.0, t.muted, clip, true, false)?;
+            }
+            Kind::Skeleton => self.rect(b, t.raised, t.radius.min(b.height * 0.5), clip),
+            Kind::Alert => {
+                let tone = t.tone(&n.tone);
+                self.border(
+                    b,
+                    t.surface.mix(tone, 0.06),
+                    t.border.mix(tone, 0.3),
+                    t.radius,
+                    clip,
+                );
+                self.label(
+                    "!",
+                    Rect {
+                        x: b.x + 14.0,
+                        y: b.y + 14.0,
+                        width: 18.0,
+                        height: 24.0,
+                    },
+                    16.0,
+                    tone,
+                    clip,
+                    true,
+                    false,
+                )?;
+                self.label(
+                    &n.content,
+                    Rect {
+                        x: b.x + 42.0,
+                        y: b.y + 12.0,
+                        width: (b.width - 58.0).max(0.0),
+                        height: (b.height - 24.0).max(0.0),
+                    },
+                    n.style.font_size,
+                    fg,
+                    clip,
+                    false,
+                    true,
+                )?;
+            }
+            Kind::Radio => {
+                let control = Rect {
+                    x: b.x + 2.0,
+                    y: b.y + (b.height - 20.0) * 0.5,
+                    width: 20.0,
+                    height: 20.0,
+                };
+                self.border(
+                    control,
+                    t.surface,
+                    if n.checked && !disabled {
+                        t.accent
+                    } else {
+                        t.border
+                    },
+                    10.0,
+                    clip,
+                );
+                if n.checked {
+                    self.rect(
+                        Rect {
+                            x: control.x + 5.0,
+                            y: control.y + 5.0,
+                            width: 10.0,
+                            height: 10.0,
+                        },
+                        if disabled { t.muted } else { t.accent },
+                        5.0,
+                        clip,
+                    );
+                }
+                self.label(
+                    &n.content,
+                    Rect {
+                        x: b.x + 36.0,
+                        width: (b.width - 36.0).max(0.0),
+                        ..b
+                    },
+                    n.style.font_size,
+                    fg,
+                    clip,
+                    false,
+                    false,
+                )?;
             }
             Kind::Separator => self.rect(b, t.border, 0.0, clip),
             Kind::Checkbox | Kind::Switch => {
@@ -471,10 +643,10 @@ impl Painter<'_> {
                     clip,
                 );
             }
-            Kind::TextInput | Kind::PasswordInput => {
+            Kind::TextInput | Kind::PasswordInput | Kind::NumberInput => {
                 self.border(
                     b,
-                    t.surface,
+                    if n.read_only { t.raised } else { t.surface },
                     if focused {
                         t.accent
                     } else if hovered {
@@ -537,7 +709,7 @@ impl Painter<'_> {
                     false,
                     false,
                 )?;
-                if focused {
+                if focused && !n.read_only {
                     self.rect(
                         Rect {
                             x: inner.x + caret_width,
@@ -551,6 +723,7 @@ impl Painter<'_> {
                     );
                 }
             }
+            Kind::TextArea => self.text_area(n, b, clip, input, t, fg)?,
             Kind::ProgressBar => {
                 self.rect(b, t.raised, b.height * 0.5, clip);
                 self.rect(
@@ -564,6 +737,88 @@ impl Painter<'_> {
                 );
             }
             _ => {}
+        }
+        Ok(())
+    }
+    fn text_area(
+        &mut self,
+        n: &Node,
+        b: Rect,
+        clip: Rect,
+        input: &Input,
+        t: &Theme,
+        fg: Color,
+    ) -> Result<(), Error> {
+        let focused = input.focused.as_deref() == Some(&n.key);
+        self.border(
+            b,
+            if n.read_only { t.raised } else { t.surface },
+            if focused { t.accent } else { t.border },
+            t.radius,
+            clip,
+        );
+        let inner = Rect {
+            x: b.x + 12.0,
+            y: b.y + 12.0,
+            width: (b.width - 24.0).max(1.0),
+            height: (b.height - 24.0).max(1.0),
+        };
+        let clip = clip.intersect(inner);
+        let value = if n.value.is_empty() {
+            &n.content
+        } else {
+            &n.value
+        };
+        let (glyphs, caret_layout) = self.text.glyphs_and_carets(
+            value,
+            n.style.font_size * self.dpi,
+            inner.width * self.dpi,
+        );
+        let (row, caret_x) = caret_layout
+            .caret(input.caret.min(n.value.chars().count()), input.caret_line)
+            .unwrap_or((0, 0.0));
+        let line = &caret_layout.lines[row];
+        let caret = (caret_x / self.dpi, line.y / self.dpi);
+        let line_height = line.height / self.dpi;
+        let offset = if focused {
+            (caret.1 + line_height - inner.height).max(0.0)
+        } else {
+            0.0
+        };
+        if focused && input.select_all && !n.value.is_empty() {
+            self.rect(inner, t.accent.mix(t.surface, 0.76), 2.0, clip);
+        }
+        for g in glyphs {
+            if g.width == 0 || g.height == 0 {
+                continue;
+            }
+            let uv = self.atlas.glyph(self.text, self.queue, g.key)?;
+            self.quad(
+                Rect {
+                    x: inner.x + g.x / self.dpi,
+                    y: inner.y + g.y / self.dpi - offset,
+                    width: g.width as f32 / self.dpi,
+                    height: g.height as f32 / self.dpi,
+                },
+                if n.value.is_empty() { t.muted } else { fg },
+                0.0,
+                clip,
+                uv,
+                true,
+            );
+        }
+        if focused && !n.read_only {
+            self.rect(
+                Rect {
+                    x: inner.x + caret.0,
+                    y: inner.y + caret.1 - offset,
+                    width: 1.0,
+                    height: n.style.font_size + 3.0,
+                },
+                t.accent,
+                0.0,
+                clip,
+            );
         }
         Ok(())
     }

@@ -60,6 +60,9 @@ impl Application for NativeApplication {
             .get("values")
             .and_then(Value::as_array)
             .ok_or("invalid event payload")?;
+        if node.read_only && tag == "Input" {
+            return Err("event target read-only".into());
+        }
         let expected = match tag {
             "Activate" => &node.activate,
             "Input" => &node.input,

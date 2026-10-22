@@ -9,6 +9,40 @@ impl TextMeasure for Text {
 }
 
 #[test]
+fn wrapped_labels_and_alerts_reserve_their_painted_text_height() {
+    struct WrappedText;
+    impl TextMeasure for WrappedText {
+        fn measure(&mut self, s: &str, _: f32, max: f32) -> (f32, f32) {
+            let width = s.chars().count() as f32 * 8.0;
+            (width.min(max), (width / max).ceil().max(1.0) * 20.0)
+        }
+    }
+    for (kind, inset, padding) in [("Label", 0.0, 0.0), ("Alert", 58.0, 24.0)] {
+        let content = "a ".repeat(60);
+        let v = view(vec![
+            node("root", "Column", json!([]), &["wrapped", "next"]),
+            node(
+                "wrapped",
+                kind,
+                json!([{"tag":"Content","values":[content]}]),
+                &[],
+            ),
+            node("next", "Button", json!([]), &[]),
+        ]);
+        let s = Layout::default()
+            .compute(&v, 160.0, 1000.0, &mut WrappedText)
+            .unwrap();
+        let bounds = s.boxes["wrapped"].bounds;
+        let (_, text_height) = WrappedText.measure(&content, 14.0, bounds.width - inset);
+        assert!(
+            bounds.height >= text_height + padding,
+            "{kind} clipped wrapped text"
+        );
+        assert!(s.boxes["next"].bounds.y >= bounds.y + text_height + padding);
+    }
+}
+
+#[test]
 fn replacing_container_or_child_kind_relinks_retained_layout_ids() {
     let first = view(vec![
         node("root", "Row", json!([]), &["a", "b"]),

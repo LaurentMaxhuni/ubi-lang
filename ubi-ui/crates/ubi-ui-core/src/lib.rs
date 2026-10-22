@@ -41,6 +41,18 @@ pub enum Kind {
     PasswordInput,
     Badge,
     ProgressBar,
+    Radio,
+    Tab,
+    Toggle,
+    ToggleItem,
+    Link,
+    TextArea,
+    NumberInput,
+    Avatar,
+    Alert,
+    Kbd,
+    Skeleton,
+    Label,
 }
 impl Kind {
     pub fn container(self) -> bool {
@@ -66,10 +78,20 @@ impl Kind {
                 | Self::Slider
                 | Self::TextInput
                 | Self::PasswordInput
+                | Self::Radio
+                | Self::Tab
+                | Self::Toggle
+                | Self::ToggleItem
+                | Self::Link
+                | Self::TextArea
+                | Self::NumberInput
         )
     }
     pub fn editable(self) -> bool {
-        matches!(self, Self::TextInput | Self::PasswordInput)
+        matches!(
+            self,
+            Self::TextInput | Self::PasswordInput | Self::TextArea | Self::NumberInput
+        )
     }
     pub fn role(self) -> &'static str {
         match self {
@@ -83,6 +105,15 @@ impl Kind {
             Self::Separator => "separator",
             Self::ProgressBar => "progressbar",
             Self::Text => "text",
+            Self::Radio => "radio",
+            Self::Tab => "tab",
+            Self::Toggle | Self::ToggleItem => "button",
+            Self::Link => "link",
+            Self::TextArea => "textbox",
+            Self::NumberInput => "spinbutton",
+            Self::Avatar => "img",
+            Self::Alert => "alert",
+            Self::Kbd | Self::Label => "text",
             _ => "group",
         }
     }
@@ -180,6 +211,14 @@ pub struct Node {
     pub input: Option<Value>,
     pub toggle: Option<Value>,
     pub change: Option<Value>,
+    pub option: String,
+    pub group: String,
+    pub read_only: bool,
+    pub min: i32,
+    pub max: i32,
+    pub step: i32,
+    pub role: String,
+    pub expanded: Option<bool>,
 }
 
 /// A connected, bounded tree with globally unique stable keys.
@@ -252,6 +291,18 @@ impl View {
                 "PasswordInput" => Kind::PasswordInput,
                 "Badge" => Kind::Badge,
                 "ProgressBar" => Kind::ProgressBar,
+                "Radio" => Kind::Radio,
+                "Tab" => Kind::Tab,
+                "Toggle" => Kind::Toggle,
+                "ToggleItem" => Kind::ToggleItem,
+                "Link" => Kind::Link,
+                "TextArea" => Kind::TextArea,
+                "NumberInput" => Kind::NumberInput,
+                "Avatar" => Kind::Avatar,
+                "Alert" => Kind::Alert,
+                "Kbd" => Kind::Kbd,
+                "Skeleton" => Kind::Skeleton,
+                "Label" => Kind::Label,
                 name => return Err(Error(format!("unsupported native component: {name}"))),
             };
             if !kind.container() && !raw.children.is_empty() {
@@ -277,6 +328,14 @@ impl View {
                 input: None,
                 toggle: None,
                 change: None,
+                option: String::new(),
+                group: String::new(),
+                read_only: false,
+                min: i32::MIN,
+                max: i32::MAX,
+                step: 1,
+                role: String::new(),
+                expanded: None,
             };
             if kind == Kind::Heading {
                 node.style.font_size = 26.0;
@@ -325,6 +384,47 @@ impl View {
                     "Content" => node.content = text()?,
                     "Label" => node.label = text()?,
                     "Value" => node.value = text()?,
+                    "Option" => node.option = text()?,
+                    "Group" => node.group = text()?,
+                    "ReadOnly" => node.read_only = boolean()?,
+                    "Expanded" => node.expanded = Some(boolean()?),
+                    "Selected" => node.checked = boolean()?,
+                    "Min" | "Max" | "Step" => {
+                        let n = one()?
+                            .as_i64()
+                            .and_then(|n| i32::try_from(n).ok())
+                            .ok_or("expected 32-bit integer")?;
+                        match prop.tag.as_str() {
+                            "Min" => node.min = n,
+                            "Max" => node.max = n,
+                            _ => node.step = n,
+                        }
+                    }
+                    "Role" => {
+                        let role = text()?;
+                        if ![
+                            "group",
+                            "radiogroup",
+                            "tablist",
+                            "tabpanel",
+                            "region",
+                            "alert",
+                            "status",
+                            "navigation",
+                            "list",
+                            "listitem",
+                            "button",
+                            "heading",
+                            "link",
+                            "text",
+                            "label",
+                        ]
+                        .contains(&role.as_str())
+                        {
+                            return Err("unsupported semantic role".into());
+                        }
+                        node.role = role;
+                    }
                     "Disabled" => node.disabled = boolean()?,
                     "Busy" => node.busy = boolean()?,
                     "Pressed" => node.pressed = boolean()?,
@@ -441,6 +541,12 @@ impl View {
             if node.kind == Kind::IconButton && node.label.is_empty() {
                 return Err("IconButton requires an accessible Label".into());
             }
+            if node.min > node.max || node.step <= 0 {
+                return Err("invalid numeric range or step".into());
+            }
+            if seen.contains("Checked") && seen.contains("Selected") {
+                return Err("Checked and Selected cannot both be specified".into());
+            }
             if nodes.insert(node.key.clone(), node).is_some() {
                 return Err("duplicate node key".into());
             }
@@ -541,7 +647,7 @@ impl Tree {
 #[derive(Clone, Debug, PartialEq)]
 pub struct AccessibleNode {
     pub key: String,
-    pub role: &'static str,
+    pub role: String,
     pub name: String,
     pub value: String,
     pub checked: bool,
@@ -549,12 +655,21 @@ pub struct AccessibleNode {
     pub focused: bool,
     pub bounds: Rect,
     pub children: Vec<String>,
+    pub selected: Option<bool>,
+    pub expanded: Option<bool>,
+    pub pressed: Option<bool>,
+    pub read_only: bool,
+    pub multiline: bool,
 }
 impl Node {
     pub fn accessible(&self, bounds: Rect, focused: bool) -> AccessibleNode {
         AccessibleNode {
             key: self.key.clone(),
-            role: self.kind.role(),
+            role: if self.role.is_empty() {
+                self.kind.role().into()
+            } else {
+                self.role.clone()
+            },
             name: if self.label.is_empty() {
                 self.content.clone()
             } else {
@@ -572,6 +687,19 @@ impl Node {
             focused,
             bounds,
             children: self.children.clone(),
+            selected: if matches!(self.kind, Kind::Radio | Kind::Tab) {
+                Some(self.checked)
+            } else {
+                None
+            },
+            expanded: self.expanded,
+            pressed: if matches!(self.kind, Kind::Toggle | Kind::ToggleItem) {
+                Some(self.checked)
+            } else {
+                None
+            },
+            read_only: self.read_only,
+            multiline: self.kind == Kind::TextArea,
         }
     }
 }

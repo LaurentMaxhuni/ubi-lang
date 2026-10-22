@@ -79,3 +79,33 @@ fn accessibility_redacts_passwords_and_clips_geometry() {
     assert_eq!(rect.width, 10.0);
     assert!(!rect.contains(20.0, 15.0));
 }
+
+#[test]
+fn new_control_properties_validate_ranges_roles_and_semantic_states() {
+    let mut n = node("root", "NumberInput", &[]);
+    n["props"] = json!([{"tag":"Min","values":[-10]},{"tag":"Max","values":[20]},{"tag":"Step","values":[2]},{"tag":"ReadOnly","values":[true]}]);
+    let v = view(vec![n.clone()]).unwrap();
+    assert_eq!(v.nodes["root"].min, -10);
+    assert!(v.nodes["root"].accessible(Rect::default(), false).read_only);
+    n["props"][2]["values"][0] = json!(0);
+    assert!(view(vec![n.clone()]).is_err());
+    n["props"] = json!([{"tag":"Min","values":[20]},{"tag":"Max","values":[-10]}]);
+    assert!(view(vec![n.clone()]).is_err());
+    n["props"] = json!([{"tag":"Role","values":["invented-role"]}]);
+    assert!(view(vec![n.clone()]).is_err());
+    n["kind"]["tag"] = json!("Radio");
+    n["props"] = json!([{"tag":"Selected","values":[true]},{"tag":"Option","values":["weekly"]},{"tag":"Group","values":["schedule"]}]);
+    let v = view(vec![n.clone()]).unwrap();
+    let a = v.nodes["root"].accessible(Rect::default(), true);
+    assert_eq!(a.role, "radio");
+    assert_eq!(a.selected, Some(true));
+    n["props"] = json!([{"tag":"Selected","values":[true]},{"tag":"Checked","values":[false]}]);
+    assert!(view(vec![n]).is_err());
+    let mut n = node("root", "Toggle", &[]);
+    n["props"] = json!([{"tag":"Expanded","values":[false]}]);
+    let v = view(vec![n]).unwrap();
+    assert_eq!(
+        v.nodes["root"].accessible(Rect::default(), false).expanded,
+        Some(false)
+    );
+}

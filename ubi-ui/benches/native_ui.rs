@@ -1,26 +1,12 @@
 //! Standalone measured Ubi state/view/reconciliation benchmark; no GPU timing claims.
 use serde_json::json;
 use std::{hint::black_box, time::Instant};
-use ubi_lang::{ui::NativeApplication, Compiler};
+use ubi_lang::ui::NativeApplication;
 use ubi_ui_platform::{Application, Event};
+#[path = "../tools/sources.rs"]
+mod sources;
 fn main() {
-    let mut c = Compiler::new();
-    for (id, source) in [
-        (
-            "examples/gallery.ubi",
-            include_str!("../examples/gallery.ubi"),
-        ),
-        (
-            "packages/ubi-ui/core.ubi",
-            include_str!("../packages/ubi-ui/core.ubi"),
-        ),
-        (
-            "packages/ubi-ui/components.ubi",
-            include_str!("../packages/ubi-ui/components.ubi"),
-        ),
-    ] {
-        c.add_source(id, source).unwrap();
-    }
+    let c = sources::compiler("examples/gallery.ubi").unwrap();
     let start = Instant::now();
     let runtime = c.runtime().unwrap();
     println!("checked native program: {:?}", start.elapsed());

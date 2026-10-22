@@ -71,51 +71,89 @@ pub fn capture(
     height: u32,
     dark: bool,
 ) -> Result<String, Error> {
-    if width == 0 || height == 0 || width > 8192 || height > 8192 {
-        return Err("capture dimensions must be 1..8192".into());
+    let mut session = CaptureSession::new()?;
+    session.write(app.view(), path, width, height, dark)?;
+    Ok(session.adapter_name().into())
+}
+
+/// Reuses the real renderer across a batch of native documentation captures.
+pub struct CaptureSession {
+    renderer: Renderer,
+}
+impl CaptureSession {
+    pub fn new() -> Result<Self, Error> {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
+        let renderer = pollster::block_on(Renderer::new(
+            &instance,
+            None,
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+        ))?;
+        Ok(Self { renderer })
     }
-    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle());
-    let format = wgpu::TextureFormat::Rgba8UnormSrgb;
-    let mut renderer = pollster::block_on(Renderer::new(&instance, None, format))?;
-    let scene =
-        Layout::default().compute(app.view(), width as f32, height as f32, &mut renderer.text)?;
-    let frame = renderer.prepare(
-        app.view(),
-        &scene,
-        &Input::default(),
-        &Theme::light(),
-        dark,
-        1.0,
-        (width as f32, height as f32),
-    )?;
-    let texture = renderer.device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("Ubi capture"),
-        size: wgpu::Extent3d {
-            width,
-            height,
-            depth_or_array_layers: 1,
-        },
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format,
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-        view_formats: &[],
-    });
-    renderer.draw(&texture.create_view(&Default::default()), &frame);
-    let rgba = renderer.read_rgba(&texture, width, height)?;
-    let file = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .open(path)
-        .map_err(err)?;
-    let mut encoder = png::Encoder::new(std::io::BufWriter::new(file), width, height);
-    encoder.set_color(png::ColorType::Rgba);
-    encoder.set_depth(png::BitDepth::Eight);
-    let mut writer = encoder.write_header().map_err(err)?;
-    writer.write_image_data(&rgba).map_err(err)?;
-    writer.finish().map_err(err)?;
-    Ok(renderer.adapter_name)
+    pub fn adapter_name(&self) -> &str {
+        &self.renderer.adapter_name
+    }
+    /// Write a new PNG from validated native view data. Never overwrite files.
+    pub fn write(
+        &mut self,
+        view: &View,
+        path: &Path,
+        width: u32,
+        height: u32,
+        dark: bool,
+    ) -> Result<(), Error> {
+        if width == 0 || height == 0 || width > 8192 || height > 8192 {
+            return Err("capture dimensions must be 1..8192".into());
+        }
+        let scene = Layout::default().compute(
+            view,
+            width as f32,
+            height as f32,
+            &mut self.renderer.text,
+        )?;
+        let theme = if dark { Theme::dark() } else { Theme::light() };
+        let frame = self.renderer.prepare(
+            view,
+            &scene,
+            &Input::default(),
+            &theme,
+            dark,
+            1.0,
+            (width as f32, height as f32),
+        )?;
+        let texture = self
+            .renderer
+            .device
+            .create_texture(&wgpu::TextureDescriptor {
+                label: Some("Ubi capture"),
+                size: wgpu::Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba8UnormSrgb,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[],
+            });
+        self.renderer
+            .draw(&texture.create_view(&Default::default()), &frame);
+        let rgba = self.renderer.read_rgba(&texture, width, height)?;
+        let file = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)
+            .map_err(err)?;
+        let mut encoder = png::Encoder::new(std::io::BufWriter::new(file), width, height);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        let mut writer = encoder.write_header().map_err(err)?;
+        writer.write_image_data(&rgba).map_err(err)?;
+        writer.finish().map_err(err)?;
+        Ok(())
+    }
 }
 fn err(e: impl std::fmt::Display) -> Error {
     Error(e.to_string())
@@ -426,9 +464,33 @@ impl<A: Application> ApplicationHandler for Host<A> {
                     self.input.select_all = true;
                 } else if let Some(key) = map_key(&event.logical_key) {
                     if !event.repeat || !matches!(key, UiKey::Enter | UiKey::Space) {
-                        let e =
-                            self.input
-                                .key(self.app.view(), key, down, self.modifiers.shift_key());
+                        let text_layout = self.input.focused.as_ref().and_then(|focused| {
+                            let n = self.app.view().nodes.get(focused)?;
+                            if !down
+                                || n.kind != ubi_ui_core::Kind::TextArea
+                                || !matches!(
+                                    key,
+                                    UiKey::Up | UiKey::Down | UiKey::Home | UiKey::End
+                                )
+                            {
+                                return None;
+                            }
+                            let bounds = self.scene.boxes.get(focused)?.bounds;
+                            let state = self.state.as_mut()?;
+                            let dpi = state.window.scale_factor() as f32;
+                            Some(state.renderer.text.caret_layout(
+                                &n.value,
+                                n.style.font_size * dpi,
+                                (bounds.width - 24.0).max(1.0) * dpi,
+                            ))
+                        });
+                        let e = self.input.key_with_text_layout(
+                            self.app.view(),
+                            key,
+                            down,
+                            self.modifiers.shift_key(),
+                            text_layout.as_ref(),
+                        );
                         self.dispatch(e);
                     }
                     if key == UiKey::Space && down && !command && !self.ime_composing {
@@ -474,6 +536,8 @@ fn map_key(key: &Key) -> Option<UiKey> {
         Key::Named(NamedKey::Delete) => UiKey::Delete,
         Key::Named(NamedKey::ArrowLeft) => UiKey::Left,
         Key::Named(NamedKey::ArrowRight) => UiKey::Right,
+        Key::Named(NamedKey::ArrowUp) => UiKey::Up,
+        Key::Named(NamedKey::ArrowDown) => UiKey::Down,
         Key::Named(NamedKey::Home) => UiKey::Home,
         Key::Named(NamedKey::End) => UiKey::End,
         _ => return None,

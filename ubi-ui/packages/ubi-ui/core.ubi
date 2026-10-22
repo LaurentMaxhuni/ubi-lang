@@ -2,7 +2,8 @@
 export enum Kind {
     Window, View, Column, Row, Flex, Grid, ScrollView, Card, Text, Heading,
     Separator, Button, IconButton, Checkbox, Switch, Slider, TextInput,
-    PasswordInput, Badge, ProgressBar
+    PasswordInput, Badge, ProgressBar, Radio, Tab, Toggle, ToggleItem, Link,
+    TextArea, NumberInput, Avatar, Alert, Kbd, Skeleton, Label
 }
 export enum Space { None, Xs, Sm, Md, Lg, Xl, Xxl }
 export enum Tone { Neutral, Primary, Success, Warning, Danger }
@@ -15,8 +16,10 @@ export enum Prop<M> {
     Width(int), Height(int), WidthPercent(int), HeightPercent(int), MinWidth(int),
     MinHeight(int), MaxWidth(int), MaxHeight(int), Padding(int), Grow(int),
     Columns(int), FontSize(int), Center(bool), Clip(bool), Absolute(int, int),
-    Progress(int)
+    Progress(int), Selected(bool), Option(string), Group(string), Min(int),
+    Max(int), Step(int), ReadOnly(bool), Role(string), Expanded(bool)
 }
+export record Choice { value: string, label: string, disabled: bool }
 export record Node<M> {
     key: string, kind: Kind, props: List<Prop<M>>, children: List<string>
 }
