@@ -32,8 +32,8 @@ export fn update(model: Model, event: Event<Message>) -> Model {
 fn mode(model: Model) -> Theme { if (model.dark) { Theme.Dark } else { Theme.Light } }
 export fn view(model: Model) -> View<Message> {
     window("app", [Prop.Theme(mode(model))], [
-        row("masthead", [Prop.Gap(Space.Xl)], [
-            column("identity", [Prop.Grow(1)], [heading("brand", "ubi / studio", 2), text("edition", "NATIVE COMPONENT EXPLORER    /    PHASE 01")]),
+        flex("masthead", [Prop.Gap(Space.Xl)], [
+            column("identity", [Prop.Grow(1), Prop.MinWidth(240)], [heading("brand", "ubi / studio", 2), text("edition", "NATIVE COMPONENT EXPLORER    /    PHASE 01")]),
             switch("theme", "Dark appearance", model.dark, Message.Theme, [Prop.Width(205)])
         ]),
         separator("top-rule"),

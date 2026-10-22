@@ -39,11 +39,29 @@ impl Atlas {
     pub fn len(&self) -> usize {
         self.glyphs.len()
     }
-    pub fn reset(&mut self, queue:&wgpu::Queue) {
-        self.glyphs.clear(); self.x=1; self.y=1; self.row=0;
-        queue.write_texture(self.texture.as_image_copy(), &vec![0;(ATLAS*ATLAS) as usize], wgpu::TexelCopyBufferLayout{offset:0,bytes_per_row:Some(ATLAS),rows_per_image:Some(ATLAS)}, wgpu::Extent3d{width:ATLAS,height:ATLAS,depth_or_array_layers:1});
+    pub fn reset(&mut self, queue: &wgpu::Queue) {
+        self.glyphs.clear();
+        self.x = 1;
+        self.y = 1;
+        self.row = 0;
+        queue.write_texture(
+            self.texture.as_image_copy(),
+            &vec![0; (ATLAS * ATLAS) as usize],
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(ATLAS),
+                rows_per_image: Some(ATLAS),
+            },
+            wgpu::Extent3d {
+                width: ATLAS,
+                height: ATLAS,
+                depth_or_array_layers: 1,
+            },
+        );
     }
-    pub fn nearly_full(&self)->bool { self.y+self.row+256>=ATLAS }
+    pub fn nearly_full(&self) -> bool {
+        self.y + self.row + 256 >= ATLAS
+    }
     fn glyph(
         &mut self,
         text: &Text,
@@ -481,6 +499,21 @@ impl Painter<'_> {
                 } else {
                     n.value.clone()
                 };
+                let prefix: String = if n.value.is_empty() {
+                    String::new()
+                } else {
+                    value.chars().take(input.caret).collect()
+                };
+                let (caret_width, _) = self.text.measure(&prefix, n.style.font_size, f32::INFINITY);
+                let offset = if focused {
+                    (caret_width - inner.width + 2.0).max(0.0)
+                } else {
+                    0.0
+                };
+                let inner = Rect {
+                    x: inner.x - offset,
+                    ..inner
+                };
                 if focused && input.select_all {
                     let (w, _) = self.text.measure(&value, n.style.font_size, f32::INFINITY);
                     self.rect(
@@ -505,11 +538,9 @@ impl Painter<'_> {
                     false,
                 )?;
                 if focused {
-                    let prefix: String = value.chars().take(input.caret).collect();
-                    let (w, _) = self.text.measure(&prefix, n.style.font_size, f32::INFINITY);
                     self.rect(
                         Rect {
-                            x: inner.x + w,
+                            x: inner.x + caret_width,
                             y: b.y + 10.0,
                             width: 1.0,
                             height: b.height - 20.0,

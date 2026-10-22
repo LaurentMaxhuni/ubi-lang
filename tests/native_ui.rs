@@ -24,6 +24,38 @@ fn gallery() -> NativeApplication {
     }
     NativeApplication::new(compiler.runtime().unwrap(), "examples/gallery.ubi").unwrap()
 }
+
+#[test]
+fn native_gallery_resizes_without_horizontal_control_overflow() {
+    struct Measure;
+    impl ubi_ui_platform::TextMeasure for Measure {
+        fn measure(&mut self, text: &str, size: f32, max: f32) -> (f32, f32) {
+            let width = text.chars().count() as f32 * size * 0.5;
+            let lines = if max.is_finite() {
+                (width / max.max(1.0)).ceil().max(1.0)
+            } else {
+                1.0
+            };
+            (width.min(max), size * 1.4 * lines)
+        }
+    }
+    let app = gallery();
+    let mut layout = ubi_ui_platform::Layout::default();
+    for width in [420.0, 1100.0, 640.0] {
+        let scene = layout
+            .compute(app.view(), width, 1000.0, &mut Measure)
+            .unwrap();
+        for (key, node) in &app.view().nodes {
+            if node.kind.focusable() {
+                let b = scene.boxes[key].bounds;
+                assert!(
+                    b.x >= 0.0 && b.x + b.width <= width + 0.5,
+                    "{key} overflow at {width}: {b:?}"
+                );
+            }
+        }
+    }
+}
 fn event(key: &str, tag: &str, message: &str, extra: Option<serde_json::Value>) -> Event {
     let mut values = vec![json!({"tag":message,"values":[]})];
     if let Some(extra) = extra {
@@ -69,6 +101,28 @@ fn real_ubi_gallery_handles_controlled_events_and_derived_views() {
         .unwrap()
         .is_empty());
     assert_eq!(app.view_evaluations, count);
+}
+
+#[test]
+fn keyboard_activation_runs_the_real_ubi_reducer_and_updates_only_counter() {
+    let mut app = gallery();
+    let mut input = ubi_ui_platform::Input::default();
+    for _ in 0..20 {
+        input.key(app.view(), ubi_ui_platform::UiKey::Tab, true, false);
+        if input.focused.as_deref() == Some("increment") {
+            break;
+        }
+    }
+    assert_eq!(input.focused.as_deref(), Some("increment"));
+    assert!(input
+        .key(app.view(), ubi_ui_platform::UiKey::Enter, true, false)
+        .is_none());
+    let event = input
+        .key(app.view(), ubi_ui_platform::UiKey::Enter, false, false)
+        .unwrap();
+    assert_eq!(app.dispatch(&event).unwrap().updated, ["count"]);
+    assert_eq!(app.model()["count"], 1);
+    assert_eq!(app.view().nodes["count"].content, "Button activations: 1");
 }
 #[test]
 fn invalid_view_rolls_back_model_tree_and_revision() {

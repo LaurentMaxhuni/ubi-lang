@@ -47,7 +47,9 @@ impl Default for Layout {
 
 impl Layout {
     pub fn sync(&mut self, view: &View) -> Result<(), Error> {
-        if self.previous.as_ref() == Some(view) { return Ok(()); }
+        if self.previous.as_ref() == Some(view) {
+            return Ok(());
+        }
         let removed: Vec<_> = self
             .ids
             .keys()
@@ -89,16 +91,12 @@ impl Layout {
             }
         }
         for key in &view.order {
-            if self.previous.as_ref().is_none_or(|p| {
-                p.nodes
-                    .get(key)
-                    .is_none_or(|n| n.children != view.nodes[key].children)
-            }) {
-                let children: Vec<_> = view.nodes[key]
-                    .children
-                    .iter()
-                    .map(|k| self.ids[k])
-                    .collect();
+            let children: Vec<_> = view.nodes[key]
+                .children
+                .iter()
+                .map(|k| self.ids[k])
+                .collect();
+            if self.tree.children(self.ids[key]).map_err(err)? != children {
                 self.tree
                     .set_children(self.ids[key], &children)
                     .map_err(err)?;
@@ -253,6 +251,40 @@ impl Layout {
     pub fn node_count(&self) -> usize {
         self.ids.len()
     }
+    /// Reveal a keyboard-focused descendant through nested scroll ancestors.
+    pub fn reveal(&mut self, view: &View, scene: &Scene, key: &str) -> bool {
+        let Some(layout) = scene.boxes.get(key) else {
+            return false;
+        };
+        let mut target = layout.bounds;
+        let mut current = key;
+        let mut changed = false;
+        for _ in 0..32 {
+            let Some((parent, node)) = view
+                .nodes
+                .iter()
+                .find(|(_, node)| node.children.iter().any(|child| child == current))
+            else {
+                break;
+            };
+            if node.kind == Kind::ScrollView {
+                let b = &scene.boxes[parent];
+                let delta = if target.y < b.bounds.y {
+                    target.y - b.bounds.y
+                } else {
+                    (target.y + target.height - b.bounds.y - b.bounds.height).max(0.0)
+                };
+                let offset = self.scroll.entry(parent.clone()).or_default();
+                let old = *offset;
+                *offset =
+                    (*offset + delta).clamp(0.0, (b.content_height - b.bounds.height).max(0.0));
+                target.y -= *offset - old;
+                changed |= *offset != old;
+            }
+            current = parent;
+        }
+        changed
+    }
     pub fn scroll_offset(&self, key: &str) -> f32 {
         *self.scroll.get(key).unwrap_or(&0.0)
     }
@@ -285,7 +317,12 @@ fn style(node: &Node) -> taffy::Style {
         } else {
             FlexWrap::NoWrap
         },
-        flex_shrink: 0.0,
+        flex_shrink: if s.grow > 0.0 { 1.0 } else { 0.0 },
+        flex_basis: if s.grow > 0.0 && s.min_width > 0.0 {
+            Dimension::length(s.min_width)
+        } else {
+            Dimension::auto()
+        },
         flex_grow: s.grow,
         size: Size {
             width: dimension(s.width),

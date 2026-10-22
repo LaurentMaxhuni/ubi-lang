@@ -7,6 +7,26 @@ impl TextMeasure for Text {
         (s.chars().count() as f32 * size * 0.5, size * 1.5)
     }
 }
+
+#[test]
+fn replacing_container_or_child_kind_relinks_retained_layout_ids() {
+    let first = view(vec![
+        node("root", "Row", json!([]), &["a", "b"]),
+        node("a", "Button", json!([{"tag":"Width","values":[100]}]), &[]),
+        node("b", "Button", json!([{"tag":"Width","values":[100]}]), &[]),
+    ]);
+    let mut l = Layout::default();
+    let s = l.compute(&first, 300.0, 200.0, &mut Text).unwrap();
+    assert_eq!(s.boxes["b"].bounds.x, 112.0);
+    let mut next = first.clone();
+    next.nodes.get_mut("root").unwrap().kind = ubi_ui_core::Kind::Column;
+    let s = l.compute(&next, 300.0, 200.0, &mut Text).unwrap();
+    assert_eq!(s.boxes["b"].bounds.y, 52.0);
+    next.nodes.get_mut("a").unwrap().kind = ubi_ui_core::Kind::Checkbox;
+    let s = l.compute(&next, 300.0, 200.0, &mut Text).unwrap();
+    assert_eq!(s.boxes["a"].bounds.height, 40.0);
+    assert_eq!(s.boxes["b"].bounds.y, 52.0);
+}
 fn node(key: &str, kind: &str, props: Value, children: &[&str]) -> Value {
     json!({"key":key,"kind":{"tag":kind,"values":[]},"props":props,"children":children})
 }
@@ -66,6 +86,16 @@ fn scroll_clips_descendants_clamps_and_does_not_relayout() {
     let mut l = Layout::default();
     let s = l.compute(&v, 300.0, 200.0, &mut Text).unwrap();
     assert_eq!(s.boxes["c"].clip.height, 60.0);
+    assert!(l.reveal(&v, &s, "c"));
+    let focused = l.compute(&v, 300.0, 200.0, &mut Text).unwrap();
+    assert_eq!(
+        focused.boxes["c"]
+            .bounds
+            .intersect(focused.boxes["c"].clip)
+            .height,
+        40.0
+    );
+    assert!(l.scroll_at(&v, &focused, 10.0, 10.0, -1000.0));
     assert!(l.scroll_at(&v, &s, 10.0, 10.0, 1000.0));
     let s = l.compute(&v, 300.0, 200.0, &mut Text).unwrap();
     assert!(s.boxes["a"].bounds.y < 0.0);

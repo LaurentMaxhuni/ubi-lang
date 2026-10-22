@@ -83,7 +83,7 @@ fn native_runtime_preserves_numeric_faults_and_float_host_encoding() {
     ] {
         assert_eq!(
             runtime
-                .invoke("main.ubi", "echo", &[value.clone()])
+                .invoke("main.ubi", "echo", std::slice::from_ref(&value))
                 .unwrap(),
             value
         );

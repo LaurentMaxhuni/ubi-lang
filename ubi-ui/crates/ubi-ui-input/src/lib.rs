@@ -75,11 +75,11 @@ impl Input {
             .iter()
             .rev()
             .find(|k| {
-                view.nodes[*k].kind.focusable()
-                    && scene.boxes[*k]
-                        .bounds
-                        .intersect(scene.boxes[*k].clip)
-                        .contains(x, y)
+                view.nodes.get(*k).is_some_and(|n| n.kind.focusable())
+                    && scene
+                        .boxes
+                        .get(*k)
+                        .is_some_and(|b| b.bounds.intersect(b.clip).contains(x, y))
             })
             .cloned()
     }

@@ -8,6 +8,23 @@ impl TextMeasure for Text {
         (20.0, 20.0)
     }
 }
+
+#[test]
+fn queued_pointer_events_tolerate_a_scene_from_before_unmount() {
+    let view = fixture();
+    let scene = Layout::default()
+        .compute(&view, 300.0, 300.0, &mut Text)
+        .unwrap();
+    let mut next = view.clone();
+    next.nodes.remove("button");
+    next.order.retain(|k| k != "button");
+    next.nodes
+        .get_mut("root")
+        .unwrap()
+        .children
+        .retain(|k| k != "button");
+    assert_eq!(Input::hit(&next, &scene, 10.0, 10.0), None);
+}
 fn fixture() -> View {
     let n = |key: &str, kind: &str, props: Value, children: Vec<&str>| json!({"key":key,"kind":{"tag":kind,"values":[]},"props":props,"children":children});
     View::decode(json!({"schemaVersion":1,"root":"root","nodes":[n("root","Column",json!([]),vec!["button","disabled","toggle","input","slider"]),n("button","Button",json!([{"tag":"Activate","values":[{"tag":"Save","values":[]}]}]),vec![]),n("disabled","Button",json!([{"tag":"Disabled","values":[true]}]),vec![]),n("toggle","Checkbox",json!([{"tag":"Toggle","values":[{"tag":"Enable","values":[]}]}]),vec![]),n("input","TextInput",json!([{"tag":"Value","values":["ár🦀"]},{"tag":"Input","values":[{"tag":"Name","values":[]}]}]),vec![]),n("slider","Slider",json!([{"tag":"Change","values":[{"tag":"Level","values":[]}]}]),vec![])]})).unwrap()

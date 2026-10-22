@@ -193,7 +193,9 @@ impl Renderer {
         {
             return Err("invalid renderer viewport/DPI".into());
         }
-        if self.atlas.nearly_full() { self.atlas.reset(&self.queue); }
+        if self.atlas.nearly_full() {
+            self.atlas.reset(&self.queue);
+        }
         let result = paint::prepare(
             view,
             scene,
@@ -206,9 +208,23 @@ impl Renderer {
             &mut self.atlas,
             &self.queue,
         );
-        if result.as_ref().is_err_and(|e|e.0.starts_with("glyph atlas capacity")) {
+        if result
+            .as_ref()
+            .is_err_and(|e| e.0.starts_with("glyph atlas capacity"))
+        {
             self.atlas.reset(&self.queue);
-            return paint::prepare(view,scene,input,theme,system_dark,dpi,viewport,&mut self.text,&mut self.atlas,&self.queue);
+            return paint::prepare(
+                view,
+                scene,
+                input,
+                theme,
+                system_dark,
+                dpi,
+                viewport,
+                &mut self.text,
+                &mut self.atlas,
+                &self.queue,
+            );
         }
         result
     }

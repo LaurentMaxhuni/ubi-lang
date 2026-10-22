@@ -2,8 +2,8 @@
 use std::{path::Path, sync::Arc};
 pub use ubi_ui_core::{Changes, Error, Tree, View};
 pub use ubi_ui_input::Event;
-use ubi_ui_input::{Input, Key as UiKey};
-use ubi_ui_layout::{Layout, Scene};
+pub use ubi_ui_input::{Input, Key as UiKey};
+pub use ubi_ui_layout::{Layout, Scene, TextMeasure};
 use ubi_ui_render::Renderer;
 use ubi_ui_theme::Theme;
 use winit::{
@@ -240,6 +240,7 @@ impl<A: Application> Host<A> {
         if let Some(event) = event {
             match self.app.dispatch(&event) {
                 Ok(changes) => {
+                    let changed = !changes.is_empty();
                     for key in changes.unmounted {
                         if self.input.focused.as_ref() == Some(&key) {
                             self.input.focused = None;
@@ -249,8 +250,30 @@ impl<A: Application> Host<A> {
                         }
                     }
                     self.input.sync(self.app.view());
+                    // OS input events may already be queued before redraw.
+                    // Refresh hit geometry as part of committing a changed view.
+                    if changed {
+                        self.refresh_scene();
+                    }
                 }
                 Err(e) => eprintln!("Ubi UI event rejected (state preserved): {e}"),
+            }
+        }
+    }
+    fn refresh_scene(&mut self) {
+        if let Some(state) = &mut self.state {
+            let size = state.window.inner_size();
+            let dpi = state.window.scale_factor() as f32;
+            if size.width > 0 && size.height > 0 {
+                match self.layout.compute(
+                    self.app.view(),
+                    size.width as f32 / dpi,
+                    size.height as f32 / dpi,
+                    &mut state.renderer.text,
+                ) {
+                    Ok(scene) => self.scene = scene,
+                    Err(e) => eprintln!("Ubi UI layout: {e}"),
+                }
             }
         }
     }
@@ -322,6 +345,7 @@ impl<A: Application> ApplicationHandler for Host<A> {
             }
             return;
         }
+        let previous_focus = self.input.focused.clone();
         let mut redraw = true;
         match event {
             WindowEvent::CloseRequested => {
@@ -329,7 +353,8 @@ impl<A: Application> ApplicationHandler for Host<A> {
                 return;
             }
             WindowEvent::Resized(_) | WindowEvent::ScaleFactorChanged { .. } => {
-                self.state.as_mut().unwrap().resize()
+                self.state.as_mut().unwrap().resize();
+                self.refresh_scene();
             }
             WindowEvent::ThemeChanged(theme) => {
                 self.system_dark = theme == winit::window::Theme::Dark
@@ -337,6 +362,7 @@ impl<A: Application> ApplicationHandler for Host<A> {
             WindowEvent::Focused(false) => self.input.cancel(),
             WindowEvent::CursorLeft { .. } => self.input.hovered = None,
             WindowEvent::CursorMoved { position, .. } => {
+                let hovered = self.input.hovered.clone();
                 let dpi = self.state.as_ref().unwrap().window.scale_factor();
                 let event = self.input.pointer_move(
                     self.app.view(),
@@ -344,6 +370,7 @@ impl<A: Application> ApplicationHandler for Host<A> {
                     (position.x / dpi) as f32,
                     (position.y / dpi) as f32,
                 );
+                redraw = hovered != self.input.hovered || event.is_some();
                 self.dispatch(event);
             }
             WindowEvent::MouseInput {
@@ -372,6 +399,9 @@ impl<A: Application> ApplicationHandler for Host<A> {
                     self.input.pointer.1,
                     dy,
                 );
+                if redraw {
+                    self.refresh_scene();
+                }
             }
             WindowEvent::ModifiersChanged(m) => {
                 self.modifiers = m.state();
@@ -413,6 +443,14 @@ impl<A: Application> ApplicationHandler for Host<A> {
                 }
             }
             _ => redraw = false,
+        }
+        if previous_focus != self.input.focused {
+            if let Some(key) = self.input.focused.clone() {
+                if self.layout.reveal(self.app.view(), &self.scene, &key) {
+                    self.refresh_scene();
+                    redraw = true;
+                }
+            }
         }
         if redraw {
             let state = self.state.as_ref().unwrap();
