@@ -1,0 +1,11 @@
+.live-stage{position:relative;min-height:360px;background:var(--soft)}
+.live-stage iframe{display:block;width:100%;height:420px;border:0;background:transparent;color-scheme:light}
+:root[data-theme=dark] .live-stage iframe{color-scheme:dark}
+.home-preview .live-stage iframe{height:620px}
+.preview-actions{display:flex;align-items:center;gap:14px}
+.preview-reset{border:0;background:transparent;font-size:11px;min-height:36px;padding:0 8px;color:var(--muted)}
+.preview-reset:hover{color:var(--fg)}
+.live-status{padding:12px 20px;font-size:12px;color:var(--muted)}
+.live-error{color:var(--fg);background:var(--soft);padding:16px;border-top:1px solid var(--border)}
+.capture-caption a{color:var(--fg);text-decoration:underline;text-underline-offset:3px}
+@media(max-width:540px){.preview-actions{gap:3px}.preview-reset{font-size:10px;padding:0 5px}.live-stage iframe{height:380px}.home-preview .live-stage iframe{height:600px}.native-label{display:none}}

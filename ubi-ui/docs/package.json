@@ -2,7 +2,14 @@
   "name": "ubi-ui-documentation",
   "version": "0.1.0",
   "private": true,
-  "scripts": { "dev": "next dev --webpack --hostname 127.0.0.1", "build": "next build --webpack" },
+  "scripts": {
+    "predev": "npm run examples",
+    "dev": "next dev --webpack --hostname 127.0.0.1",
+    "prebuild": "npm run examples",
+    "build": "next build --webpack",
+    "examples": "cargo run --locked --manifest-path ../../Cargo.toml --example ui-web-export -- public/previews",
+    "test": "node --test tests/*.test.mjs ../web/tests/*.test.mjs"
+  },
   "dependencies": { "next": "16.4.2", "react": "19.3.1", "react-dom": "19.3.1" },
   "devDependencies": { "@tailwindcss/postcss": "4.3.3", "tailwindcss": "4.3.3", "postcss": "8.5.8" }
 }

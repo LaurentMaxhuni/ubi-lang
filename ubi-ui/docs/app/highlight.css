@@ -1,0 +1,17 @@
+/* Every token exceeds WCAG AA text contrast against the code background. */
+.code-block .ubi-token-keyword{color:#7c3a9d}
+.code-block .ubi-token-type{color:#126276}
+.code-block .ubi-token-function{color:#2459a6}
+.code-block .ubi-token-string{color:#286436}
+.code-block .ubi-token-number{color:#915000}
+.code-block .ubi-token-comment{color:#62626d}
+.code-block .ubi-token-operator{color:#555562}
+.code-block .ubi-token-punctuation{color:#555562}
+:root[data-theme=dark] .code-block .ubi-token-keyword{color:#d5a1f0}
+:root[data-theme=dark] .code-block .ubi-token-type{color:#80ccdc}
+:root[data-theme=dark] .code-block .ubi-token-function{color:#9ec2ff}
+:root[data-theme=dark] .code-block .ubi-token-string{color:#9bd39e}
+:root[data-theme=dark] .code-block .ubi-token-number{color:#efbd80}
+:root[data-theme=dark] .code-block .ubi-token-comment{color:#a3a3af}
+:root[data-theme=dark] .code-block .ubi-token-operator{color:#b7b7c2}
+:root[data-theme=dark] .code-block .ubi-token-punctuation{color:#b7b7c2}

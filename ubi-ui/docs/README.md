@@ -17,8 +17,9 @@ and native captures are local; the website needs no external fonts or services.
 The static portal exports `/`, `/docs`, six guide pages, `/docs/components`, and
 40 individual component pages. The grouped sidebar, page outlines, breadcrumbs,
 previous/next links, search dialog (Ctrl/Cmd+K), theme switch, copy feedback, and
-preview/code tabs are documentation controls. They do not simulate native Ubi
-interaction. Mobile navigation uses a native browser dialog with focus trapping
+Preview/Native/Code tabs are documentation controls. Preview executes compiled
+Ubi init/update/view functions through the shared browser host; Native retains
+the GPU capture. Mobile navigation uses a native browser dialog with focus trapping
 and Escape dismissal.
 
 `../catalog.json` is required. Component signatures, implementation source, and
@@ -31,6 +32,19 @@ actual Ubi application and wgpu renderer. Generate the component captures before
 building or publishing, and check that all 80 files are present. Both appearance
 images are selected by the website theme. Regeneration commands and no-overwrite
 behavior are documented in the [framework README](../README.md).
+
+`predev` and `prebuild` export all forty browser examples and the gallery into
+ignored `public/previews/` using the Rust compiler. These are standalone static
+applications, not React replicas. Theme messages preserve model state, Reset
+remounts the application, and Open example runs it outside its preview frame.
+The deployed site needs no Rust process. Build-time source code is highlighted
+with a lossless Ubi tokenizer and accessible light/dark colors; copying retains
+the exact original text.
+
+Run `npm test` for tokenizer, palette, ABI and schema checks. The real browser
+harnesses are `../web/tests/browser.html` and `../tools/browser_catalog.html` when
+the repository is served over HTTP. `cargo test --test web_ui` compares all
+compiled applications and event transitions against the native interpreter.
 
 The build uses local Inter under its bundled OFL license, without remote font
 requests or runtime content services. On the managed Windows sandbox, Next's

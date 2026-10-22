@@ -2,6 +2,55 @@
 
 Local environment: Windows, Rust 1.97.1, Node 22.22.1, npm 11.19.0.
 
+## Shared web host and language highlighting
+
+The current forty-component Ubi source package now runs through a standalone
+browser host. All forty component examples plus the gallery compile with the
+existing JavaScript backend; their real Ubi init/update/view exports own state.
+React only embeds the exported applications and powers documentation controls.
+Each application retains its own checked type environment and reachable modules.
+The generated static directory includes its host, codec, CSS and licensed font,
+with relative asset paths suitable for web hosting or WebView bundles.
+
+Executed checks:
+
+- Full Rust workspace: **271 tests pass across 30 suites**. A new integration
+  test compares all 41 emitted JavaScript initial models/views and enabled event
+  transitions (43 cases) against the native Rust interpreter. The test reproduced a
+  scalar/aggregate public-ABI mismatch, then passed after the host correction.
+- Node: **13 tests pass**, covering Ubi lexical boundaries, exact token/source
+  preservation, lexer keyword parity, injection-safe text, contrast in both
+  themes, primitive versus aggregate arguments, and strict schema validation.
+- Real browser: **41/41 compiled applications pass** at **320, 768 and 1440 px**
+  mount widths, with light/dark theme and applicable reducer interaction checks.
+  Read-only controls and already-selected choices are tested according to their
+  semantics rather than requiring a meaningless model mutation.
+- Browser host regressions: **7 pass** for keyed input identity/focus/selection,
+  IME commit, disposal, malformed-view and injected-DOM-failure rollback,
+  checkbox/switch/slider events, disabled controls, keyed reorder, keyboard
+  groups, touch target sizing, narrow layout, host-CSS isolation and feedback
+  text contrast in both themes. The contrast regression reproduced a 3.86:1
+  warning callout before correction; semantic tone tokens now pass 4.5:1.
+- Documentation: production static export passes. Live iframe checkbox changes
+  controlled state, theme changes retain that value, Reset restores initial
+  state, Code renders colored Ubi tokens, copy reports success, and source text
+  matches the original after browser newline normalization. At 750 CSS px the
+  document has no horizontal overflow. Native remains a separate image tab.
+- Workspace Clippy with `-D warnings`, formatting and Git diff checks pass;
+  incremental-cache hardlink warnings are environmental.
+
+Ubi highlighting uses escaped React text spans with no HTML interpretation. Its
+block comments follow the actual lexer: the first `*/` ends the comment. Every
+syntax color is checked against the actual light/dark code background at 4.5:1
+or greater contrast. Copy uses the original source string, including its original
+line endings, rather than reconstructing text from spans.
+
+The exported browser applications use the browser's native editable controls,
+text engine and accessibility semantics. The same directory can be bundled in
+mobile or desktop WebViews; physical Android/iOS execution of this expanded
+library has **not** been verified. The Rust desktop renderer remains available
+and keeps its separately documented native text/accessibility limitations.
+
 ## Component library and documentation expansion
 
 The catalog now contains 40 separate Ubi component modules and 40 complete
@@ -43,7 +92,7 @@ nodes=10`. This proves presentation, not OS keyboard automation.
 
 | Check | Result |
 | --- | --- |
-| `cargo test --workspace --features native-ui --locked` | 270 tests pass across 29 suites after expansion, including existing compiler/JavaScript/package tests |
+| `cargo test --workspace --features native-ui --locked` | 271 tests pass across 30 suites after web integration, including existing compiler/JavaScript/package tests |
 | `cargo clippy --workspace --all-targets --features native-ui -- -D warnings` | Pass; no source diagnostics; sandbox incremental-cache hardlink warnings are environmental |
 | `cargo fmt --all -- --check` and default-feature Clippy | Pass |
 | Native GPU readback | Rounded button, fill, glyph-cache reuse, radio selection pixels and multiline text pass; no silent GPU skips |
@@ -104,5 +153,5 @@ implemented. Only working constructors appear in the source package. Future
 motion, effects, blocks, data, AI and icon packages are not created during Phase 1.
 
 Repository graph was refreshed locally with `graphify update . --no-cluster`:
-1,903 nodes / 5,208 edges, deterministic code extraction with no model calls.
+1,995 nodes / 5,368 edges, deterministic code extraction with no model calls.
 Generated `graphify-out/graph.json` remains ignored.
