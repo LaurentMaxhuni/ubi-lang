@@ -1,1 +1,7 @@
-export default { output: "export", trailingSlash: true, images: { unoptimized: true } };
+export default phase => ({
+  output: "export",
+  trailingSlash: true,
+  distDir: phase === "phase-development-server" ? ".next-dev" : ".next",
+  agentRules: false,
+  images: { unoptimized: true },
+});

@@ -9,6 +9,12 @@ npm run dev
 npm run build
 ```
 
+The live development server uses `http://127.0.0.1:4317`. It reads the current
+source and reloads edits automatically. Development output lives in `.next-dev/`
+separately from production `.next/`, so building cannot overwrite live dev caches.
+Embedded apps use explicit `index.html` URLs supported by both Next's public-file
+server and static hosting.
+
 `build` exports a static site into `out/`; serve that directory with any static
 HTTP server. Webpack is selected explicitly because the installed Next 16.4.2
 Turbopack worker exits prematurely on this Windows environment. Both the source

@@ -1,6 +1,7 @@
 import "./style.css";
 import "./highlight.css";
 import "./preview.css";
+import "./identity.css";
 import { SiteShell } from "./controls";
 import { guides, guideHref, components, searchEntries } from "./lib/content";
 export const metadata = { title: { default: "Ubi UI — Build interfaces with Ubi", template: "%s — Ubi UI" }, description: "Source-owned Ubi components for web, mobile and desktop. Shared typed state and interactive examples." };

@@ -163,7 +163,7 @@ pub fn export(destination: &Path) -> Result<usize, String> {
         .iter()
         .map(|app| {
             format!(
-                "<li><a href=\"./{}/\">{}</a></li>",
+                "<li><a href=\"./{}/index.html\">{}</a></li>",
                 app["slug"].as_str().unwrap(),
                 escape(app["name"].as_str().unwrap())
             )

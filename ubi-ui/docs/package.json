@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "predev": "npm run examples",
-    "dev": "next dev --webpack --hostname 127.0.0.1",
+    "dev": "next dev --webpack --hostname 127.0.0.1 --port 4317",
     "prebuild": "npm run examples",
     "build": "next build --webpack",
     "examples": "cargo run --locked --manifest-path ../../Cargo.toml --example ui-web-export -- public/previews",

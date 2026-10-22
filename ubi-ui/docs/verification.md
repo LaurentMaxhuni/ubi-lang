@@ -2,6 +2,22 @@
 
 Local environment: Windows, Rust 1.97.1, Node 22.22.1, npm 11.19.0.
 
+## Ubi field-guide identity and live preview restart
+
+The docs now use warm paper/forest palettes, serif display headings, a component
+workbench frame and matching browser-control colors. Component pages retain the
+shared navigation, source highlighting and live Ubi examples. All 13 Node checks
+and seven browser-host regressions pass with the new palette, including feedback
+contrast in both themes. The live docs checkbox was exercised in both themes;
+the light page has no horizontal overflow at 1264px.
+
+The old static server was replaced with the live Next development server on
+port 4317. Development and production use separate output directories to avoid
+cache corruption during builds. Preview links explicitly name `index.html`,
+which works with both Next public assets and static directory hosting. Preview
+readiness is checked after hydration as well as on frame load/message, fixing a
+stuck loading label when the frame starts before React attaches listeners.
+
 ## Shared web host and language highlighting
 
 The current forty-component Ubi source package now runs through a standalone

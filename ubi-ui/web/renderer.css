@@ -1,8 +1,8 @@
 /* Every rule stays inside its mount. Host-page typography and resets are untouched. */
 [data-ubi-mount] { width:100%; min-width:0; max-width:100%; container-type:inline-size; }
 [data-ubi-mount] .ubi-node { box-sizing:border-box; min-width:0; max-width:100%; margin:0; position:relative; font-family:Inter,ui-sans-serif,system-ui,sans-serif; line-height:1.5; color:var(--ubi-fg,#171717); overflow-wrap:anywhere; }
-[data-ubi-mount] [data-ubi-theme="light"] { --ubi-bg:#fff; --ubi-fg:#171717; --ubi-muted:#6e6e73; --ubi-panel:#fafafa; --ubi-border:#dedee2; --ubi-accent:#18181b; --ubi-accent-fg:#fff; color-scheme:light; }
-[data-ubi-mount] [data-ubi-theme="dark"] { --ubi-bg:#111113; --ubi-fg:#f5f5f6; --ubi-muted:#a2a2aa; --ubi-panel:#1a1a1e; --ubi-border:#343439; --ubi-accent:#f4f4f5; --ubi-accent-fg:#18181b; color-scheme:dark; }
+[data-ubi-mount] [data-ubi-theme="light"] { --ubi-bg:#fffdf6; --ubi-fg:#193d31; --ubi-muted:#59685d; --ubi-panel:#f3efe5; --ubi-border:#d9dfd1; --ubi-accent:#17664e; --ubi-accent-fg:#fff; color-scheme:light; }
+[data-ubi-mount] [data-ubi-theme="dark"] { --ubi-bg:#14221a; --ubi-fg:#e8efe6; --ubi-muted:#a6b8aa; --ubi-panel:#1a2b20; --ubi-border:#2d4434; --ubi-accent:#a7d4b1; --ubi-accent-fg:#10271b; color-scheme:dark; }
 [data-ubi-mount] .ubi-node[hidden] { display:none !important; }
 [data-ubi-mount] .ubi-window { background:var(--ubi-bg); width:100%; display:flex; flex-direction:column; overflow:auto; }
 [data-ubi-mount] .ubi-view,[data-ubi-mount] .ubi-column,[data-ubi-mount] .ubi-scrollview,[data-ubi-mount] .ubi-card { display:flex; flex-direction:column; align-items:stretch; }
