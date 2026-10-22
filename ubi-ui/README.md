@@ -1,9 +1,24 @@
-# Ubi UI — native core
+# Ubi UI — shared component core
 
-Original Rust component runtime with Ubi source APIs. This desktop backend runs
+Source-owned components for web, mobile and desktop. The browser host compiles
+the same Ubi examples to JavaScript and renders semantic HTML controls. The
+Rust desktop backend runs
 the existing checked Rust interpreter directly; it needs no Node, DOM or
 JavaScript host. Existing Ubi JavaScript, Electron and Capacitor targets remain
 available independently.
+
+## Web and WebViews
+
+```powershell
+cargo run --locked --example ui-web-export -- target/ubi-web
+python -m http.server 4319 --bind 127.0.0.1 --directory target/ubi-web
+```
+
+Open `/` on that server for forty interactive component applications and the
+gallery. The output is a portable static directory with relative assets; bundle
+it in mobile or desktop WebViews, or deploy it to a web host. The same source
+modules and reducers run in the native Rust host below. See the [browser host
+API](web/README.md) for custom applications, lifecycle and deployment details.
 
 ## Run
 
@@ -117,8 +132,10 @@ npm run build
 Next.js/React/Tailwind are confined to this documentation portal. It reads actual
 Ubi declarations, the catalog and complete examples during build. The portal has
 six guides and 40 component pages, grouped navigation, Ctrl/Cmd+K search, theme
-switching, source copying and preview/code tabs. Previews show native GPU captures;
-run the supplied Ubi app to interact with a component.
+switching, source copying and Preview/Native/Code tabs. Preview runs the actual
+compiled Ubi application with working web controls; Native shows its desktop GPU
+capture; Code shows highlighted Ubi source. Reset restarts the preview, while
+theme changes preserve its state. The build exports the browser apps automatically.
 
 Generate new captures in an empty directory (files never overwrite):
 
@@ -151,7 +168,8 @@ and platform status. GPU tests require a working adapter and fail explicitly whe
 one is unavailable. In headless CI, configure a supported software adapter rather
 than silently skipping the renderer tests.
 
-Windows is verified. Linux/macOS native execution, WebAssembly/mobile hosts,
+Windows native and browser execution are verified. Linux/macOS native execution,
+native WebAssembly/mobile hosts,
 native screen-reader bridges, advanced text shaping/bidirectional text/font
 fallback, clipboard and range selection, horizontal scrolling, arbitrary Ubi
 color-token definitions and animated transitions are not implemented/verified.
@@ -160,3 +178,7 @@ are redacted. Pure reducers run on the event thread under execution limits, so
 expensive work belongs outside update/view. Events failing evaluation currently
 report to stderr and preserve model/tree. An application error overlay and async
 worker protocol remain future work.
+
+The web host uses browser text editing, clipboard, shaping and accessibility
+semantics; the preceding native text-engine limitations do not describe browser
+controls. Physical-device verification of the expanded library remains pending.

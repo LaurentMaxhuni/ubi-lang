@@ -5,3 +5,4 @@ node_modules/
 /graphify-out/
 ubi-ui/docs/.next/
 ubi-ui/docs/out/
+ubi-ui/docs/public/previews/

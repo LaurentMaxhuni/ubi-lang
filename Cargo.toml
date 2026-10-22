@@ -35,6 +35,10 @@ name = "native-ui-capture"
 path = "ubi-ui/tools/capture.rs"
 required-features = ["native-ui"]
 
+[[example]]
+name = "ui-web-export"
+path = "ubi-ui/tools/web_export.rs"
+
 [[bench]]
 name = "native_ui"
 path = "ubi-ui/benches/native_ui.rs"

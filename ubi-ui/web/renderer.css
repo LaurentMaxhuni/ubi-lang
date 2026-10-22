@@ -1,0 +1,64 @@
+/* Every rule stays inside its mount. Host-page typography and resets are untouched. */
+[data-ubi-mount] { width:100%; min-width:0; max-width:100%; container-type:inline-size; }
+[data-ubi-mount] .ubi-node { box-sizing:border-box; min-width:0; max-width:100%; margin:0; position:relative; font-family:Inter,ui-sans-serif,system-ui,sans-serif; line-height:1.5; color:var(--ubi-fg,#171717); overflow-wrap:anywhere; }
+[data-ubi-mount] [data-ubi-theme="light"] { --ubi-bg:#fff; --ubi-fg:#171717; --ubi-muted:#6e6e73; --ubi-panel:#fafafa; --ubi-border:#dedee2; --ubi-accent:#18181b; --ubi-accent-fg:#fff; color-scheme:light; }
+[data-ubi-mount] [data-ubi-theme="dark"] { --ubi-bg:#111113; --ubi-fg:#f5f5f6; --ubi-muted:#a2a2aa; --ubi-panel:#1a1a1e; --ubi-border:#343439; --ubi-accent:#f4f4f5; --ubi-accent-fg:#18181b; color-scheme:dark; }
+[data-ubi-mount] .ubi-node[hidden] { display:none !important; }
+[data-ubi-mount] .ubi-window { background:var(--ubi-bg); width:100%; display:flex; flex-direction:column; overflow:auto; }
+[data-ubi-mount] .ubi-view,[data-ubi-mount] .ubi-column,[data-ubi-mount] .ubi-scrollview,[data-ubi-mount] .ubi-card { display:flex; flex-direction:column; align-items:stretch; }
+[data-ubi-mount] .ubi-row,[data-ubi-mount] .ubi-flex { display:flex; flex-wrap:wrap; align-items:center; }
+[data-ubi-mount] .ubi-grid { display:grid; align-items:start; }
+[data-ubi-mount] .ubi-scrollview { overflow:auto; overscroll-behavior:contain; }
+[data-ubi-mount] .ubi-card { border:1px solid var(--ubi-border); border-radius:12px; background:var(--ubi-panel); }
+[data-ubi-mount] .ubi-heading { font-weight:650; letter-spacing:-.035em; line-height:1.18; }
+[data-ubi-mount] .ubi-text { color:var(--ubi-muted); white-space:pre-wrap; }
+[data-ubi-mount] .ubi-label { font-weight:550; }
+[data-ubi-mount] .ubi-separator { display:block; padding:0 !important; border:0; border-top:1px solid var(--ubi-border); width:100%; height:1px; }
+[data-ubi-mount] button.ubi-node { appearance:none; border:1px solid transparent; border-radius:7px; background:var(--ubi-accent); color:var(--ubi-accent-fg); display:inline-flex; flex-shrink:0; align-items:center; justify-content:center; width:fit-content; min-height:44px; min-width:44px; padding:9px 16px !important; font-weight:550; cursor:pointer; text-align:center; white-space:normal; touch-action:manipulation; }
+[data-ubi-mount] button.ubi-node[data-variant="secondary"] { background:var(--ubi-panel); border-color:var(--ubi-border); color:var(--ubi-fg); }
+[data-ubi-mount] button.ubi-node[data-variant="outline"] { background:transparent; border-color:var(--ubi-border); color:var(--ubi-fg); }
+[data-ubi-mount] button.ubi-node[data-variant="ghost"],[data-ubi-mount] button.ubi-link { color:var(--ubi-fg); background:transparent; }
+[data-ubi-mount] button.ubi-node[data-variant="destructive"] { background:#b42332; color:#fff; }
+[data-ubi-mount] button.ubi-link { text-decoration:underline; text-underline-offset:4px; justify-content:flex-start; }
+[data-ubi-mount] button.ubi-toggle,[data-ubi-mount] button.ubi-toggleitem,[data-ubi-mount] button.ubi-tab { background:transparent; color:var(--ubi-muted); border-color:var(--ubi-border); }
+[data-ubi-mount] button.ubi-node[data-checked="true"] { background:var(--ubi-accent); color:var(--ubi-accent-fg); border-color:var(--ubi-accent); }
+[data-ubi-mount] button.ubi-node:hover:enabled { filter:brightness(.9); }
+[data-ubi-mount] .ubi-node[data-disabled="true"] { opacity:.48; cursor:not-allowed; }
+[data-ubi-mount] :is(button,input,textarea):focus-visible { outline:2px solid var(--ubi-fg); outline-offset:3px; }
+[data-ubi-mount] label.ubi-node { display:flex; flex-direction:column; gap:8px !important; padding:0 !important; width:fit-content; }
+[data-ubi-mount] .ubi-caption { color:var(--ubi-fg); font-size:13px; font-weight:550; }
+[data-ubi-mount] .ubi-caption:empty { display:none; }
+[data-ubi-mount] .ubi-node input,[data-ubi-mount] .ubi-node textarea { box-sizing:border-box; margin:0; font:inherit; line-height:1.5; color:var(--ubi-fg); background:var(--ubi-bg); border:1px solid var(--ubi-border); border-radius:7px; width:100%; min-width:0; min-height:44px; padding:10px 12px; box-shadow:0 1px 2px #00000005; accent-color:var(--ubi-accent); }
+[data-ubi-mount] .ubi-node textarea { resize:vertical; min-height:112px; flex:1; }
+[data-ubi-mount] .ubi-node input:read-only,[data-ubi-mount] .ubi-node textarea:read-only { cursor:default; }
+[data-ubi-mount] label.ubi-checkbox,[data-ubi-mount] label.ubi-switch,[data-ubi-mount] label.ubi-radio { flex-direction:row; align-items:center; min-height:44px; cursor:pointer; }
+[data-ubi-mount] .ubi-checkbox input,[data-ubi-mount] .ubi-radio input { width:20px; height:20px; min-height:20px; flex-shrink:0; padding:0; cursor:inherit; }
+[data-ubi-mount] .ubi-switch input { appearance:none; position:relative; width:38px; min-height:22px; height:22px; padding:2px; background:var(--ubi-border); border:0; border-radius:20px; flex-shrink:0; cursor:inherit; }
+[data-ubi-mount] .ubi-switch input::before { content:""; display:block; width:18px; height:18px; border-radius:50%; background:var(--ubi-bg); box-shadow:0 1px 2px #0003; }
+[data-ubi-mount] .ubi-switch input:checked { background:var(--ubi-accent); }
+[data-ubi-mount] .ubi-switch input:checked::before { transform:translateX(16px); background:var(--ubi-accent-fg); }
+[data-ubi-mount] .ubi-slider input { border:0; padding:0 2px; background:transparent; box-shadow:none; min-width:100px; cursor:pointer; }
+[data-ubi-mount] .ubi-progressbar { appearance:none; border:0; height:8px; width:100%; background:var(--ubi-border); border-radius:20px; overflow:hidden; }
+[data-ubi-mount] .ubi-progressbar::-webkit-progress-bar { background:var(--ubi-border); }
+[data-ubi-mount] .ubi-progressbar::-webkit-progress-value { background:var(--ubi-accent); border-radius:20px; }
+[data-ubi-mount] .ubi-progressbar::-moz-progress-bar { background:var(--ubi-accent); }
+[data-ubi-mount] .ubi-badge,[data-ubi-mount] .ubi-kbd { display:inline-flex; align-items:center; justify-content:center; width:fit-content; padding:3px 9px !important; border:1px solid var(--ubi-border); border-radius:5px; background:var(--ubi-panel); font-size:12px !important; font-weight:550; }
+[data-ubi-mount] .ubi-kbd { font-family:ui-monospace,monospace; box-shadow:0 2px 0 var(--ubi-border); }
+[data-ubi-mount] .ubi-avatar { display:inline-flex; align-items:center; justify-content:center; width:44px; height:44px; border:1px solid var(--ubi-border); border-radius:50%; background:var(--ubi-panel); font-weight:600; }
+[data-ubi-mount] .ubi-alert { padding:16px 20px !important; border:1px solid var(--ubi-border); border-radius:8px; background:var(--ubi-panel); white-space:pre-wrap; }
+[data-ubi-mount] [data-ubi-theme="light"] { --ubi-danger:#a91f30; --ubi-success:#246f43; --ubi-warning:#83590f; }
+[data-ubi-mount] [data-ubi-theme="dark"] { --ubi-danger:#ff9aa3; --ubi-success:#78d9a0; --ubi-warning:#efc46b; }
+[data-ubi-mount] [data-tone="danger"]:is(.ubi-alert,.ubi-badge) { color:var(--ubi-danger); border-color:currentColor; }
+[data-ubi-mount] [data-tone="success"]:is(.ubi-alert,.ubi-badge) { color:var(--ubi-success); border-color:currentColor; }
+[data-ubi-mount] [data-tone="warning"]:is(.ubi-alert,.ubi-badge) { color:var(--ubi-warning); border-color:currentColor; }
+[data-ubi-mount] .ubi-skeleton { min-height:20px; border-radius:6px; background:var(--ubi-border); }
+[data-ubi-mount][data-ubi-preview] > .ubi-window { min-height:100dvh; height:auto !important; padding:28px !important; align-items:center; justify-content:center; }
+@container (max-width:420px) {
+  [data-ubi-mount] .ubi-grid { grid-template-columns:minmax(0,1fr) !important; }
+  [data-ubi-mount] .ubi-window,[data-ubi-mount] .ubi-card { padding:16px !important; }
+  [data-ubi-mount][data-ubi-preview] > .ubi-window { padding:20px !important; }
+}
+@media (forced-colors:active) {
+  [data-ubi-mount] button.ubi-node,[data-ubi-mount] .ubi-node input,[data-ubi-mount] .ubi-node textarea { border:1px solid ButtonText; }
+  [data-ubi-mount] button.ubi-node[data-checked="true"] { outline:2px solid Highlight; }
+}

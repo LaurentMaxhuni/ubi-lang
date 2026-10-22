@@ -1,0 +1,2 @@
+@font-face{font-family:Inter;src:url('./Inter.ttf') format('truetype');font-display:swap}
+html{color-scheme:light dark}body{margin:0;font-family:Inter,system-ui,sans-serif;background:transparent}#app{min-height:100dvh;min-width:0}#app>.ubi-window{min-height:100dvh}#error{margin:16px;padding:16px;color:#b42318;background:#fff4f2;border:1px solid #b42318;border-radius:8px;font:14px/1.5 Inter,system-ui,sans-serif}
