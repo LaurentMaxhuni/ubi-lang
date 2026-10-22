@@ -3,11 +3,15 @@
 ## Proposed Ubi UI expansion, requested 2026-10-22
 
 User approved the Skiper / Animate UI / React Bits / Magic UI direction after
-[reference research](docs/ubi-ui-design-references.md). The proposed
+[reference research](docs/ubi-ui-design-references.md), then approved the written
 [motion and component design](docs/superpowers/specs/2026-10-22-ubi-ui-motion-design.md)
 covers shared web/native motion, existing control upgrades and 30 additional
-components. Written-design review is pending; this entry does not mark runtime
-motion or new components implemented.
+components. Implementation is divided into linked plans for
+[motion and the first four additions](docs/superpowers/plans/2026-10-22-ubi-ui-motion.md),
+[15 application components](docs/superpowers/plans/2026-10-22-ubi-ui-application-components.md)
+and [11 remaining expressive components](docs/superpowers/plans/2026-10-22-ubi-ui-expressive-components.md).
+Written-plan review and execution-method selection are pending; runtime motion
+and the new components are not implemented yet.
 
 ## New priority: Ubi UI, requested 2026-10-21
 

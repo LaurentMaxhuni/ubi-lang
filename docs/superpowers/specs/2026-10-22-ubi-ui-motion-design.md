@@ -1,7 +1,7 @@
 # Ubi UI: expressive components and shared motion
 
 Date: 2026-10-22
-Status: proposed written design; awaiting user review before implementation planning.
+Status: written design approved by user on 2026-10-22 ("i approve."); implementation plans await review and execution-method selection.
 
 ## Intent and agreed direction
 
