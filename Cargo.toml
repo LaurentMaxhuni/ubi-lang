@@ -3,6 +3,21 @@ name = "ubi-lang"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+members = [".", "ubi-ui/crates/*"]
+default-members = ["."]
+resolver = "2"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ubi-ui-core = { path = "ubi-ui/crates/ubi-ui-core" }
+ubi-ui-theme = { path = "ubi-ui/crates/ubi-ui-theme" }
+ubi-ui-layout = { path = "ubi-ui/crates/ubi-ui-layout" }
+ubi-ui-input = { path = "ubi-ui/crates/ubi-ui-input" }
+ubi-ui-render = { path = "ubi-ui/crates/ubi-ui-render" }
+ubi-ui-platform = { path = "ubi-ui/crates/ubi-ui-platform" }
+
 [dependencies]
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

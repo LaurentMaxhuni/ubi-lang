@@ -1,0 +1,12 @@
+[package]
+name = "ubi-ui-layout"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+ubi-ui-core.workspace = true
+taffy = { version = "0.15", default-features = false, features = ["std", "taffy_tree", "flexbox", "grid", "content_size"] }
+
+[dev-dependencies]
+serde_json.workspace = true

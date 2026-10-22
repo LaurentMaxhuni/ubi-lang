@@ -1,0 +1,16 @@
+[package]
+name = "ubi-ui-platform"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+ubi-ui-core.workspace = true
+ubi-ui-theme.workspace = true
+ubi-ui-layout.workspace = true
+ubi-ui-input.workspace = true
+ubi-ui-render.workspace = true
+winit = "0.30.13"
+wgpu = "30.0.1"
+pollster = "1"
+serde_json.workspace = true
