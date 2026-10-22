@@ -1,0 +1,20 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
+import { card } from "../../packages/ubi-ui/components/card.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int {
+    match (event) { Event.Activate(Message.Action) => model + 1, _ => model }
+}
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "Card", 1),
+        textComponent("description", "Padded surface grouping related content."),
+        card("demo", [Prop.Width(440)], [headingComponent("card-title", "Project workspace", 3), textComponent("card-body", "Everything your team needs in one place."), buttonComponent("action", "Open workspace", Message.Action, [])]),
+        textComponent("action-status", "Actions: " + toString(model))
+    ])
+}

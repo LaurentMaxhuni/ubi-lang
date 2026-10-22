@@ -1,0 +1,18 @@
+import { View, Event, Prop, Space, Choice } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { tabs } from "../../packages/ubi-ui/components/tabs.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> string { "day" }
+export fn update(model: string, event: Event<Message>) -> string {
+    match (event) { Event.Select(Message.Select, value) => value, _ => model }
+}
+export fn view(model: string) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "Tabs", 1),
+        textComponent("description", "Controlled tablist with caller-supplied active panel content."),
+        tabs("demo", "Digest frequency", [Choice { value: "day", label: "Daily", disabled: false }, Choice { value: "week", label: "Weekly", disabled: false }, Choice { value: "year", label: "Yearly", disabled: true }], model, Message.Select, [Prop.Gap(Space.Sm)], [textComponent("active-panel", "Active digest: " + model)])
+    ])
+}

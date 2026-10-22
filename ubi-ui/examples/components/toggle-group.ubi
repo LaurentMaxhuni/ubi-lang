@@ -1,0 +1,26 @@
+import { View, Event, Prop, Space, Choice } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { toggleGroup } from "../../packages/ubi-ui/components/toggle-group.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> List<string> { ["day"] }
+export fn update(model: List<string>, event: Event<Message>) -> List<string> {
+    match (event) {
+        Event.Select(Message.Select, value) => {
+            let mut next: List<string> = [];
+            let mut found = false;
+            for (item in model) { if (item == value) { found = true; } else { next = append(next, item); } }
+            if (found) { next } else { append(next, value) }
+        },
+        _ => model
+    }
+}
+export fn view(model: List<string>) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "ToggleGroup", 1),
+        textComponent("description", "Controlled multiple selection; reducer manages selected option membership."),
+        toggleGroup("demo", "Digest channels", [Choice { value: "day", label: "Daily", disabled: false }, Choice { value: "week", label: "Weekly", disabled: false }, Choice { value: "year", label: "Yearly", disabled: true }], model, Message.Select, [Prop.Gap(Space.Sm)])
+    ])
+}

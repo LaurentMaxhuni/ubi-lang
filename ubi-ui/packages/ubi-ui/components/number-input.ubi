@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn numberInputComponent<M>(key: string, label: string, value: string, min: int, max: int, step: int, message: M, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.NumberInput, append(append(append(append(append(append(props, Prop.Label(label)), Prop.Value(value)), Prop.Min(min)), Prop.Max(max)), Prop.Step(step)), Prop.Input(message)))
+}
+
+export fn numberInput<M>(key: string, label: string, value: string, min: int, max: int, step: int, message: M, props: List<Prop<M>>) -> View<M> { numberInputComponent(key, label, value, min, max, step, message, props) }

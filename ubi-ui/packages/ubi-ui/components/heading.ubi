@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn headingComponent<M>(key: string, content: string, level: int) -> View<M> {
+    node(key, Kind.Heading, [Prop.Content(content), Prop.Level(level)])
+}
+
+export fn heading<M>(key: string, content: string, level: int) -> View<M> { headingComponent(key, content, level) }

@@ -1,0 +1,7 @@
+import { View, Kind, Prop, Tone, node } from "../core.ubi";
+
+export fn alertComponent<M>(key: string, title: string, description: string, tone: Tone, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.Alert, append(append(append(props, Prop.Content(title + " / " + description)), Prop.Label(title + ": " + description)), Prop.Tone(tone)))
+}
+
+export fn alert<M>(key: string, title: string, description: string, tone: Tone, props: List<Prop<M>>) -> View<M> { alertComponent(key, title, description, tone, props) }

@@ -1,0 +1,10 @@
+import { View, Kind, Prop, node, group } from "../core.ubi";
+
+export fn fieldComponent<M>(key: string, label: string, description: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    let mut items: List<View<M>> = [node(key + "-label", Kind.Label, [Prop.Content(label)])];
+    for (child in children) { items = append(items, child); }
+    items = append(items, node(key + "-description", Kind.Text, [Prop.Content(description)]));
+    group(key, Kind.Column, append(append(props, Prop.Label(label)), Prop.Role("group")), items)
+}
+
+export fn field<M>(key: string, label: string, description: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { fieldComponent(key, label, description, props, children) }

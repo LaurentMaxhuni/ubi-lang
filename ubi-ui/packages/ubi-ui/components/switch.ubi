@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn switchComponent<M>(key: string, content: string, checked: bool, message: M, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.Switch, append(append(append(append(props, Prop.Content(content)), Prop.Label(content)), Prop.Checked(checked)), Prop.Toggle(message)))
+}
+
+export fn switch<M>(key: string, content: string, checked: bool, message: M, props: List<Prop<M>>) -> View<M> { switchComponent(key, content, checked, message, props) }

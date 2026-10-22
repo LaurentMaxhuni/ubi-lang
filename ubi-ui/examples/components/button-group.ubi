@@ -1,0 +1,20 @@
+import { View, Event, Prop, Space, ButtonVariant } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
+import { buttonGroup } from "../../packages/ubi-ui/components/button-group.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int {
+    match (event) { Event.Activate(Message.Action) => model + 1, _ => model }
+}
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "ButtonGroup", 1),
+        textComponent("description", "Related caller-owned actions in a horizontal semantic group."),
+        buttonGroup("demo", "Document actions", [Prop.Gap(Space.Sm)], [buttonComponent("save", "Save", Message.Action, []), buttonComponent("duplicate", "Duplicate", Message.Action, [Prop.Variant(ButtonVariant.Outline)]), buttonComponent("archive", "Archive", Message.Action, [Prop.Variant(ButtonVariant.Secondary)])]),
+        textComponent("action-status", "Actions: " + toString(model))
+    ])
+}

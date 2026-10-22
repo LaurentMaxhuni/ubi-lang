@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn sliderComponent<M>(key: string, label: string, value: int, message: M, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.Slider, append(append(append(props, Prop.Label(label)), Prop.Progress(value)), Prop.Change(message)))
+}
+
+export fn slider<M>(key: string, label: string, value: int, message: M, props: List<Prop<M>>) -> View<M> { sliderComponent(key, label, value, message, props) }

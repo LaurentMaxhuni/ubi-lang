@@ -1,0 +1,18 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { accordion } from "../../packages/ubi-ui/components/accordion.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> bool { true }
+export fn update(model: bool, event: Event<Message>) -> bool {
+    match (event) { Event.Toggle(Message.Toggle, value) => value, _ => model }
+}
+export fn view(model: bool) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "Accordion", 1),
+        textComponent("description", "Controlled disclosure with a toggle trigger and conditional content."),
+        accordion("demo", "How does native UI work?", model, Message.Toggle, [Prop.Gap(Space.Md)], [textComponent("answer", "Ubi owns the view and reducer. Rust paints and handles input.")])
+    ])
+}

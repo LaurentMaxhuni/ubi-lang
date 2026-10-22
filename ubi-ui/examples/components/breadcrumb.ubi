@@ -1,0 +1,20 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { linkComponent } from "../../packages/ubi-ui/components/link.ubi";
+import { breadcrumb } from "../../packages/ubi-ui/components/breadcrumb.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int {
+    match (event) { Event.Activate(Message.Action) => model + 1, _ => model }
+}
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "Breadcrumb", 1),
+        textComponent("description", "Navigation landmark containing caller-owned links and separators."),
+        breadcrumb("demo", [Prop.Gap(Space.Sm)], [linkComponent("home", "Home", Message.Action, []), textComponent("divider", "/"), linkComponent("projects", "Projects", Message.Action, []), textComponent("divider-two", "/"), textComponent("current", "Orbit")]),
+        textComponent("action-status", "Actions: " + toString(model))
+    ])
+}

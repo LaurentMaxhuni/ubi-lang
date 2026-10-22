@@ -1,0 +1,13 @@
+import { View, Kind, Prop, Choice, node, group } from "../core.ubi";
+
+export fn toggleGroupComponent<M>(key: string, label: string, choices: List<Choice>, selected: List<string>, message: M, props: List<Prop<M>>) -> View<M> {
+    let mut items: List<View<M>> = [];
+    for (choice in choices) {
+        let mut checked = false;
+        for (value in selected) { if (value == choice.value) { checked = true; } }
+        items = append(items, node(key + "-" + choice.value, Kind.ToggleItem, [Prop.Content(choice.label), Prop.Label(choice.label), Prop.Selected(checked), Prop.Option(choice.value), Prop.Group(key), Prop.Disabled(choice.disabled), Prop.Change(message)]));
+    }
+    group(key, Kind.Row, append(append(props, Prop.Label(label)), Prop.Role("group")), items)
+}
+
+export fn toggleGroup<M>(key: string, label: string, choices: List<Choice>, selected: List<string>, message: M, props: List<Prop<M>>) -> View<M> { toggleGroupComponent(key, label, choices, selected, message, props) }

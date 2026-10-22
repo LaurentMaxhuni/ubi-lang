@@ -1,0 +1,7 @@
+import { View, Kind, Prop, group } from "../core.ubi";
+
+export fn cardComponent<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    group(key, Kind.Card, props, children)
+}
+
+export fn card<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { cardComponent(key, props, children) }

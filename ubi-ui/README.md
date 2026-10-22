@@ -33,9 +33,17 @@ export fn update(model: Model, event: Event<Message>) -> Model { /* new model */
 export fn view(model: Model) -> View<Message> { /* keyed component tree */ }
 ```
 
-See the complete [counter](examples/counter.ubi) and [gallery](examples/gallery.ubi).
-`core.ubi` defines schema-1 records/tagged enums; `components.ubi` provides the
-implemented component constructors. Containers take `(key, props, children)`.
+See the complete [counter](examples/counter.ubi), [gallery](examples/gallery.ubi),
+and [individual examples](examples/components/).
+`core.ubi` defines schema-1 records/tagged enums. Each component has its own source
+file under `packages/ubi-ui/components/`; `components.ubi` preserves the public
+facade. Import a single component directly:
+
+```ubi
+import { button } from "packages/ubi-ui/components/button.ubi";
+```
+
+Use a relative path from your application. Containers take `(key, props, children)`.
 Controls take their content/value/message followed by optional props. Keys are
 globally unique per view. Duplicate props are rejected; do not pass a prop already
 owned by a constructor (for example Content on a Button or Width on IconButton).
@@ -76,15 +84,25 @@ retain their order. There is no claim of GPU performance based on CPU timings.
 
 ## Implemented components
 
-Window, View, Column/Row/Flex, Grid, ScrollView, Card, Separator, Text/Heading,
-Button, IconButton, Checkbox, Switch, Slider, TextInput, PasswordInput, Badge and
-ProgressBar. Each interactive family has enabled/disabled/focus/hover/pressed
-handling as appropriate. Inputs are single-line and controlled by Ubi state.
+The [catalog](catalog.json) contains 40 components, each with a separate module,
+runnable example and documentation page:
 
-RadioGroup, SegmentedControl, ToggleGroup, TextArea, NumberInput, Select, ComboBox,
-SearchInput, SplitView, Tabs, navigation/overlays, Toast, Spinner, Skeleton and
-Avatar are deferred, with no placeholder exports. Motion/effects/blocks/data/AI/
-icons packages are not implemented during this phase.
+- Layout: Window, View, Column, Row, Flex, Grid, ScrollView, Card, Separator.
+- Content: Text, Heading, Button, IconButton, Avatar, ButtonGroup, Field, Kbd, Label.
+- Input: Checkbox, Switch, Slider, Input, PasswordInput, NumberInput, RadioGroup,
+  SearchInput, SegmentedControl, TextArea, Toggle, ToggleGroup.
+- Navigation/disclosure: Breadcrumb, Link, Tabs, Accordion, Collapsible.
+- Feedback: Alert, Badge, Empty, Progress, Skeleton.
+
+Controls are controlled by Ubi state. RadioGroup/Tabs select during arrow
+navigation. SegmentedControl/ToggleGroup arrows move focus; Space/Enter select or
+toggle. NumberInput accepts signed integer text and clamps arrow-step commits to
+its configured range. TextArea supports newlines and multiline caret movement.
+Skeleton is static; Avatar displays initials; Link dispatches an application
+message. Label is visible text: also provide an accessible name on its control.
+
+Select, ComboBox, SplitView, overlays, Toast and Spinner remain deferred.
+Motion/effects/blocks/data/AI/icons packages are not implemented during this phase.
 
 ## Documentation and captures
 
@@ -97,16 +115,22 @@ npm run build
 ```
 
 Next.js/React/Tailwind are confined to this documentation portal. It reads actual
-Ubi declarations and the counter example during build. Gallery tabs switch
-verified images; they do not emulate native controls in React.
+Ubi declarations, the catalog and complete examples during build. The portal has
+six guides and 40 component pages, grouped navigation, Ctrl/Cmd+K search, theme
+switching, source copying and preview/code tabs. Previews show native GPU captures;
+run the supplied Ubi app to interact with a component.
 
 Generate new captures in an empty directory (files never overwrite):
 
 ```powershell
 cargo run --locked --features native-ui --example native-ui-capture -- <existing-empty-directory>
+cargo run --locked --features native-ui --example native-ui-capture -- --components <existing-empty-directory>
 cargo run --locked --features native-ui -- ui examples/gallery.ubi --root ubi-ui --capture <new.png>
 cargo run --locked --features native-ui -- ui examples/gallery.ubi --root ubi-ui --smoke
 ```
+
+Component capture mode renders all 40 real examples at 900×480 in light and dark
+themes. Copy the resulting 80 PNGs into `docs/public/components/` before building.
 
 `--smoke` creates a hidden native window, acquires a swapchain frame, renders the
 Ubi view and presents it, then exits with a success marker. It does not claim

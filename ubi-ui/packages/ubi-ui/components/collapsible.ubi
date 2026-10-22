@@ -1,0 +1,10 @@
+import { View, Kind, Prop, node, group } from "../core.ubi";
+
+export fn collapsibleComponent<M>(key: string, title: string, open: bool, message: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    let trigger: View<M> = node(key + "-trigger", Kind.Toggle, [Prop.Content(title), Prop.Label(title), Prop.Checked(open), Prop.Expanded(open), Prop.Role("button"), Prop.Toggle(message)]);
+    let mut items: List<View<M>> = [trigger];
+    if (open) { items = append(items, group(key + "-content", Kind.Column, [Prop.Role("group")], children)); }
+    group(key, Kind.Column, props, items)
+}
+
+export fn collapsible<M>(key: string, title: string, open: bool, message: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { collapsibleComponent(key, title, open, message, props, children) }

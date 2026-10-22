@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn textInputComponent<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.TextInput, append(append(append(props, Prop.Label(label)), Prop.Value(value)), Prop.Input(message)))
+}
+
+export fn textInput<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> { textInputComponent(key, label, value, message, props) }

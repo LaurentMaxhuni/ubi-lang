@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn textComponent<M>(key: string, content: string) -> View<M> {
+    node(key, Kind.Text, [Prop.Content(content)])
+}
+
+export fn text<M>(key: string, content: string) -> View<M> { textComponent(key, content) }

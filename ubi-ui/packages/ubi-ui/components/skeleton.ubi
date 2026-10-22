@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn skeletonComponent<M>(key: string, label: string, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.Skeleton, append(props, Prop.Label(label)))
+}
+
+export fn skeleton<M>(key: string, label: string, props: List<Prop<M>>) -> View<M> { skeletonComponent(key, label, props) }

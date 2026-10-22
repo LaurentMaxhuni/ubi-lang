@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn labelComponent<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.Label, append(props, Prop.Content(content)))
+}
+
+export fn label<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { labelComponent(key, content, props) }

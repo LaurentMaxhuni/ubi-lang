@@ -1,0 +1,19 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { iconButton } from "../../packages/ubi-ui/components/icon-button.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int {
+    match (event) { Event.Activate(Message.Action) => model + 1, _ => model }
+}
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "IconButton", 1),
+        textComponent("description", "Compact action with an explicit accessible label."),
+        iconButton("demo", "+", "Add one", Message.Action, []),
+        textComponent("action-status", "Actions: " + toString(model))
+    ])
+}

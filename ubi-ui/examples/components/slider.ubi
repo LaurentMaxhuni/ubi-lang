@@ -1,0 +1,18 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { slider } from "../../packages/ubi-ui/components/slider.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> int { 40 }
+export fn update(model: int, event: Event<Message>) -> int {
+    match (event) { Event.Select(Message.Select, value) => match (parseInt(value)) { Option.Some(n) => clamp(n, 0, 100), Option.None => model }, _ => model }
+}
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "Slider", 1),
+        textComponent("description", "Controlled numeric range from zero to one hundred."),
+        slider("demo", "Volume", model, Message.Select, [Prop.Width(420)])
+    ])
+}

@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn avatarComponent<M>(key: string, initials: string, label: string, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.Avatar, append(append(props, Prop.Content(initials)), Prop.Label(label)))
+}
+
+export fn avatar<M>(key: string, initials: string, label: string, props: List<Prop<M>>) -> View<M> { avatarComponent(key, initials, label, props) }

@@ -1,0 +1,7 @@
+import { View, Kind, Prop, Tone, node } from "../core.ubi";
+
+export fn badgeComponent<M>(key: string, content: string, tone: Tone) -> View<M> {
+    node(key, Kind.Badge, [Prop.Content(content), Prop.Tone(tone), Prop.Width(140)])
+}
+
+export fn badge<M>(key: string, content: string, tone: Tone) -> View<M> { badgeComponent(key, content, tone) }

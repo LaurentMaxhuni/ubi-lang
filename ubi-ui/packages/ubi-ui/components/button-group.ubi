@@ -1,0 +1,7 @@
+import { View, Kind, Prop, group } from "../core.ubi";
+
+export fn buttonGroupComponent<M>(key: string, label: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    group(key, Kind.Row, append(append(props, Prop.Label(label)), Prop.Role("group")), children)
+}
+
+export fn buttonGroup<M>(key: string, label: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { buttonGroupComponent(key, label, props, children) }

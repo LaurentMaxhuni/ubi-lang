@@ -1,0 +1,18 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { toggle } from "../../packages/ubi-ui/components/toggle.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> bool { false }
+export fn update(model: bool, event: Event<Message>) -> bool {
+    match (event) { Event.Toggle(Message.Toggle, value) => value, _ => model }
+}
+export fn view(model: bool) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "Toggle", 1),
+        textComponent("description", "Controlled pressed action dispatching a boolean Toggle message."),
+        toggle("demo", "Bold", model, Message.Toggle, [])
+    ])
+}

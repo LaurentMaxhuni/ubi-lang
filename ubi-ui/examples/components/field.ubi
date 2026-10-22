@@ -1,0 +1,19 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { textInputComponent } from "../../packages/ubi-ui/components/input.ubi";
+import { field } from "../../packages/ubi-ui/components/field.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> string { "Orbit" }
+export fn update(model: string, event: Event<Message>) -> string {
+    match (event) { Event.Input(Message.Input, value) => value, _ => model }
+}
+export fn view(model: string) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "Field", 1),
+        textComponent("description", "Label, helper text and caller-owned controls in a vertical group."),
+        field("demo", "Workspace name", "Visible to everyone in your team.", [Prop.Gap(Space.Sm)], [textInputComponent("workspace", "Workspace name", model, Message.Input, [Prop.Width(380)])])
+    ])
+}

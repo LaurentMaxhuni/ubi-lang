@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn textAreaComponent<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.TextArea, append(append(append(props, Prop.Label(label)), Prop.Value(value)), Prop.Input(message)))
+}
+
+export fn textArea<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> { textAreaComponent(key, label, value, message, props) }

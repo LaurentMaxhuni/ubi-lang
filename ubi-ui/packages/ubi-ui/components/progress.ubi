@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn progressBarComponent<M>(key: string, label: string, value: int) -> View<M> {
+    node(key, Kind.ProgressBar, [Prop.Label(label), Prop.Progress(value)])
+}
+
+export fn progressBar<M>(key: string, label: string, value: int) -> View<M> { progressBarComponent(key, label, value) }

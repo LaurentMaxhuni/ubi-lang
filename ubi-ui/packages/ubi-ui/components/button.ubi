@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn buttonComponent<M>(key: string, content: string, message: M, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.Button, append(append(props, Prop.Content(content)), Prop.Activate(message)))
+}
+
+export fn button<M>(key: string, content: string, message: M, props: List<Prop<M>>) -> View<M> { buttonComponent(key, content, message, props) }

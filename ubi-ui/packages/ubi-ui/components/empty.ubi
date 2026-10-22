@@ -1,0 +1,9 @@
+import { View, Kind, Prop, node, group } from "../core.ubi";
+
+export fn emptyComponent<M>(key: string, title: string, description: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    let mut items: List<View<M>> = [node(key + "-title", Kind.Heading, [Prop.Content(title), Prop.Level(3)]), node(key + "-description", Kind.Text, [Prop.Content(description)])];
+    for (child in children) { items = append(items, child); }
+    group(key, Kind.Column, props, items)
+}
+
+export fn empty<M>(key: string, title: string, description: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { emptyComponent(key, title, description, props, children) }

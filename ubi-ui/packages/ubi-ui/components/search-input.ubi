@@ -1,0 +1,8 @@
+import { View, Prop } from "../core.ubi";
+import { textInputComponent } from "./input.ubi";
+
+export fn searchInputComponent<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> {
+    textInputComponent(key, label, value, message, append(props, Prop.Content("Search...")))
+}
+
+export fn searchInput<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> { searchInputComponent(key, label, value, message, props) }

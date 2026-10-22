@@ -1,0 +1,20 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
+import { flex } from "../../packages/ubi-ui/components/flex.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int {
+    match (event) { Event.Activate(Message.Action) => model + 1, _ => model }
+}
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "Flex", 1),
+        textComponent("description", "Wrapping horizontal layout for adaptive content."),
+        flex("demo", [Prop.Gap(Space.Lg)], [buttonComponent("one", "One", Message.Action, [Prop.Width(140)]), buttonComponent("two", "Two", Message.Action, [Prop.Width(140)]), buttonComponent("three", "Three", Message.Action, [Prop.Width(140)])]),
+        textComponent("action-status", "Actions: " + toString(model))
+    ])
+}

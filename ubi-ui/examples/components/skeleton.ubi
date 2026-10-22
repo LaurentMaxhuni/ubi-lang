@@ -1,0 +1,19 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { columnComponent } from "../../packages/ubi-ui/components/column.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { skeletonComponent, skeleton } from "../../packages/ubi-ui/components/skeleton.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int {
+    match (event) { Event.Activate(Message.Action) => model + 1, _ => model }
+}
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "Skeleton", 1),
+        textComponent("description", "Static loading placeholder surface; no animation is implied."),
+        columnComponent("demo-group", [Prop.Gap(Space.Md)], [skeleton("demo", "Loading title", [Prop.Width(300), Prop.Height(24)]), skeletonComponent("line", "Loading description", [Prop.Width(420), Prop.Height(16)]), skeletonComponent("line-two", "Loading description", [Prop.Width(360), Prop.Height(16)])])
+    ])
+}

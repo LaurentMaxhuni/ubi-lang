@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn toggleComponent<M>(key: string, content: string, selected: bool, message: M, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.Toggle, append(append(append(append(props, Prop.Content(content)), Prop.Label(content)), Prop.Checked(selected)), Prop.Toggle(message)))
+}
+
+export fn toggle<M>(key: string, content: string, selected: bool, message: M, props: List<Prop<M>>) -> View<M> { toggleComponent(key, content, selected, message, props) }

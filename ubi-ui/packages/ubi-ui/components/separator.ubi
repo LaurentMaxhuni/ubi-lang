@@ -1,0 +1,7 @@
+import { View, Kind, node } from "../core.ubi";
+
+export fn separatorComponent<M>(key: string) -> View<M> {
+    node(key, Kind.Separator, [])
+}
+
+export fn separator<M>(key: string) -> View<M> { separatorComponent(key) }

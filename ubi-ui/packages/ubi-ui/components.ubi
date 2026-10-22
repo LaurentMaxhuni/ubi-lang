@@ -1,21 +1,82 @@
-import { View, Kind, Prop, Tone, node, group } from "./core.ubi";
-export fn window<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.Window, props, children) }
-export fn view<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.View, props, children) }
-export fn column<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.Column, props, children) }
-export fn row<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.Row, props, children) }
-export fn flex<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.Flex, props, children) }
-export fn grid<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.Grid, props, children) }
-export fn scrollView<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.ScrollView, props, children) }
-export fn card<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.Card, props, children) }
-export fn text<M>(key: string, content: string) -> View<M> { node(key, Kind.Text, [Prop.Content(content)]) }
-export fn heading<M>(key: string, content: string, level: int) -> View<M> { node(key, Kind.Heading, [Prop.Content(content), Prop.Level(level)]) }
-export fn separator<M>(key: string) -> View<M> { node(key, Kind.Separator, []) }
-export fn button<M>(key: string, content: string, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.Button, append(append(props, Prop.Content(content)), Prop.Activate(message))) }
-export fn iconButton<M>(key: string, icon: string, label: string, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.IconButton, append(append(append(append(props, Prop.Content(icon)), Prop.Label(label)), Prop.Activate(message)), Prop.Width(40))) }
-export fn checkbox<M>(key: string, content: string, checked: bool, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.Checkbox, append(append(append(append(props, Prop.Content(content)), Prop.Label(content)), Prop.Checked(checked)), Prop.Toggle(message))) }
-export fn switch<M>(key: string, content: string, checked: bool, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.Switch, append(append(append(append(props, Prop.Content(content)), Prop.Label(content)), Prop.Checked(checked)), Prop.Toggle(message))) }
-export fn slider<M>(key: string, label: string, value: int, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.Slider, append(append(append(props, Prop.Label(label)), Prop.Progress(value)), Prop.Change(message))) }
-export fn textInput<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.TextInput, append(append(append(props, Prop.Label(label)), Prop.Value(value)), Prop.Input(message))) }
-export fn passwordInput<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.PasswordInput, append(append(append(props, Prop.Label(label)), Prop.Value(value)), Prop.Input(message))) }
-export fn badge<M>(key: string, content: string, tone: Tone) -> View<M> { node(key, Kind.Badge, [Prop.Content(content), Prop.Tone(tone), Prop.Width(140)]) }
-export fn progressBar<M>(key: string, label: string, value: int) -> View<M> { node(key, Kind.ProgressBar, [Prop.Label(label), Prop.Progress(value)]) }
+import { View, Prop, Tone, Choice } from "./core.ubi";
+import { windowComponent } from "./components/window.ubi";
+import { viewComponent } from "./components/view.ubi";
+import { columnComponent } from "./components/column.ubi";
+import { rowComponent } from "./components/row.ubi";
+import { flexComponent } from "./components/flex.ubi";
+import { gridComponent } from "./components/grid.ubi";
+import { scrollViewComponent } from "./components/scroll-view.ubi";
+import { cardComponent } from "./components/card.ubi";
+import { textComponent } from "./components/text.ubi";
+import { headingComponent } from "./components/heading.ubi";
+import { separatorComponent } from "./components/separator.ubi";
+import { buttonComponent } from "./components/button.ubi";
+import { iconButtonComponent } from "./components/icon-button.ubi";
+import { checkboxComponent } from "./components/checkbox.ubi";
+import { switchComponent } from "./components/switch.ubi";
+import { sliderComponent } from "./components/slider.ubi";
+import { textInputComponent } from "./components/input.ubi";
+import { passwordInputComponent } from "./components/password-input.ubi";
+import { badgeComponent } from "./components/badge.ubi";
+import { progressBarComponent } from "./components/progress.ubi";
+import { accordionComponent } from "./components/accordion.ubi";
+import { collapsibleComponent } from "./components/collapsible.ubi";
+import { alertComponent } from "./components/alert.ubi";
+import { avatarComponent } from "./components/avatar.ubi";
+import { breadcrumbComponent } from "./components/breadcrumb.ubi";
+import { buttonGroupComponent } from "./components/button-group.ubi";
+import { emptyComponent } from "./components/empty.ubi";
+import { fieldComponent } from "./components/field.ubi";
+import { kbdComponent } from "./components/kbd.ubi";
+import { labelComponent } from "./components/label.ubi";
+import { skeletonComponent } from "./components/skeleton.ubi";
+import { linkComponent } from "./components/link.ubi";
+import { numberInputComponent } from "./components/number-input.ubi";
+import { radioGroupComponent } from "./components/radio-group.ubi";
+import { segmentedControlComponent } from "./components/segmented-control.ubi";
+import { searchInputComponent } from "./components/search-input.ubi";
+import { textAreaComponent } from "./components/textarea.ubi";
+import { tabsComponent } from "./components/tabs.ubi";
+import { toggleComponent } from "./components/toggle.ubi";
+import { toggleGroupComponent } from "./components/toggle-group.ubi";
+
+export fn window<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { windowComponent(key, props, children) }
+export fn view<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { viewComponent(key, props, children) }
+export fn column<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { columnComponent(key, props, children) }
+export fn row<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { rowComponent(key, props, children) }
+export fn flex<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { flexComponent(key, props, children) }
+export fn grid<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { gridComponent(key, props, children) }
+export fn scrollView<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { scrollViewComponent(key, props, children) }
+export fn card<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { cardComponent(key, props, children) }
+export fn text<M>(key: string, content: string) -> View<M> { textComponent(key, content) }
+export fn heading<M>(key: string, content: string, level: int) -> View<M> { headingComponent(key, content, level) }
+export fn separator<M>(key: string) -> View<M> { separatorComponent(key) }
+export fn button<M>(key: string, content: string, message: M, props: List<Prop<M>>) -> View<M> { buttonComponent(key, content, message, props) }
+export fn iconButton<M>(key: string, icon: string, label: string, message: M, props: List<Prop<M>>) -> View<M> { iconButtonComponent(key, icon, label, message, props) }
+export fn checkbox<M>(key: string, content: string, checked: bool, message: M, props: List<Prop<M>>) -> View<M> { checkboxComponent(key, content, checked, message, props) }
+export fn switch<M>(key: string, content: string, checked: bool, message: M, props: List<Prop<M>>) -> View<M> { switchComponent(key, content, checked, message, props) }
+export fn slider<M>(key: string, label: string, value: int, message: M, props: List<Prop<M>>) -> View<M> { sliderComponent(key, label, value, message, props) }
+export fn textInput<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> { textInputComponent(key, label, value, message, props) }
+export fn passwordInput<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> { passwordInputComponent(key, label, value, message, props) }
+export fn badge<M>(key: string, content: string, tone: Tone) -> View<M> { badgeComponent(key, content, tone) }
+export fn progressBar<M>(key: string, label: string, value: int) -> View<M> { progressBarComponent(key, label, value) }
+export fn accordion<M>(key: string, title: string, open: bool, message: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { accordionComponent(key, title, open, message, props, children) }
+export fn collapsible<M>(key: string, title: string, open: bool, message: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { collapsibleComponent(key, title, open, message, props, children) }
+export fn alert<M>(key: string, title: string, description: string, tone: Tone, props: List<Prop<M>>) -> View<M> { alertComponent(key, title, description, tone, props) }
+export fn avatar<M>(key: string, initials: string, label: string, props: List<Prop<M>>) -> View<M> { avatarComponent(key, initials, label, props) }
+export fn breadcrumb<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { breadcrumbComponent(key, props, children) }
+export fn buttonGroup<M>(key: string, label: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { buttonGroupComponent(key, label, props, children) }
+export fn empty<M>(key: string, title: string, description: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { emptyComponent(key, title, description, props, children) }
+export fn field<M>(key: string, label: string, description: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { fieldComponent(key, label, description, props, children) }
+export fn kbd<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { kbdComponent(key, content, props) }
+export fn label<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { labelComponent(key, content, props) }
+export fn skeleton<M>(key: string, label: string, props: List<Prop<M>>) -> View<M> { skeletonComponent(key, label, props) }
+export fn link<M>(key: string, content: string, message: M, props: List<Prop<M>>) -> View<M> { linkComponent(key, content, message, props) }
+export fn numberInput<M>(key: string, label: string, value: string, min: int, max: int, step: int, message: M, props: List<Prop<M>>) -> View<M> { numberInputComponent(key, label, value, min, max, step, message, props) }
+export fn radioGroup<M>(key: string, label: string, choices: List<Choice>, selected: string, message: M, props: List<Prop<M>>) -> View<M> { radioGroupComponent(key, label, choices, selected, message, props) }
+export fn segmentedControl<M>(key: string, label: string, choices: List<Choice>, selected: string, message: M, props: List<Prop<M>>) -> View<M> { segmentedControlComponent(key, label, choices, selected, message, props) }
+export fn searchInput<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> { searchInputComponent(key, label, value, message, props) }
+export fn textArea<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> { textAreaComponent(key, label, value, message, props) }
+export fn tabs<M>(key: string, label: string, choices: List<Choice>, selected: string, message: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { tabsComponent(key, label, choices, selected, message, props, children) }
+export fn toggle<M>(key: string, content: string, selected: bool, message: M, props: List<Prop<M>>) -> View<M> { toggleComponent(key, content, selected, message, props) }
+export fn toggleGroup<M>(key: string, label: string, choices: List<Choice>, selected: List<string>, message: M, props: List<Prop<M>>) -> View<M> { toggleGroupComponent(key, label, choices, selected, message, props) }

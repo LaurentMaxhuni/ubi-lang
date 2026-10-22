@@ -1,0 +1,1527 @@
+[
+  {
+    "slug": "window",
+    "name": "Window",
+    "category": "Layout",
+    "description": "Application root with native theme and layout.",
+    "function": "window",
+    "module": "packages/ubi-ui/components/window.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Window example",
+        "source": "examples/components/window.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "view",
+    "name": "View",
+    "category": "Layout",
+    "description": "Neutral container for keyed child views.",
+    "function": "view",
+    "module": "packages/ubi-ui/components/view.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "View example",
+        "source": "examples/components/view.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "column",
+    "name": "Column",
+    "category": "Layout",
+    "description": "Vertical stack with configurable spacing.",
+    "function": "column",
+    "module": "packages/ubi-ui/components/column.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Column example",
+        "source": "examples/components/column.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "row",
+    "name": "Row",
+    "category": "Layout",
+    "description": "Horizontal stack with configurable spacing.",
+    "function": "row",
+    "module": "packages/ubi-ui/components/row.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Row example",
+        "source": "examples/components/row.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "flex",
+    "name": "Flex",
+    "category": "Layout",
+    "description": "Wrapping horizontal layout for adaptive content.",
+    "function": "flex",
+    "module": "packages/ubi-ui/components/flex.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Flex example",
+        "source": "examples/components/flex.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "grid",
+    "name": "Grid",
+    "category": "Layout",
+    "description": "Equal-width column grid.",
+    "function": "grid",
+    "module": "packages/ubi-ui/components/grid.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Grid example",
+        "source": "examples/components/grid.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "scroll-view",
+    "name": "ScrollView",
+    "category": "Layout",
+    "description": "Scrollable content region.",
+    "function": "scrollView",
+    "module": "packages/ubi-ui/components/scroll-view.ubi",
+    "keyboard": "Native host scrolling applies within the viewport; contained controls keep their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "ScrollView example",
+        "source": "examples/components/scroll-view.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "card",
+    "name": "Card",
+    "category": "Layout",
+    "description": "Padded surface grouping related content.",
+    "function": "card",
+    "module": "packages/ubi-ui/components/card.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Card example",
+        "source": "examples/components/card.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "text",
+    "name": "Text",
+    "category": "Content",
+    "description": "Native text label.",
+    "function": "text",
+    "module": "packages/ubi-ui/components/text.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Visible native text."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Text example",
+        "source": "examples/components/text.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "heading",
+    "name": "Heading",
+    "category": "Content",
+    "description": "Semantic heading with controlled level.",
+    "function": "heading",
+    "module": "packages/ubi-ui/components/heading.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Visible native text."
+      },
+      {
+        "name": "level",
+        "type": "int",
+        "description": "Heading level from one to six."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Heading example",
+        "source": "examples/components/heading.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "separator",
+    "name": "Separator",
+    "category": "Layout",
+    "description": "Visual separator between regions.",
+    "function": "separator",
+    "module": "packages/ubi-ui/components/separator.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Separator example",
+        "source": "examples/components/separator.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "button",
+    "name": "Button",
+    "category": "Content",
+    "description": "Action button dispatching an Activate message.",
+    "function": "button",
+    "module": "packages/ubi-ui/components/button.ubi",
+    "keyboard": "Tab focuses. Enter or Space dispatches Activate(message).",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Visible native text."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Button example",
+        "source": "examples/components/button.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "icon-button",
+    "name": "IconButton",
+    "category": "Content",
+    "description": "Compact action with an explicit accessible label.",
+    "function": "iconButton",
+    "module": "packages/ubi-ui/components/icon-button.ubi",
+    "keyboard": "Tab focuses. Enter or Space dispatches Activate(message).",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "icon",
+        "type": "string",
+        "description": "Visible icon glyph; also supply its accessible label."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "IconButton example",
+        "source": "examples/components/icon-button.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "checkbox",
+    "name": "Checkbox",
+    "category": "Input",
+    "description": "Controlled checkbox dispatching Toggle messages.",
+    "function": "checkbox",
+    "module": "packages/ubi-ui/components/checkbox.ubi",
+    "keyboard": "Tab focuses. Space dispatches Toggle(message, nextChecked).",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Visible native text."
+      },
+      {
+        "name": "checked",
+        "type": "bool",
+        "description": "Controlled checked state."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Checkbox example",
+        "source": "examples/components/checkbox.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "switch",
+    "name": "Switch",
+    "category": "Input",
+    "description": "Controlled on/off switch.",
+    "function": "switch",
+    "module": "packages/ubi-ui/components/switch.ubi",
+    "keyboard": "Tab focuses. Space dispatches Toggle(message, nextChecked).",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Visible native text."
+      },
+      {
+        "name": "checked",
+        "type": "bool",
+        "description": "Controlled checked state."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Switch example",
+        "source": "examples/components/switch.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "slider",
+    "name": "Slider",
+    "category": "Input",
+    "description": "Controlled numeric range from zero to one hundred.",
+    "function": "slider",
+    "module": "packages/ubi-ui/components/slider.ubi",
+    "keyboard": "Tab focuses. Arrow keys change the value; Home sets zero and End sets one hundred.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "value",
+        "type": "int",
+        "description": "Controlled value. Update it in the reducer when input arrives."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Slider example",
+        "source": "examples/components/slider.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "input",
+    "name": "Input",
+    "category": "Input",
+    "description": "Controlled single-line text input.",
+    "function": "textInput",
+    "module": "packages/ubi-ui/components/input.ubi",
+    "keyboard": "Tab focuses. Type to edit; Left, Right, Home, End, Backspace and Delete move or edit the caret.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "description": "Controlled value. Update it in the reducer when input arrives."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Input example",
+        "source": "examples/components/input.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "password-input",
+    "name": "PasswordInput",
+    "category": "Input",
+    "description": "Controlled masked text input.",
+    "function": "passwordInput",
+    "module": "packages/ubi-ui/components/password-input.ubi",
+    "keyboard": "Tab focuses. Type to edit; Left, Right, Home, End, Backspace and Delete move or edit the caret.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "description": "Controlled value. Update it in the reducer when input arrives."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "PasswordInput example",
+        "source": "examples/components/password-input.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "badge",
+    "name": "Badge",
+    "category": "Feedback",
+    "description": "Short status text with a semantic tone.",
+    "function": "badge",
+    "module": "packages/ubi-ui/components/badge.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Visible native text."
+      },
+      {
+        "name": "tone",
+        "type": "Tone",
+        "description": "Semantic native color tone."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Badge example",
+        "source": "examples/components/badge.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "progress",
+    "name": "Progress",
+    "category": "Feedback",
+    "description": "Read-only progress from zero to one hundred.",
+    "function": "progressBar",
+    "module": "packages/ubi-ui/components/progress.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "value",
+        "type": "int",
+        "description": "Controlled value. Update it in the reducer when input arrives."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Progress example",
+        "source": "examples/components/progress.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "accordion",
+    "name": "Accordion",
+    "category": "Disclosure",
+    "description": "Controlled disclosure with a toggle trigger and conditional content.",
+    "function": "accordion",
+    "module": "packages/ubi-ui/components/accordion.ubi",
+    "keyboard": "Tab focuses the trigger. Enter or Space toggles open state; closed content is unmounted.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "description": "Visible title."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Controlled expanded state. Closed content is unmounted."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Accordion example",
+        "source": "examples/components/accordion.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "collapsible",
+    "name": "Collapsible",
+    "category": "Disclosure",
+    "description": "Controlled expandable region with an accessible toggle trigger.",
+    "function": "collapsible",
+    "module": "packages/ubi-ui/components/collapsible.ubi",
+    "keyboard": "Tab focuses the trigger. Enter or Space toggles open state; closed content is unmounted.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "description": "Visible title."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Controlled expanded state. Closed content is unmounted."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Collapsible example",
+        "source": "examples/components/collapsible.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "alert",
+    "name": "Alert",
+    "category": "Feedback",
+    "description": "Static status callout with a title, description and tone.",
+    "function": "alert",
+    "module": "packages/ubi-ui/components/alert.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "description": "Visible title."
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "description": "Supporting explanatory text."
+      },
+      {
+        "name": "tone",
+        "type": "Tone",
+        "description": "Semantic native color tone."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Alert example",
+        "source": "examples/components/alert.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "avatar",
+    "name": "Avatar",
+    "category": "Content",
+    "description": "Text initials representing a person or workspace.",
+    "function": "avatar",
+    "module": "packages/ubi-ui/components/avatar.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "initials",
+        "type": "string",
+        "description": "Short initials rendered inside the avatar."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Avatar example",
+        "source": "examples/components/avatar.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "breadcrumb",
+    "name": "Breadcrumb",
+    "category": "Navigation",
+    "description": "Navigation landmark containing caller-owned links and separators.",
+    "function": "breadcrumb",
+    "module": "packages/ubi-ui/components/breadcrumb.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Breadcrumb example",
+        "source": "examples/components/breadcrumb.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "button-group",
+    "name": "ButtonGroup",
+    "category": "Content",
+    "description": "Related caller-owned actions in a horizontal semantic group.",
+    "function": "buttonGroup",
+    "module": "packages/ubi-ui/components/button-group.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "ButtonGroup example",
+        "source": "examples/components/button-group.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "empty",
+    "name": "Empty",
+    "category": "Feedback",
+    "description": "Empty-state title and description with optional caller-owned actions.",
+    "function": "empty",
+    "module": "packages/ubi-ui/components/empty.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "title",
+        "type": "string",
+        "description": "Visible title."
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "description": "Supporting explanatory text."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Empty example",
+        "source": "examples/components/empty.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "field",
+    "name": "Field",
+    "category": "Content",
+    "description": "Label, helper text and caller-owned controls in a vertical group.",
+    "function": "field",
+    "module": "packages/ubi-ui/components/field.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "description",
+        "type": "string",
+        "description": "Supporting explanatory text."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Field example",
+        "source": "examples/components/field.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "kbd",
+    "name": "Kbd",
+    "category": "Content",
+    "description": "Static keycap text for a keyboard shortcut.",
+    "function": "kbd",
+    "module": "packages/ubi-ui/components/kbd.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Visible native text."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Kbd example",
+        "source": "examples/components/kbd.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "label",
+    "name": "Label",
+    "category": "Content",
+    "description": "Visible native label; pass the accessible label to its control too.",
+    "function": "label",
+    "module": "packages/ubi-ui/components/label.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Visible native text."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Label example",
+        "source": "examples/components/label.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "skeleton",
+    "name": "Skeleton",
+    "category": "Feedback",
+    "description": "Static loading placeholder surface; no animation is implied.",
+    "function": "skeleton",
+    "module": "packages/ubi-ui/components/skeleton.ubi",
+    "keyboard": "Static or layout component. Caller-supplied controls retain their keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Skeleton example",
+        "source": "examples/components/skeleton.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "link",
+    "name": "Link",
+    "category": "Navigation",
+    "description": "Link-styled action dispatching a Ubi message without external navigation.",
+    "function": "link",
+    "module": "packages/ubi-ui/components/link.ubi",
+    "keyboard": "Tab focuses. Enter or Space dispatches Activate(message).",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Visible native text."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Link example",
+        "source": "examples/components/link.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "number-input",
+    "name": "NumberInput",
+    "category": "Input",
+    "description": "Controlled numeric text with bounded keyboard step adjustment.",
+    "function": "numberInput",
+    "module": "packages/ubi-ui/components/number-input.ubi",
+    "keyboard": "Tab focuses. Type numeric text; Up and Down step within min and max. Left, Right, Home, End, Backspace and Delete edit.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "description": "Controlled value. Update it in the reducer when input arrives."
+      },
+      {
+        "name": "min",
+        "type": "int",
+        "description": "Minimum value applied when stepping."
+      },
+      {
+        "name": "max",
+        "type": "int",
+        "description": "Maximum value applied when stepping."
+      },
+      {
+        "name": "step",
+        "type": "int",
+        "description": "Positive integer applied by Up and Down keys."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "NumberInput example",
+        "source": "examples/components/number-input.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "radio-group",
+    "name": "RadioGroup",
+    "category": "Input",
+    "description": "Controlled single choice with roving keyboard focus.",
+    "function": "radioGroup",
+    "module": "packages/ubi-ui/components/radio-group.ubi",
+    "keyboard": "Tab enters the group. Arrow keys, Home and End move focus and select an enabled option. Enter or Space selects the focused option.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "choices",
+        "type": "List<Choice>",
+        "description": "Ordered Choice records; each value must be unique and stable. Disabled choices cannot activate."
+      },
+      {
+        "name": "selected",
+        "type": "string",
+        "description": "Controlled selected value, values, or pressed state."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "RadioGroup example",
+        "source": "examples/components/radio-group.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "segmented-control",
+    "name": "SegmentedControl",
+    "category": "Input",
+    "description": "Controlled single selection across adjacent native toggle items.",
+    "function": "segmentedControl",
+    "module": "packages/ubi-ui/components/segmented-control.ubi",
+    "keyboard": "Tab enters the group. Arrow keys, Home and End move focus between enabled options without changing selection. Enter or Space selects the focused option.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "choices",
+        "type": "List<Choice>",
+        "description": "Ordered Choice records; each value must be unique and stable. Disabled choices cannot activate."
+      },
+      {
+        "name": "selected",
+        "type": "string",
+        "description": "Controlled selected value, values, or pressed state."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "SegmentedControl example",
+        "source": "examples/components/segmented-control.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "search-input",
+    "name": "SearchInput",
+    "category": "Input",
+    "description": "Controlled text input with a search prompt; filtering belongs in the reducer.",
+    "function": "searchInput",
+    "module": "packages/ubi-ui/components/search-input.ubi",
+    "keyboard": "Tab focuses. Type to edit; Left, Right, Home, End, Backspace and Delete move or edit the caret.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "description": "Controlled value. Update it in the reducer when input arrives."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "SearchInput example",
+        "source": "examples/components/search-input.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "textarea",
+    "name": "TextArea",
+    "category": "Input",
+    "description": "Controlled multiline text input with native caret movement.",
+    "function": "textArea",
+    "module": "packages/ubi-ui/components/textarea.ubi",
+    "keyboard": "Tab focuses. Enter inserts a newline. Up/Down move between visible wrapped lines while preserving horizontal position; Home/End move to the visible line boundaries. Standard caret editing keys are supported.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "value",
+        "type": "string",
+        "description": "Controlled value. Update it in the reducer when input arrives."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "TextArea example",
+        "source": "examples/components/textarea.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "tabs",
+    "name": "Tabs",
+    "category": "Navigation",
+    "description": "Controlled tablist with caller-supplied active panel content.",
+    "function": "tabs",
+    "module": "packages/ubi-ui/components/tabs.ubi",
+    "keyboard": "Tab enters the group. Arrow keys, Home and End move focus and select an enabled option. Enter or Space selects the focused option.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "choices",
+        "type": "List<Choice>",
+        "description": "Ordered Choice records; each value must be unique and stable. Disabled choices cannot activate."
+      },
+      {
+        "name": "selected",
+        "type": "string",
+        "description": "Controlled selected value, values, or pressed state."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Tabs example",
+        "source": "examples/components/tabs.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "toggle",
+    "name": "Toggle",
+    "category": "Input",
+    "description": "Controlled pressed action dispatching a boolean Toggle message.",
+    "function": "toggle",
+    "module": "packages/ubi-ui/components/toggle.ubi",
+    "keyboard": "Tab focuses. Enter or Space dispatches Toggle(message, nextSelected).",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Visible native text."
+      },
+      {
+        "name": "selected",
+        "type": "bool",
+        "description": "Controlled selected value, values, or pressed state."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Toggle example",
+        "source": "examples/components/toggle.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "toggle-group",
+    "name": "ToggleGroup",
+    "category": "Input",
+    "description": "Controlled multiple selection; reducer manages selected option membership.",
+    "function": "toggleGroup",
+    "module": "packages/ubi-ui/components/toggle-group.ubi",
+    "keyboard": "Tab enters the group. Arrow keys, Home and End move focus between enabled options without changing selection. Enter or Space toggles the focused option.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible label for the control or semantic group."
+      },
+      {
+        "name": "choices",
+        "type": "List<Choice>",
+        "description": "Ordered Choice records; each value must be unique and stable. Disabled choices cannot activate."
+      },
+      {
+        "name": "selected",
+        "type": "List<string>",
+        "description": "Controlled selected value, values, or pressed state."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed message emitted through the component event binding."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "ToggleGroup example",
+        "source": "examples/components/toggle-group.ubi"
+      }
+    ]
+  }
+]

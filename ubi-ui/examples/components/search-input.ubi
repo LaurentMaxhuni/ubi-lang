@@ -1,0 +1,18 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { searchInput } from "../../packages/ubi-ui/components/search-input.ubi";
+
+export enum Message { Action, Toggle, Input, Select }
+export fn init() -> string { "" }
+export fn update(model: string, event: Event<Message>) -> string {
+    match (event) { Event.Input(Message.Input, value) => value, _ => model }
+}
+export fn view(model: string) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
+        headingComponent("title", "SearchInput", 1),
+        textComponent("description", "Controlled text input with a search prompt; filtering belongs in the reducer."),
+        searchInput("demo", "Search projects", model, Message.Input, [Prop.Width(460)])
+    ])
+}

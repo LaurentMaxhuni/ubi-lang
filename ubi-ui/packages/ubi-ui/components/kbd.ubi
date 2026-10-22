@@ -1,0 +1,7 @@
+import { View, Kind, Prop, node } from "../core.ubi";
+
+export fn kbdComponent<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.Kbd, append(props, Prop.Content(content)))
+}
+
+export fn kbd<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { kbdComponent(key, content, props) }
