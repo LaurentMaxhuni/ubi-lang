@@ -1,0 +1,8 @@
+import Link from "next/link";
+import { Document, Section } from "../../document";
+import { components } from "../../lib/content";
+export const metadata = { title: "Components", description: "Browse native Ubi components, source modules, and runnable examples." };
+export default function Components() {
+  const groups = [...new Set(components.map(component => component.category))];
+  return <Document title="Components" description={`${components.length} native building blocks. Each with its own source, typed API, and runnable Ubi example.`} outline={groups.map(group => [group.toLowerCase(), group])} previous={{ title: "Platforms", href: "/docs/platforms" }} next={{ title: components[0].name, href: `/docs/components/${components[0].slug}` }}><div className="callout"><span aria-hidden="true">↳</span><p>Previews are images captured from the native GPU renderer. Open a component to read its source and run the example.</p></div>{groups.map(group => <Section id={group.toLowerCase()} key={group} title={group}><div className="component-grid">{components.filter(component => component.category === group).map(component => <Link className="component-card" href={`/docs/components/${component.slug}`} key={component.slug}><div className="component-thumbnail"><img className="light-capture" src={`/components/${component.slug}-light.png`} alt="" loading="lazy"/><img className="dark-capture" src={`/components/${component.slug}-dark.png`} alt="" loading="lazy"/></div><div className="component-card-copy"><h3>{component.name}<span aria-hidden="true">↗</span></h3><p>{component.description}</p></div></Link>)}</div></Section>)}</Document>;
+}

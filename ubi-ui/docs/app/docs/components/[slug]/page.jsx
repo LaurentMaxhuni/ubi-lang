@@ -1,0 +1,18 @@
+import { notFound } from "next/navigation";
+import { Document, Section } from "../../../document";
+import { Code, NativePreview } from "../../../controls";
+import { components, componentSource } from "../../../lib/content";
+import { notes } from "../../../component-notes";
+export const dynamicParams = false;
+export function generateStaticParams() { return components.map(({ slug }) => ({ slug })); }
+export async function generateMetadata({ params }) { const { slug } = await params; const component = components.find(item => item.slug === slug); return { title: component?.name, description: component?.description }; }
+export default async function ComponentPage({ params }) {
+  const { slug } = await params;
+  const index = components.findIndex(item => item.slug === slug);
+  if (index < 0) notFound();
+  const component = components[index], previous = components[index - 1], next = components[index + 1];
+  const { source, signature, examples } = componentSource(component);
+  const [usage, accessibility] = notes[slug];
+  const importCode = `import { ${component.function} } from "../../${component.module}";`;
+  return <Document title={component.name} description={component.description} breadcrumb="Components" badge={component.category} outline={[["preview", "Preview"], ["installation", "Import"], ["usage", "Usage"], ["api", "API reference"], ["keyboard", "Keyboard & accessibility"], ["source", "Source"]]} previous={previous ? { title: previous.name, href: `/docs/components/${previous.slug}` } : { title: "All components", href: "/docs/components" }} next={next && { title: next.name, href: `/docs/components/${next.slug}` }}><div id="preview" className="component-preview-section"><NativePreview slug={slug} name={component.name} code={examples[0].code}/><p className="preview-note">This is the actual native output. Run the Ubi example to use the control.</p></div><Section id="installation" title="Import"><p>Import the individual source module. This path is relative to <code>ubi-ui/examples/components/</code>; adjust it for your application.</p><Code>{importCode}</Code></Section><Section id="usage" title="Usage"><p>{usage}</p>{examples.map(example => <div key={example.source}><h3>{example.title}</h3><Code title={example.source}>{example.code}</Code><Code language="terminal">{`cargo run --locked --features native-ui -- ui ${example.source} --root ubi-ui`}</Code></div>)}</Section><Section id="api" title="API reference"><p>The declaration below is read from the component’s actual Ubi module at build time.</p><Code title={component.function}>{signature}</Code><h3>Parameters</h3><div className="table-wrap"><table><thead><tr><th>Name</th><th>Type</th><th>Description</th></tr></thead><tbody>{component.props.map(prop => <tr key={prop.name}><td><code>{prop.name}</code></td><td><code>{prop.type}</code></td><td>{prop.description}</td></tr>)}</tbody></table></div><p>Native properties use <code>Prop</code> from <code>core.ubi</code>. Do not repeat properties already set by the constructor: duplicate native properties reject the view. Every node key must be unique across the complete view.</p></Section><Section id="keyboard" title="Keyboard & accessibility"><h3>Keyboard</h3><p>{component.keyboard}</p><h3>Accessibility</h3><p>{accessibility}</p><p>Roles, names, bounds, and states are exposed in native snapshots. OS screen-reader adapters are not implemented; these semantics do not establish screen-reader support.</p></Section><Section id="source" title="Source"><p><code>{component.module}</code></p><details><summary>View component implementation</summary><Code title={component.module}>{source}</Code></details></Section></Document>;
+}
