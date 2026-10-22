@@ -1,5 +1,15 @@
 # Ubi decisions and milestone evidence
 
+## Component-library module budget, 2026-10-22
+
+The approved 70-component source-owned facade exceeds the initial 64-module
+loader budget. Raise the deterministic module limit to 128; retain 1 MiB per
+source, 4 MiB aggregate source bytes, 500,000 tokens and 32 nesting levels.
+Module 129 still reports `UBI0090`. The boundary regression first failed at
+module 65, then passed at 128 with rejection at 129. The existing frontend fuzz
+suite passed 2/2, and the real expanded Ubi gallery/facade compiled successfully.
+This supersedes only the module count in historical D013.
+
 ## Ubi UI direction, 2026-10-21
 
 User requested an Ubi-first UI system like shadcn for web, mobile and desktop,

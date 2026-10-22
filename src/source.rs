@@ -4,9 +4,37 @@ use crate::diagnostics::Diagnostic;
 use crate::lexer::LexError;
 use crate::span::Span;
 
+#[cfg(test)]
+mod module_budget_tests {
+    use super::*;
+
+    #[test]
+    fn expanded_component_facade_fits_bounded_module_budget() {
+        let mut sources = SourceSet::default();
+        for index in 0..128 {
+            sources
+                .insert(
+                    SourceFile::new(
+                        &format!("module{index}.ubi"),
+                        b"export fn value() -> int { 1 }".to_vec(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap_or_else(|_| {
+                    panic!("module {index} should fit the expanded source library")
+                });
+        }
+        let result = sources.insert(SourceFile::new("overflow.ubi", Vec::new()).unwrap());
+        match result {
+            Err(SourceError::Diagnostic(diagnostic)) => assert_eq!(diagnostic.code, "UBI0090"),
+            other => panic!("module 129 must fail with a resource diagnostic: {other:?}"),
+        }
+    }
+}
+
 pub(crate) const MAX_SOURCE_BYTES: usize = 1_048_576;
 pub(crate) const MAX_PROJECT_BYTES: usize = 4_194_304;
-pub(crate) const MAX_MODULES: usize = 64;
+pub(crate) const MAX_MODULES: usize = 128;
 pub(crate) const MAX_TOKENS: usize = 500_000;
 pub(crate) const MAX_NESTING: usize = 32;
 
