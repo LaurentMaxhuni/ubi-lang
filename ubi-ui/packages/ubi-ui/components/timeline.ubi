@@ -1,8 +1,14 @@
-import { View, Kind, Prop, group } from "../core.ubi";
+import { View, Kind, Prop, Motion, Easing, Transition, group } from "../core.ubi";
 
 export fn timelineComponent<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
     let mut items: List<View<M>> = [];
-    for (child in children) { items = append(items, group(key + "-item-" + child.root, Kind.Column, [Prop.Role("listitem")], [child])); }
+    let mut index = 0;
+    for (child in children) {
+        let delay = if (index >= 17) { 1000 } else { index * 60 };
+        let motion = Motion { durationMs: 220, delayMs: delay, easing: Easing.EaseOut };
+        items = append(items, group(key + "-item-" + child.root, Kind.Column, [Prop.Role("listitem"), Prop.Enter(Transition.Rise), Prop.Motion(motion)], [child]));
+        if (index < 17) { index = index + 1; }
+    }
     group(key, Kind.Column, append(append(props, Prop.Role("list")), Prop.Label("Timeline")), items)
 }
 export fn timeline<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { timelineComponent(key, props, children) }

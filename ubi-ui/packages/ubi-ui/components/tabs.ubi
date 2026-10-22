@@ -2,8 +2,8 @@ import { View, Kind, Prop, Choice, Transition, node, group } from "../core.ubi";
 
 export fn tabsComponent<M>(key: string, label: string, choices: List<Choice>, selected: string, message: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
     let mut items: List<View<M>> = [];
-    for (choice in choices) { items = append(items, node(key + "-" + choice.value, Kind.Tab, [Prop.Content(choice.label), Prop.Label(choice.label), Prop.Selected(selected == choice.value), Prop.Option(choice.value), Prop.Group(key), Prop.Disabled(choice.disabled), Prop.Change(message)])); }
-    group(key, Kind.Column, props, [group(key + "-list", Kind.Row, [Prop.Label(label), Prop.Role("tablist")], items), group(key + "-panel", Kind.Column, [Prop.Label(label + " / " + selected), Prop.Role("tabpanel"), Prop.Enter(Transition.Rise)], children)])
+    for (choice in choices) { items = append(items, node(key + "-tab-" + choice.value, Kind.Tab, [Prop.Content(choice.label), Prop.Label(choice.label), Prop.Selected(selected == choice.value), Prop.Option(choice.value), Prop.Group(key), Prop.Disabled(choice.disabled), Prop.Change(message)])); }
+    group(key, Kind.Column, props, [group(key + "-list", Kind.Row, [Prop.Label(label), Prop.Role("tablist")], items), group(key + "-panel-" + selected, Kind.Column, [Prop.Label(label + " / " + selected), Prop.Role("tabpanel"), Prop.Group(key), Prop.Enter(Transition.Rise)], children)])
 }
 
 export fn tabs<M>(key: string, label: string, choices: List<Choice>, selected: string, message: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { tabsComponent(key, label, choices, selected, message, props, children) }

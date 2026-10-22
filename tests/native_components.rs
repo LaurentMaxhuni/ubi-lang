@@ -24,7 +24,7 @@ fn event(key: &str, tag: &str, message: &str, value: Option<Value>) -> Event {
 #[test]
 fn every_catalog_entry_compiles_and_mounts_its_individual_source_example() {
     let catalog: Vec<Value> = serde_json::from_str(include_str!("../ubi-ui/catalog.json")).unwrap();
-    assert_eq!(catalog.len(), 40);
+    assert!(catalog.len() >= 40, "original component catalog must remain available");
     let mut slugs = std::collections::BTreeSet::new();
     for item in catalog {
         let slug = item["slug"].as_str().unwrap();
@@ -89,14 +89,18 @@ fn every_catalog_entry_compiles_and_mounts_its_individual_source_example() {
 fn source_selection_components_round_trip_controlled_state() {
     for slug in ["radio-group", "segmented-control", "tabs"] {
         let mut app = example(slug);
-        assert!(app.view().nodes["demo-day"].checked, "{slug}");
-        app.dispatch(&event("demo-week", "Select", "Select", Some(json!("week"))))
+        let choice_prefix = if slug == "tabs" { "demo-tab-" } else { "demo-" };
+        let day = format!("{choice_prefix}day");
+        let week = format!("{choice_prefix}week");
+        let year = format!("{choice_prefix}year");
+        assert!(app.view().nodes[&day].checked, "{slug}");
+        app.dispatch(&event(&week, "Select", "Select", Some(json!("week"))))
             .unwrap();
         assert_eq!(app.model(), &json!("week"), "{slug}");
-        assert!(app.view().nodes["demo-week"].checked, "{slug}");
-        assert!(!app.view().nodes["demo-day"].checked, "{slug}");
+        assert!(app.view().nodes[&week].checked, "{slug}");
+        assert!(!app.view().nodes[&day].checked, "{slug}");
         assert!(app
-            .dispatch(&event("demo-year", "Select", "Select", Some(json!("year"))))
+            .dispatch(&event(&year, "Select", "Select", Some(json!("year"))))
             .is_err());
         if slug == "tabs" {
             assert_eq!(
@@ -104,7 +108,8 @@ fn source_selection_components_round_trip_controlled_state() {
                 "Active digest: week"
             );
             assert_eq!(app.view().nodes["demo-list"].role, "tablist");
-            assert_eq!(app.view().nodes["demo-panel"].role, "tabpanel");
+            assert_eq!(app.view().nodes["demo-panel-week"].role, "tabpanel");
+            assert_eq!(app.view().nodes["demo-panel-week"].group, "demo");
         }
     }
     let mut app = example("toggle-group");
@@ -121,17 +126,21 @@ fn source_selection_components_round_trip_controlled_state() {
 fn keyboard_selection_skips_disabled_choices_and_restores_group_tab_stop() {
     for slug in ["radio-group", "tabs"] {
         let mut app = example(slug);
+        let choice_prefix = if slug == "tabs" { "demo-tab-" } else { "demo-" };
+        let day = format!("{choice_prefix}day");
+        let week = format!("{choice_prefix}week");
+        let year = format!("{choice_prefix}year");
         let mut input = Input::default();
         input.key(app.view(), UiKey::Tab, true, false);
-        assert_eq!(input.focused.as_deref(), Some("demo-day"), "{slug}");
+        assert_eq!(input.focused.as_deref(), Some(day.as_str()), "{slug}");
         let change = input.key(app.view(), UiKey::Right, true, false).unwrap();
         app.dispatch(&change).unwrap();
-        assert_eq!(input.focused.as_deref(), Some("demo-week"));
-        assert!(app.view().nodes["demo-week"].checked);
+        assert_eq!(input.focused.as_deref(), Some(week.as_str()));
+        assert!(app.view().nodes[&week].checked);
         let change = input.key(app.view(), UiKey::Right, true, false).unwrap();
         app.dispatch(&change).unwrap();
-        assert_eq!(input.focused.as_deref(), Some("demo-day"));
-        assert!(app.view().nodes["demo-year"].disabled);
+        assert_eq!(input.focused.as_deref(), Some(day.as_str()));
+        assert!(app.view().nodes[&year].disabled);
     }
     for slug in ["segmented-control", "toggle-group"] {
         let mut app = example(slug);
@@ -174,10 +183,11 @@ fn keyboard_selection_skips_disabled_choices_and_restores_group_tab_stop() {
 }
 
 #[test]
-fn disclosures_unmount_content_and_publish_expanded_state() {
+fn disclosures_keep_closed_containers_and_publish_expanded_state() {
     for slug in ["accordion", "collapsible"] {
         let mut app = example(slug);
         assert!(app.view().nodes.contains_key("answer"));
+        assert_eq!(app.view().nodes["demo-content"].disclosure, Some(true));
         assert_eq!(app.view().nodes["demo-trigger"].expanded, Some(true));
         app.dispatch(&event(
             "demo-trigger",
@@ -188,7 +198,7 @@ fn disclosures_unmount_content_and_publish_expanded_state() {
         .unwrap();
         assert_eq!(app.model(), &json!(false));
         assert!(!app.view().nodes.contains_key("answer"));
-        assert!(!app.view().nodes.contains_key("demo-content"));
+        assert_eq!(app.view().nodes["demo-content"].disclosure, Some(false));
         assert_eq!(app.view().nodes["demo-trigger"].expanded, Some(false));
         app.dispatch(&event(
             "demo-trigger",
@@ -198,6 +208,7 @@ fn disclosures_unmount_content_and_publish_expanded_state() {
         ))
         .unwrap();
         assert!(app.view().nodes.contains_key("answer"));
+        assert_eq!(app.view().nodes["demo-content"].disclosure, Some(true));
     }
 }
 

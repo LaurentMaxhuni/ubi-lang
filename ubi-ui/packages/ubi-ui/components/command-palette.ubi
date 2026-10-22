@@ -27,8 +27,8 @@ export fn commandPaletteComponent<M>(key: string, label: string, actions: List<M
     }
     let inputProps: List<Prop<M>> = [];
     let search: View<M> = textInputComponent(key + "-search", "Search commands", query, input, inputProps);
-    let mut content: List<View<M>> = [search];
-    for (item in items) { content = append(content, item); }
+    let menu = group(key + "-menu", Kind.Column, [Prop.Label(label), Prop.Role("menu")], items);
+    let content: List<View<M>> = [search, menu];
     let surface = group(key, Kind.Overlay, append(append(append(append(props, Prop.Label(label)), Prop.OverlayKind(OverlayKind.CommandPalette)), Prop.Open(open)), Prop.Dismiss(dismiss)), content);
     surface
 }

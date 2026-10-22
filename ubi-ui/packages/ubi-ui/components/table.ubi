@@ -9,6 +9,16 @@ export fn tableComponent<M>(key: string, label: string, columns: List<TableColum
         headers = append(headers, node(key + "-header-" + column.key, Kind.TableHeader, headerProps));
     }
     let mut tableRows: List<View<M>> = [group(key + "-headers", Kind.TableRow, [Prop.Role("row")], headers)];
+    if (length(rows) == 0) {
+        let mut emptyCells: List<View<M>> = [];
+        let mut emptyIndex = 0;
+        for (column in columns) {
+            let content = if (emptyIndex == 0) { "No results." } else { "" };
+            emptyCells = append(emptyCells, node(key + "-empty-cell-" + column.key, Kind.TableCell, [Prop.Label(content), Prop.Content(content), Prop.Option(column.key)]));
+            emptyIndex = emptyIndex + 1;
+        }
+        tableRows = append(tableRows, group(key + "-empty-row", Kind.TableRow, [Prop.Role("row"), Prop.Option("empty")], emptyCells));
+    }
     for (row in rows) {
         let mut cells: List<View<M>> = [];
         let mut index = 0;

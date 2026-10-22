@@ -3,6 +3,6 @@ import { View, Kind, Prop, Effect, MenuAction, node, group } from "../core.ubi";
 export fn dockComponent<M>(key: string, label: string, actions: List<MenuAction<M>>, props: List<Prop<M>>) -> View<M> {
     let mut items: List<View<M>> = [];
     for (action in actions) { items = append(items, node(key + "-" + action.value, Kind.Button, [Prop.Label(action.label), Prop.Content(action.label), Prop.Disabled(action.disabled), Prop.Activate(action.message)])); }
-    group(key, Kind.EffectSurface, append(append(props, Prop.Label(label)), Prop.Effect(Effect.Dock)), items)
+    group(key, Kind.EffectSurface, append(append(append(props, Prop.Label(label)), Prop.Role("navigation")), Prop.Effect(Effect.Dock)), items)
 }
 export fn dock<M>(key: string, label: string, actions: List<MenuAction<M>>, props: List<Prop<M>>) -> View<M> { dockComponent(key, label, actions, props) }
