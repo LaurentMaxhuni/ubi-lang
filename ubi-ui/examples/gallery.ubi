@@ -1,0 +1,75 @@
+import { View, Event, Prop, Space, Tone, Theme, ButtonVariant } from "../packages/ubi-ui/core.ubi";
+import { window, column, row, flex, grid, scrollView, card, text, heading, separator, button, iconButton, checkbox, switch, slider, textInput, passwordInput, badge, progressBar } from "../packages/ubi-ui/components.ubi";
+
+export record Model { count: int, enabled: bool, notifications: bool, name: string, secret: string, level: int, dark: bool }
+export enum Message { Increment, Reset, Enable, Notify, Name, Secret, Level, Theme }
+export fn init() -> Model { Model { count: 0, enabled: true, notifications: false, name: "Orbit workspace", secret: "", level: 64, dark: false } }
+export fn update(model: Model, event: Event<Message>) -> Model {
+    match (event) {
+        Event.Activate(message) => match (message) {
+            Message.Increment => Model { ...model, count: model.count + 1 },
+            Message.Reset => Model { ...model, count: 0 },
+            _ => model
+        },
+        Event.Toggle(message, value) => match (message) {
+            Message.Enable => Model { ...model, enabled: value },
+            Message.Notify => Model { ...model, notifications: value },
+            Message.Theme => Model { ...model, dark: value },
+            _ => model
+        },
+        Event.Input(message, value) => match (message) {
+            Message.Name => Model { ...model, name: value },
+            Message.Secret => Model { ...model, secret: value },
+            _ => model
+        },
+        Event.Select(message, value) => match (message) {
+            Message.Level => match (parseInt(value)) { Option.Some(n) => Model { ...model, level: clamp(n, 0, 100) }, Option.None => model },
+            _ => model
+        },
+        Event.Submit(_) => model
+    }
+}
+fn mode(model: Model) -> Theme { if (model.dark) { Theme.Dark } else { Theme.Light } }
+export fn view(model: Model) -> View<Message> {
+    window("app", [Prop.Theme(mode(model))], [
+        row("masthead", [Prop.Gap(Space.Xl)], [
+            column("identity", [Prop.Grow(1)], [heading("brand", "ubi / studio", 2), text("edition", "NATIVE COMPONENT EXPLORER    /    PHASE 01")]),
+            switch("theme", "Dark appearance", model.dark, Message.Theme, [Prop.Width(205)])
+        ]),
+        separator("top-rule"),
+        scrollView("gallery", [Prop.Grow(1), Prop.Height(0), Prop.Gap(Space.Xl)], [
+            column("intro", [Prop.Gap(Space.Sm)], [heading("title", "A considered foundation.", 1), text("description", "Original Rust components. Real Ubi state. One native canvas."), badge("status", "GPU / Native", Tone.Primary)]),
+            flex("panels", [Prop.Gap(Space.Xl)], [
+                card("actions", [Prop.MinWidth(320), Prop.Grow(1)], [
+                    text("actions-kicker", "01   /   ACTIONS"), heading("actions-title", "Small actions, clear feedback.", 3),
+                    text("count", "Button activations: " + toString(model.count)),
+                    flex("buttons", [Prop.Gap(Space.Sm)], [
+                        button("increment", "Add one", Message.Increment, [Prop.Width(125), Prop.Disabled(!model.enabled)]),
+                        button("reset", "Reset", Message.Reset, [Prop.Width(95), Prop.Variant(ButtonVariant.Outline)]),
+                        iconButton("icon", "+", "Increment counter", Message.Increment, [])
+                    ]),
+                    button("disabled", "Unavailable", Message.Increment, [Prop.Disabled(true), Prop.Variant(ButtonVariant.Secondary)]),
+                    separator("actions-rule"),
+                    checkbox("enabled", "Enable primary action", model.enabled, Message.Enable, []),
+                    switch("notify", "Desktop notifications", model.notifications, Message.Notify, [])
+                ]),
+                card("settings", [Prop.MinWidth(320), Prop.Grow(1)], [
+                    text("settings-kicker", "02   /   INPUT & STATE"), heading("settings-title", "Make it yours.", 3),
+                    text("name-label", "Workspace name"), textInput("name", "Workspace name", model.name, Message.Name, []),
+                    text("secret-label", "Access phrase"), passwordInput("secret", "Access phrase", model.secret, Message.Secret, [Prop.Content("Enter a private phrase")]),
+                    text("level-label", "Intensity / " + toString(model.level) + "%"), slider("level", "Intensity", model.level, Message.Level, []),
+                    progressBar("progress", "Intensity progress", model.level)
+                ])
+            ]),
+            card("layout-card", [], [
+                text("layout-kicker", "03   /   LAYOUT & TOKENS"), heading("layout-title", "Everything in its place.", 3),
+                grid("tokens", [Prop.Columns(3), Prop.Gap(Space.Lg)], [
+                    column("spacing-token", [], [heading("spacing-value", "08 / 16 / 24", 3), text("spacing-label", "Rhythmic spacing")]),
+                    column("radius-token", [], [heading("radius-value", "8 + 12 px", 3), text("radius-label", "Quiet, precise corners")]),
+                    column("focus-token", [], [heading("focus-value", "Keyboard first", 3), text("focus-label", "Tab, Enter, Space, arrows")])
+                ])
+            ]),
+            text("footer", "Ubi UI  /  Tab to explore · Space to toggle · Arrow keys to adjust")
+        ])
+    ])
+}

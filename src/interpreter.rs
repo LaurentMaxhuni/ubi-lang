@@ -51,6 +51,7 @@ pub(crate) enum Value {
         type_id: usize,
         function: Rc<FunctionValue>,
     },
+    #[cfg_attr(not(test), allow(dead_code))] // Native pure exports receive no host authority.
     Capability(Rc<HostCapability>),
     Range {
         start: i32,

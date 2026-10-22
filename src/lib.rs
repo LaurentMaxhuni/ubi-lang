@@ -12,6 +12,8 @@ mod parser;
 mod runtime;
 mod source;
 mod span;
+#[cfg(feature = "native-ui")]
+pub mod ui;
 
 use std::collections::BTreeMap;
 

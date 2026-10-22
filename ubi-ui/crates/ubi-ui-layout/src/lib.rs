@@ -47,6 +47,7 @@ impl Default for Layout {
 
 impl Layout {
     pub fn sync(&mut self, view: &View) -> Result<(), Error> {
+        if self.previous.as_ref() == Some(view) { return Ok(()); }
         let removed: Vec<_> = self
             .ids
             .keys()

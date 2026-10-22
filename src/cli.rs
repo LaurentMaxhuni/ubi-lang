@@ -19,6 +19,7 @@ enum Command {
     Package,
     Format,
     Version,
+    Ui,
 }
 
 #[derive(Debug)]
@@ -33,6 +34,8 @@ struct Arguments {
     call_args: Option<String>,
     port: u16,
     format_check: bool,
+    smoke: bool,
+    capture: Option<PathBuf>,
 }
 
 pub(crate) fn run(
@@ -113,13 +116,53 @@ fn run_inner(
     }
     let compiler = load_compiler(&root, &entry)?;
 
+    if arguments.command == Command::Ui {
+        #[cfg(feature = "native-ui")]
+        {
+            let runtime = compiler.runtime().map_err(|diagnostics| {
+                diagnostics
+                    .iter()
+                    .map(|d| d.message.as_str())
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            })?;
+            let app =
+                ubi_lang::ui::NativeApplication::new(runtime, &entry).map_err(|e| e.to_string())?;
+            if let Some(path) = arguments.capture {
+                let adapter = ubi_ui_platform::capture(&app, &path, 1100, 820, false)
+                    .map_err(|e| e.to_string())?;
+                writeln!(
+                    stdout,
+                    "Native capture: {} (GPU: {adapter})",
+                    path.display()
+                )
+                .map_err(|e| e.to_string())?;
+            } else {
+                ubi_ui_platform::run(
+                    app,
+                    ubi_ui_platform::Options {
+                        smoke: arguments.smoke,
+                        ..Default::default()
+                    },
+                )
+                .map_err(|e| e.to_string())?;
+            }
+            return Ok(0);
+        }
+        #[cfg(not(feature = "native-ui"))]
+        {
+            let _ = (arguments.smoke, arguments.capture);
+            return Err("native UI requires building with `cargo run --features native-ui -- ui <entry.ubi> --root <root>`".into());
+        }
+    }
+
     match arguments.command {
         Command::Check => {
             let check = compiler.check();
             let status = report_check(&compiler, &check, arguments.json, stdout, stderr)?;
             Ok(status)
         }
-        Command::Dev => unreachable!(),
+        Command::Dev | Command::Ui => unreachable!(),
         Command::Init | Command::Version => unreachable!(),
         Command::Format => format_project(&root, &compiler, arguments.format_check, stdout, stderr),
         Command::Build | Command::Run | Command::Package => {
@@ -205,6 +248,7 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
             Some("init") => Command::Init,
             Some("package") => Command::Package,
             Some("fmt") => Command::Format,
+            Some("ui") => Command::Ui,
             Some("--version") => Command::Version,
             _ => return Err(
                 "expected `check`, `build`, `run`, `dev`, `init`, `package`, `fmt`, or `--version`"
@@ -221,6 +265,8 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     let mut call_args = None;
     let mut port = None;
     let mut format_check = false;
+    let mut smoke = false;
+    let mut capture = None;
     while let Some(argument) = args.next() {
         if command == Command::Version {
             return Err("`--version` accepts no additional arguments".to_owned());
@@ -229,6 +275,12 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
             return Err("expected `init <directory>`".to_owned());
         }
         match argument.as_str() {
+            "--smoke" if command == Command::Ui && !smoke => smoke = true,
+            "--capture" if command == Command::Ui && capture.is_none() => {
+                capture = Some(PathBuf::from(
+                    args.next().ok_or("`--capture` needs a new PNG path")?,
+                ));
+            }
             "--check" if command == Command::Format && !format_check => format_check = true,
             "--check" if command == Command::Format => {
                 return Err("`--check` may be specified only once".to_owned())
@@ -271,6 +323,9 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
             "--json" if !json => json = true,
             "--json" => return Err("`--json` may be specified only once".to_owned()),
             "--target" => {
+                if command == Command::Ui {
+                    return Err("`ui` uses the native desktop backend; omit --target".into());
+                }
                 if command == Command::Format {
                     return Err("`--target` is not supported by `fmt`".to_owned());
                 }
@@ -320,6 +375,11 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     if command == Command::Package && target.is_none() {
         return Err("expected `package [entry] --target <target>`".to_owned());
     }
+    if command == Command::Ui && (entry.is_none() || (smoke && capture.is_some())) {
+        return Err(
+            "expected `ui <entry.ubi> [--root <directory>] [--smoke | --capture <new.png>]`".into(),
+        );
+    }
 
     if command != Command::Package && entry.is_some() && target.is_some() {
         return Err("`--target` requires project config mode; omit the entry source ID".to_owned());
@@ -341,6 +401,8 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
         call_args,
         port: port.unwrap_or(3000),
         format_check,
+        smoke,
+        capture,
     })
 }
 

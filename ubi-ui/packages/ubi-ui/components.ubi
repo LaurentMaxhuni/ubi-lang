@@ -1,0 +1,21 @@
+import { View, Kind, Prop, Tone, node, group } from "./core.ubi";
+export fn window<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.Window, props, children) }
+export fn view<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.View, props, children) }
+export fn column<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.Column, props, children) }
+export fn row<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.Row, props, children) }
+export fn flex<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.Flex, props, children) }
+export fn grid<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.Grid, props, children) }
+export fn scrollView<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.ScrollView, props, children) }
+export fn card<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { group(key, Kind.Card, props, children) }
+export fn text<M>(key: string, content: string) -> View<M> { node(key, Kind.Text, [Prop.Content(content)]) }
+export fn heading<M>(key: string, content: string, level: int) -> View<M> { node(key, Kind.Heading, [Prop.Content(content), Prop.Level(level)]) }
+export fn separator<M>(key: string) -> View<M> { node(key, Kind.Separator, []) }
+export fn button<M>(key: string, content: string, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.Button, append(append(props, Prop.Content(content)), Prop.Activate(message))) }
+export fn iconButton<M>(key: string, icon: string, label: string, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.IconButton, append(append(append(append(props, Prop.Content(icon)), Prop.Label(label)), Prop.Activate(message)), Prop.Width(40))) }
+export fn checkbox<M>(key: string, content: string, checked: bool, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.Checkbox, append(append(append(append(props, Prop.Content(content)), Prop.Label(content)), Prop.Checked(checked)), Prop.Toggle(message))) }
+export fn switch<M>(key: string, content: string, checked: bool, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.Switch, append(append(append(append(props, Prop.Content(content)), Prop.Label(content)), Prop.Checked(checked)), Prop.Toggle(message))) }
+export fn slider<M>(key: string, label: string, value: int, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.Slider, append(append(append(props, Prop.Label(label)), Prop.Progress(value)), Prop.Change(message))) }
+export fn textInput<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.TextInput, append(append(append(props, Prop.Label(label)), Prop.Value(value)), Prop.Input(message))) }
+export fn passwordInput<M>(key: string, label: string, value: string, message: M, props: List<Prop<M>>) -> View<M> { node(key, Kind.PasswordInput, append(append(append(props, Prop.Label(label)), Prop.Value(value)), Prop.Input(message))) }
+export fn badge<M>(key: string, content: string, tone: Tone) -> View<M> { node(key, Kind.Badge, [Prop.Content(content), Prop.Tone(tone), Prop.Width(140)]) }
+export fn progressBar<M>(key: string, label: string, value: int) -> View<M> { node(key, Kind.ProgressBar, [Prop.Label(label), Prop.Progress(value)]) }
