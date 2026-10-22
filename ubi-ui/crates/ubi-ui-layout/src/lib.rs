@@ -19,6 +19,23 @@ pub struct Scene {
     pub boxes: BTreeMap<String, BoxLayout>,
     pub order: Vec<String>,
 }
+impl Scene {
+    /// Stable semantic records for a future OS accessibility bridge.
+    pub fn accessibility(
+        &self,
+        view: &View,
+        focused: Option<&str>,
+    ) -> Vec<ubi_ui_core::AccessibleNode> {
+        self.order
+            .iter()
+            .filter_map(|key| {
+                let node = view.nodes.get(key)?;
+                let b = self.boxes.get(key)?;
+                Some(node.accessible(b.bounds.intersect(b.clip), focused == Some(key.as_str())))
+            })
+            .collect()
+    }
+}
 
 /// Layout nodes and Taffy caches survive keyed view updates. No-op frames reuse
 /// computed geometry; scrolling only rebuilds translated/clipped scene boxes.

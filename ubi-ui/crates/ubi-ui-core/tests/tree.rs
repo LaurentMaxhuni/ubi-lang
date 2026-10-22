@@ -60,6 +60,10 @@ fn accessibility_redacts_passwords_and_clips_geometry() {
     assert_eq!(a.name, "Password");
     assert!(a.value.is_empty());
     assert!(a.focused);
+    let mut slider = view.nodes["root"].clone();
+    slider.kind = ubi_ui_core::Kind::Slider;
+    slider.progress = 73;
+    assert_eq!(slider.accessible(Rect::default(), false).value, "73");
     let rect = Rect {
         x: 10.0,
         y: 10.0,

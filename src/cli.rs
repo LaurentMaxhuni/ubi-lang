@@ -251,7 +251,7 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
             Some("ui") => Command::Ui,
             Some("--version") => Command::Version,
             _ => return Err(
-                "expected `check`, `build`, `run`, `dev`, `init`, `package`, `fmt`, or `--version`"
+                "expected `check`, `build`, `run`, `dev`, `init`, `package`, `fmt`, `ui`, or `--version`"
                     .to_owned(),
             ),
         };

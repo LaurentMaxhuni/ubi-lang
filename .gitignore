@@ -3,3 +3,5 @@
 .ubi-dist/
 node_modules/
 /graphify-out/
+ubi-ui/docs/.next/
+ubi-ui/docs/out/

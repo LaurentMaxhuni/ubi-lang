@@ -560,7 +560,9 @@ impl Node {
             } else {
                 self.label.clone()
             },
-            value: if self.kind == Kind::PasswordInput {
+            value: if matches!(self.kind, Kind::Slider | Kind::ProgressBar) {
+                self.progress.to_string()
+            } else if self.kind == Kind::PasswordInput {
                 String::new()
             } else {
                 self.value.clone()

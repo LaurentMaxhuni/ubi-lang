@@ -1,0 +1,15 @@
+import { View, Event, Prop } from "../packages/ubi-ui/core.ubi";
+import { window, button } from "../packages/ubi-ui/components.ubi";
+export enum Message { Increment }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int {
+    match (event) {
+        Event.Activate(Message.Increment) => model + 1,
+        _ => model
+    }
+}
+export fn view(model: int) -> View<Message> {
+    window("app", [], [
+        button("counter", "Count: " + toString(model), Message.Increment, [Prop.Width(180)])
+    ])
+}

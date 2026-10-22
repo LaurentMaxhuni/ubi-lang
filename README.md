@@ -1,5 +1,10 @@
 # Ubi
 
+Native Rust-powered UI is available through the optional `native-ui` feature:
+`cargo run --locked --features native-ui -- ui examples/gallery.ubi --root ubi-ui`.
+See [Ubi UI native core](ubi-ui/README.md) for the source package, component gallery,
+architecture, documentation portal and current limitations.
+
 Build shared applications for web, CLI, desktop, and mobile. The compiler emits
 JavaScript ES modules; explicit host adapters provide storage and network access.
 V1 integration includes async/await, project creation, formatting, and production

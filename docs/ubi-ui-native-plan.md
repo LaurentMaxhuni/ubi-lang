@@ -16,19 +16,19 @@ Phase 1 brief. Execute sequential verified milestones in this checkout.
 
 ## Milestones
 
-- [ ] Promote the bounded interpreter through `Compiler::runtime()` and
+- [x] Promote the bounded interpreter through `Compiler::runtime()` and
   `Runtime::invoke(module, export, &[serde_json::Value])`; test typed round trips,
   private/invalid calls, faults and resource limits; commit.
-- [ ] Establish six Rust crates. Validate `View`, reconcile stable keys, expose
+- [x] Establish six Rust crates. Validate `View`, reconcile stable keys, expose
   lifecycle/accessibility state and semantic themes. Test rejection and no-op
   behavior; commit.
-- [ ] Implement retained Taffy layout and centralized input. Test grid/flex,
+- [x] Implement retained Taffy layout and centralized input. Test grid/flex,
   constraints, resizing, scrolling, clipping, focus and controlled events; commit.
-- [ ] Implement cached font measurement and batched GPU drawing with offscreen
+- [x] Implement cached font measurement and batched GPU drawing with offscreen
   readback. Verify rendered pixels and text; commit.
-- [ ] Implement winit platform lifecycle and opt-in `ubi ui` integration,
+- [x] Implement winit platform lifecycle and opt-in `ubi ui` integration,
   transactional Ubi app adapter, source package and native Ubi gallery. Test
   model/event/view behavior and launch actual executable; commit.
-- [ ] Add benchmark, documentation portal, native captures and honest platform/
+- [x] Add benchmark, documentation portal, native captures and honest platform/
   component status. Run workspace tests, formatting, Clippy, docs build and
   benchmark. Record results and commit.

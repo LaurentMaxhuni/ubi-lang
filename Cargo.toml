@@ -29,3 +29,14 @@ native-ui = ["dep:ubi-ui-platform"]
 [[bin]]
 name = "ubi"
 path = "src/main.rs"
+
+[[example]]
+name = "native-ui-capture"
+path = "ubi-ui/tools/capture.rs"
+required-features = ["native-ui"]
+
+[[bench]]
+name = "native_ui"
+path = "ubi-ui/benches/native_ui.rs"
+harness = false
+required-features = ["native-ui"]
