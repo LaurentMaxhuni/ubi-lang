@@ -1,5 +1,14 @@
 # Ubi implementation plan
 
+## Proposed Ubi UI expansion, requested 2026-10-22
+
+User approved the Skiper / Animate UI / React Bits / Magic UI direction after
+[reference research](docs/ubi-ui-design-references.md). The proposed
+[motion and component design](docs/superpowers/specs/2026-10-22-ubi-ui-motion-design.md)
+covers shared web/native motion, existing control upgrades and 30 additional
+components. Written-design review is pending; this entry does not mark runtime
+motion or new components implemented.
+
 ## New priority: Ubi UI, requested 2026-10-21
 
 User prioritized a source-owned, shadcn-style UI system for Ubi across web,
