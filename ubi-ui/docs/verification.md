@@ -2,6 +2,16 @@
 
 Local environment: Windows, Rust 1.97.1, Node 22.22.1, npm 11.19.0.
 
+## Kombai-inspired homepage composition
+
+The homepage pairs an asymmetric introduction with the real Tabs Ubi example,
+using Ubi's paper/forest palette. References are recorded in
+`docs/ubi-ui-design-references.md`. Browser checks at 320, 768 and 1440px found
+no horizontal overflow; smaller layouts stack the workbench below the text.
+The live Weekly tab updates Ubi state, theme changes preserve the selection,
+and the Code panel renders highlighted Ubi tokens. All 13 Node tests and the
+production static build pass.
+
 ## Ubi field-guide identity and live preview restart
 
 The docs now use warm paper/forest palettes, serif display headings, a component
