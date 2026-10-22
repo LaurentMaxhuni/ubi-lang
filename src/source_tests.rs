@@ -95,7 +95,7 @@ fn source_set_enforces_project_byte_and_module_budgets() {
     ));
 
     let mut module_limited = crate::source::SourceSet::default();
-    for index in 0..64 {
+    for index in 0..crate::source::MAX_MODULES {
         module_limited
             .insert(SourceFile::new(&format!("{index}.ubi"), Vec::new()).unwrap())
             .unwrap();
