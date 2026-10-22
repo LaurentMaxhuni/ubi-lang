@@ -1726,7 +1726,6 @@ fn substitute_inner(
     Ok(result)
 }
 
-#[cfg(test)]
 pub(crate) fn substitute_type_existing(
     ty: ValueType,
     mapping: &BTreeMap<usize, ValueType>,
@@ -1736,7 +1735,6 @@ pub(crate) fn substitute_type_existing(
     substitute_existing_inner(ty, mapping, records, types, &mut BTreeMap::new())
 }
 
-#[cfg(test)]
 fn substitute_existing_inner(
     ty: ValueType,
     mapping: &BTreeMap<usize, ValueType>,

@@ -66,6 +66,7 @@ pub(crate) struct HostCapability {
 }
 
 impl HostCapability {
+    #[cfg(test)]
     pub(crate) fn new(
         kind: CapabilityKind,
         callback: impl Fn(&str, &[String]) -> Result<String, ()> + 'static,
@@ -531,7 +532,7 @@ fn aggregate_depth(value: &Value) -> usize {
     depth(value, &mut BTreeMap::new())
 }
 
-fn decode_host_value(
+pub(crate) fn decode_host_value(
     json: &serde_json::Value,
     ty: ValueType,
     analysis: &Analysis,

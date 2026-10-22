@@ -4,12 +4,12 @@ mod analyzer;
 mod diagnostics;
 mod effects;
 mod formatter;
-#[cfg(test)]
 mod interpreter;
 mod ir;
 mod js_backend;
 mod lexer;
 mod parser;
+mod runtime;
 mod source;
 mod span;
 
@@ -22,6 +22,7 @@ use source::SourceSet;
 
 pub use diagnostics::{Diagnostic, RelatedDiagnostic, Severity};
 pub use formatter::format_source;
+pub use runtime::{Runtime, RuntimeError};
 pub use source::SourceError;
 pub use span::Span;
 
@@ -67,6 +68,21 @@ impl Compiler {
     pub fn check(&self) -> CheckResult {
         let analysis = analyzer::analyze(&self.sources);
         check_result(&analysis)
+    }
+
+    /// Prepare bounded, synchronous native execution of checked pure exports.
+    /// Existing JavaScript compilation and host capabilities are unaffected.
+    pub fn runtime(&self) -> Result<Runtime, Vec<Diagnostic>> {
+        let analysis = analyzer::analyze(&self.sources);
+        if analysis
+            .diagnostics
+            .iter()
+            .any(|d| d.severity == Severity::Error)
+        {
+            Err(analysis.diagnostics)
+        } else {
+            Ok(Runtime::new(analysis))
+        }
     }
 
     pub fn build(&self) -> BuildResult {
