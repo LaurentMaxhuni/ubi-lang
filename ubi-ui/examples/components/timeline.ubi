@@ -1,0 +1,17 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
+import { timeline } from "../../packages/ubi-ui/components/timeline.ubi";
+
+export enum Message { Complete }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int { match (event) { Event.Activate(Message.Complete) => model + 1, _ => model } }
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Timeline", 1),
+        timeline("release", [], [textComponent("planning", "Planning · Oct 18"), textComponent("build", "Build · Oct 20"), buttonComponent("ship", if (model == 0) { "Ship release" } else { "Release shipped" }, Message.Complete, [])]),
+        textComponent("status", "Completed actions: " + toString(model))
+    ])
+}

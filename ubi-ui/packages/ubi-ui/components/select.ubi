@@ -1,0 +1,15 @@
+import { View, Kind, Prop, Choice, OverlayKind, node, group } from "../core.ubi";
+import { buttonComponent } from "./button.ubi";
+
+export fn selectComponent<M>(key: string, label: string, choices: List<Choice>, selected: string, open: bool, request: M, change: M, dismiss: M, props: List<Prop<M>>) -> View<M> {
+    let mut options: List<View<M>> = [];
+    let mut selectedLabel = selected;
+    for (choice in choices) {
+        if (choice.value == selected) { selectedLabel = choice.label; }
+        options = append(options, node(key + "-option-" + choice.value, Kind.OptionItem, [Prop.Label(choice.label), Prop.Content(choice.label), Prop.Option(choice.value), Prop.Selected(choice.value == selected), Prop.Disabled(choice.disabled), Prop.Change(change), Prop.Group(key)]));
+    }
+    let trigger = buttonComponent(key + "-trigger", selectedLabel, request, [Prop.Label(label), Prop.Expanded(open)]);
+    let list = group(key + "-list", Kind.Overlay, [Prop.Label(label), Prop.OverlayKind(OverlayKind.Select), Prop.Anchor(key + "-trigger"), Prop.Open(open), Prop.Dismiss(dismiss), Prop.Role("listbox")], options);
+    group(key, Kind.Column, append(props, Prop.Label(label)), [trigger, list])
+}
+export fn select<M>(key: string, label: string, choices: List<Choice>, selected: string, open: bool, request: M, change: M, dismiss: M, props: List<Prop<M>>) -> View<M> { selectComponent(key, label, choices, selected, open, request, change, dismiss, props) }

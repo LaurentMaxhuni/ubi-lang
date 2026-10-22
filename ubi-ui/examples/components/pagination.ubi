@@ -1,0 +1,22 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { pagination } from "../../packages/ubi-ui/components/pagination.ubi";
+
+export enum Message { Previous, Next }
+export fn init() -> int { 1 }
+export fn update(model: int, event: Event<Message>) -> int {
+    match (event) {
+        Event.Activate(Message.Previous) if (model > 1) => model - 1,
+        Event.Activate(Message.Next) if (model < 5) => model + 1,
+        _ => model
+    }
+}
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Pagination", 1),
+        textComponent("content", "Showing results for page " + toString(model)),
+        pagination("pages", model, 5, Message.Previous, Message.Next, [])
+    ])
+}

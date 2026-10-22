@@ -1,0 +1,17 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
+import { borderBeam } from "../../packages/ubi-ui/components/border-beam.ubi";
+
+export enum Message { Start }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int { match (event) { Event.Activate(Message.Start) => model + 1, _ => model } }
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Border Beam", 1),
+        borderBeam("notice", [Prop.Padding(20)], [headingComponent("notice-title", "Release ready", 2), textComponent("copy", "The border treatment is decorative."), buttonComponent("start", "Start release", Message.Start, [])]),
+        textComponent("count", "Actions: " + toString(model))
+    ])
+}

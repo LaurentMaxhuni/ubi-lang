@@ -1,0 +1,17 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
+import { tiltCard } from "../../packages/ubi-ui/components/tilt-card.ubi";
+
+export enum Message { Choose }
+export fn init() -> bool { false }
+export fn update(model: bool, event: Event<Message>) -> bool { match (event) { Event.Activate(Message.Choose) => !model, _ => model } }
+export fn view(model: bool) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Tilt Card", 1),
+        tiltCard("plan", [Prop.Padding(24), Prop.MaxWidth(560)], [headingComponent("plan-title", "Studio plan", 2), textComponent("price", "One shared workspace · $12 / month"), buttonComponent("select", if (model) { "Plan selected" } else { "Choose this plan" }, Message.Choose, [])]),
+        textComponent("mode", if (model) { "Selected in application state" } else { "Motion is decorative; keyboard selection is immediate" })
+    ])
+}

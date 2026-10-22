@@ -1,0 +1,18 @@
+import { View, Event, Prop, Space, TableColumn, TableRow } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { table } from "../../packages/ubi-ui/components/table.ubi";
+
+export enum Message { Sort }
+export fn init() -> bool { false }
+export fn update(model: bool, event: Event<Message>) -> bool { match (event) { Event.Select(Message.Sort, _) => !model, _ => model } }
+export fn view(model: bool) -> View<Message> {
+    let first: TableRow = TableRow { key: "task-1", cells: ["Draft brief", "In review"] };
+    let second: TableRow = TableRow { key: "task-2", cells: ["Ship release", "Ready"] };
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Table", 1),
+        textComponent("hint", "Select the Task header to reverse the source-owned order."),
+        table("tasks", "Release tasks", [TableColumn { key: "task", label: "Task", sortable: true }, TableColumn { key: "status", label: "Status", sortable: false }], if (model) { [second, first] } else { [first, second] }, Message.Sort, [])
+    ])
+}

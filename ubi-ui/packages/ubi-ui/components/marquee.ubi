@@ -1,0 +1,8 @@
+import { View, Kind, Prop, Effect, node, group } from "../core.ubi";
+
+export fn marqueeComponent<M>(key: string, paused: bool, toggle: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    let surface = group(key + "-content", Kind.EffectSurface, append(append(props, Prop.Effect(Effect.Marquee)), Prop.Paused(paused)), children);
+    let pause: View<M> = node(key + "-pause", Kind.Button, [Prop.Label(if (paused) { "Resume scrolling content" } else { "Pause scrolling content" }), Prop.Content(if (paused) { "Resume" } else { "Pause" }), Prop.Pressed(paused), Prop.Activate(toggle)]);
+    group(key, Kind.Column, [], [surface, pause])
+}
+export fn marquee<M>(key: string, paused: bool, toggle: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { marqueeComponent(key, paused, toggle, props, children) }

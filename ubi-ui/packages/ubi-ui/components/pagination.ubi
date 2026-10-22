@@ -1,0 +1,9 @@
+import { View, Kind, Prop, node, group } from "../core.ubi";
+import { textComponent } from "./text.ubi";
+
+export fn paginationComponent<M>(key: string, current: int, total: int, previous: M, next: M, props: List<Prop<M>>) -> View<M> {
+    let previousButton: View<M> = node(key + "-previous", Kind.Button, [Prop.Label("Previous page"), Prop.Content("Previous"), Prop.Disabled(current <= 1), Prop.Activate(previous)]);
+    let nextButton: View<M> = node(key + "-next", Kind.Button, [Prop.Label("Next page"), Prop.Content("Next"), Prop.Disabled(current >= total), Prop.Activate(next)]);
+    group(key, Kind.Pagination, append(append(props, Prop.Page(current)), Prop.PageCount(total)), [previousButton, textComponent(key + "-status", "Page " + toString(current) + " of " + toString(total)), nextButton])
+}
+export fn pagination<M>(key: string, current: int, total: int, previous: M, next: M, props: List<Prop<M>>) -> View<M> { paginationComponent(key, current, total, previous, next, props) }

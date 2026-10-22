@@ -1,0 +1,11 @@
+import { View, Kind, Prop, MenuAction, OverlayKind, node, group } from "../core.ubi";
+import { buttonComponent } from "./button.ubi";
+
+export fn dropdownMenuComponent<M>(key: string, label: string, actions: List<MenuAction<M>>, open: bool, request: M, dismiss: M, props: List<Prop<M>>) -> View<M> {
+    let mut items: List<View<M>> = [];
+    for (action in actions) { items = append(items, node(key + "-item-" + action.value, Kind.MenuItem, [Prop.Label(action.label), Prop.Content(action.label), Prop.Option(action.value), Prop.Disabled(action.disabled), Prop.Activate(action.message), Prop.Role("menuitem")])); }
+    let trigger = buttonComponent(key + "-trigger", label, request, [Prop.Expanded(open)]);
+    let menu = group(key + "-menu", Kind.Overlay, [Prop.Label(label), Prop.OverlayKind(OverlayKind.DropdownMenu), Prop.Anchor(key + "-trigger"), Prop.Open(open), Prop.Dismiss(dismiss), Prop.Role("menu")], items);
+    group(key, Kind.Column, append(props, Prop.Label(label)), [trigger, menu])
+}
+export fn dropdownMenu<M>(key: string, label: string, actions: List<MenuAction<M>>, open: bool, request: M, dismiss: M, props: List<Prop<M>>) -> View<M> { dropdownMenuComponent(key, label, actions, open, request, dismiss, props) }

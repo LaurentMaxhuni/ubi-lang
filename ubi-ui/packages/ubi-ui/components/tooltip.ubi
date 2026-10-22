@@ -1,0 +1,6 @@
+import { View, Kind, Prop, Placement, OverlayKind, node } from "../core.ubi";
+
+export fn tooltipComponent<M>(key: string, anchor: string, content: string, open: bool, request: M, dismiss: M, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.Overlay, append(append(append(append(append(append(append(append(props, Prop.Label(content)), Prop.Content(content)), Prop.OverlayKind(OverlayKind.Tooltip)), Prop.Anchor(anchor)), Prop.Placement(Placement.Top)), Prop.Open(open)), Prop.OpenRequest(request)), Prop.Dismiss(dismiss)))
+}
+export fn tooltip<M>(key: string, anchor: string, content: string, open: bool, request: M, dismiss: M, props: List<Prop<M>>) -> View<M> { tooltipComponent(key, anchor, content, open, request, dismiss, props) }

@@ -1,0 +1,7 @@
+import { View, Kind, Prop, Effect, node } from "../core.ubi";
+
+export fn numberTickerComponent<M>(key: string, value: int, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.EffectSurface, append(append(append(append(props, Prop.Effect(Effect.NumberTicker)), Prop.Number(value)), Prop.Content(toString(value))), Prop.Label(toString(value))))
+}
+
+export fn numberTicker<M>(key: string, value: int, props: List<Prop<M>>) -> View<M> { numberTickerComponent(key, value, props) }

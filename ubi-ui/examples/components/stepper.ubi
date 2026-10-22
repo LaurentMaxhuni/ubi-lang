@@ -1,0 +1,15 @@
+import { View, Event, Prop, Space, Choice } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { stepper } from "../../packages/ubi-ui/components/stepper.ubi";
+
+export fn init() -> string { "details" }
+export fn update(model: string, event: Event<string>) -> string { match (event) { Event.Select(message, value) => value, _ => model } }
+export fn view(model: string) -> View<string> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Stepper", 1),
+        stepper("setup", "Setup progress", [Choice { value: "details", label: "1 · Details", disabled: false }, Choice { value: "review", label: "2 · Review", disabled: false }, Choice { value: "finish", label: "3 · Finish", disabled: false }], model, "step-change", []),
+        textComponent("current", "Current step: " + model)
+    ])
+}

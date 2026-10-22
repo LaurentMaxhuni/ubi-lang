@@ -1,0 +1,18 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
+import { tooltip } from "../../packages/ubi-ui/components/tooltip.ubi";
+
+export enum Message { Request, Dismiss }
+export fn init() -> bool { false }
+export fn update(model: bool, event: Event<Message>) -> bool { match (event) { Event.Activate(Message.Request) => true, Event.Activate(Message.Dismiss) => false, _ => model } }
+export fn view(model: bool) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Tooltip", 1),
+        buttonComponent("help", "Focus or hover for help", Message.Request, []),
+        tooltip("help-tip", "help", "Your changes are saved automatically.", model, Message.Request, Message.Dismiss, []),
+        textComponent("hint", "Touch users can complete the same task without opening the tooltip.")
+    ])
+}

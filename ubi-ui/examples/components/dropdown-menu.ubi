@@ -1,0 +1,25 @@
+import { View, Event, Prop, Space, MenuAction } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { dropdownMenu } from "../../packages/ubi-ui/components/dropdown-menu.ubi";
+
+export record Model { open: bool, action: string }
+export enum Message { Request, Dismiss, Rename, Archive }
+export fn init() -> Model { Model { open: false, action: "No action yet" } }
+export fn update(model: Model, event: Event<Message>) -> Model {
+    match (event) {
+        Event.Activate(Message.Request) => Model { ...model, open: true },
+        Event.Activate(Message.Dismiss) => Model { ...model, open: false },
+        Event.Activate(Message.Rename) => Model { open: false, action: "Rename selected" },
+        Event.Activate(Message.Archive) => Model { open: false, action: "Archive selected" },
+        _ => model
+    }
+}
+export fn view(model: Model) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Dropdown Menu", 1),
+        dropdownMenu("actions", "Project actions", [MenuAction { value: "rename", label: "Rename", message: Message.Rename, disabled: false }, MenuAction { value: "archive", label: "Archive", message: Message.Archive, disabled: false }], model.open, Message.Request, Message.Dismiss, []),
+        textComponent("status", model.action)
+    ])
+}

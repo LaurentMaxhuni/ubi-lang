@@ -1,0 +1,6 @@
+import { View, Kind, Prop, Effect, Transition, group } from "../core.ubi";
+
+export fn scrollRevealComponent<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    group(key, Kind.EffectSurface, append(append(props, Prop.Effect(Effect.ScrollReveal)), Prop.Enter(Transition.Rise)), children)
+}
+export fn scrollReveal<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { scrollRevealComponent(key, props, children) }

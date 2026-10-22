@@ -1,0 +1,17 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
+import { scrollReveal } from "../../packages/ubi-ui/components/scroll-reveal.ubi";
+
+export enum Message { Continue }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int { match (event) { Event.Activate(Message.Continue) => model + 1, _ => model } }
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Scroll Reveal", 1),
+        scrollReveal("feature", [Prop.Padding(20)], [headingComponent("feature-title", "Content exists before it moves", 2), textComponent("copy", "Scroll into view to see a one-time entrance. The same content stays readable without motion."), buttonComponent("continue", "Continue", Message.Continue, [])]),
+        textComponent("actions", "Actions: " + toString(model))
+    ])
+}

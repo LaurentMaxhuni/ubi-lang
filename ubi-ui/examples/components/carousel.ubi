@@ -1,0 +1,22 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { carousel } from "../../packages/ubi-ui/components/carousel.ubi";
+
+export enum Message { Previous, Next }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int {
+    match (event) {
+        Event.Activate(Message.Previous) if (model > 0) => model - 1,
+        Event.Activate(Message.Next) if (model < 2) => model + 1,
+        _ => model
+    }
+}
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Carousel", 1),
+        carousel("highlights", "release highlights", model, Message.Previous, Message.Next, [Prop.MaxWidth(620), Prop.Padding(24)], [textComponent("item-a", "Live preview, source owned."), textComponent("item-b", "No autoplay; navigation stays explicit."), textComponent("item-c", "Keyboard users get the same controls.")]),
+        textComponent("position", "Slide " + toString(model + 1) + " of 3")
+    ])
+}

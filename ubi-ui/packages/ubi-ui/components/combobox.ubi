@@ -1,0 +1,34 @@
+import { View, Kind, Prop, Choice, OverlayKind, node, group } from "../core.ubi";
+import { textInputComponent } from "./input.ubi";
+
+fn asciiLower(value: string) -> string {
+    let mut result = "";
+    for (character in value) {
+        result = result + match (character) {
+            "A" => "a", "B" => "b", "C" => "c", "D" => "d", "E" => "e", "F" => "f", "G" => "g", "H" => "h", "I" => "i", "J" => "j", "K" => "k", "L" => "l", "M" => "m", "N" => "n", "O" => "o", "P" => "p", "Q" => "q", "R" => "r", "S" => "s", "T" => "t", "U" => "u", "V" => "v", "W" => "w", "X" => "x", "Y" => "y", "Z" => "z", _ => character
+        };
+    }
+    result
+}
+
+export fn comboboxComponent<M>(key: string, label: string, choices: List<Choice>, selected: string, query: string, open: bool, request: M, input: M, change: M, dismiss: M, props: List<Prop<M>>) -> View<M> {
+    let mut options: List<View<M>> = [];
+    let mut matches = 0;
+    for (choice in choices) {
+        if (contains(asciiLower(choice.label), asciiLower(query))) {
+            options = append(options, node(key + "-option-" + choice.value, Kind.OptionItem, [Prop.Label(choice.label), Prop.Content(choice.label), Prop.Option(choice.value), Prop.Selected(choice.value == selected), Prop.Disabled(choice.disabled), Prop.Change(change), Prop.Group(key)]));
+            matches = matches + 1;
+        }
+    }
+    if (matches == 0) {
+        let emptyProps: List<Prop<M>> = [Prop.Label("No results"), Prop.Content("No results")];
+        let emptyState: View<M> = node(key + "-empty", Kind.Text, emptyProps);
+        options = append(options, emptyState);
+    }
+    let inputProps: List<Prop<M>> = [];
+    let inputNode: View<M> = textInputComponent(key + "-input", label, query, input, inputProps);
+    let list = group(key + "-list", Kind.Overlay, [Prop.Label(label), Prop.OverlayKind(OverlayKind.Combobox), Prop.Anchor(key + "-input"), Prop.Open(open), Prop.Dismiss(dismiss), Prop.Role("listbox")], options);
+    let trigger: View<M> = node(key + "-request", Kind.Button, [Prop.Label("Open " + label), Prop.Content("Show options"), Prop.Activate(request), Prop.Expanded(open)]);
+    group(key, Kind.Column, append(props, Prop.Label(label)), [inputNode, trigger, list])
+}
+export fn combobox<M>(key: string, label: string, choices: List<Choice>, selected: string, query: string, open: bool, request: M, input: M, change: M, dismiss: M, props: List<Prop<M>>) -> View<M> { comboboxComponent(key, label, choices, selected, query, open, request, input, change, dismiss, props) }

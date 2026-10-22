@@ -1,0 +1,8 @@
+import { View, Prop, Effect } from "../core.ubi";
+import { buttonComponent } from "./button.ubi";
+
+export fn shimmerButtonComponent<M>(key: string, content: string, message: M, props: List<Prop<M>>) -> View<M> {
+    buttonComponent(key, content, message, append(props, Prop.Effect(Effect.Shimmer)))
+}
+
+export fn shimmerButton<M>(key: string, content: string, message: M, props: List<Prop<M>>) -> View<M> { shimmerButtonComponent(key, content, message, props) }

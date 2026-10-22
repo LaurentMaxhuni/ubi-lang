@@ -1,0 +1,21 @@
+import { View, Event, Prop, Space, Effect } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { rotatingText } from "../../packages/ubi-ui/components/rotating-text.ubi";
+
+export record Model { selected: int, paused: bool }
+export enum Message { Advance, Toggle }
+export fn init() -> Model { Model { selected: 0, paused: false } }
+export fn update(model: Model, event: Event<Message>) -> Model {
+    match (event) {
+        Event.Activate(Message.Advance) => Model { ...model, selected: if (model.selected >= 2) { 0 } else { model.selected + 1 } },
+        Event.Activate(Message.Toggle) => Model { ...model, paused: !model.paused },
+        _ => model
+    }
+}
+export fn view(model: Model) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Rotating Text", 1),
+        rotatingText("tagline", ["Build once, share everywhere.", "Keep behavior in your source.", "Motion respects the reader."], model.selected, Message.Advance, model.paused, Message.Toggle, [Prop.AutoPlay(true), Prop.PeriodMs(3000)])
+    ])
+}

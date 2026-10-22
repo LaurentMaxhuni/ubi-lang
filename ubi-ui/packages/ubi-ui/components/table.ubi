@@ -1,0 +1,24 @@
+import { View, Kind, Prop, TableColumn, TableRow, node, group } from "../core.ubi";
+
+export fn tableComponent<M>(key: string, label: string, columns: List<TableColumn>, rows: List<TableRow>, sort: M, props: List<Prop<M>>) -> View<M> {
+    let mut headers: List<View<M>> = [];
+    for (column in columns) {
+        let mut headerProps: List<Prop<M>> = [Prop.Label(column.label), Prop.Content(column.label), Prop.Option(column.key)];
+        if (column.sortable) { headerProps = append(headerProps, Prop.Change(sort)); }
+        else { headerProps = append(headerProps, Prop.Disabled(true)); }
+        headers = append(headers, node(key + "-header-" + column.key, Kind.TableHeader, headerProps));
+    }
+    let mut tableRows: List<View<M>> = [group(key + "-headers", Kind.TableRow, [Prop.Role("row")], headers)];
+    for (row in rows) {
+        let mut cells: List<View<M>> = [];
+        let mut index = 0;
+        for (cell in row.cells) {
+            let columnKey = match (columns[index]) { Option.Some(column) => column.key, Option.None => "extra-" + toString(index) };
+            cells = append(cells, node(key + "-cell-" + row.key + "-" + columnKey, Kind.TableCell, [Prop.Label(cell), Prop.Content(cell), Prop.Option(columnKey)]));
+            index = index + 1;
+        }
+        tableRows = append(tableRows, group(key + "-row-" + row.key, Kind.TableRow, [Prop.Role("row"), Prop.Option(row.key)], cells));
+    }
+    group(key, Kind.Table, append(append(props, Prop.Label(label)), Prop.Role("table")), tableRows)
+}
+export fn table<M>(key: string, label: string, columns: List<TableColumn>, rows: List<TableRow>, sort: M, props: List<Prop<M>>) -> View<M> { tableComponent(key, label, columns, rows, sort, props) }

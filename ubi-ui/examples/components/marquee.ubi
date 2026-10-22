@@ -1,0 +1,15 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { marquee } from "../../packages/ubi-ui/components/marquee.ubi";
+
+export enum Message { Toggle }
+export fn init() -> bool { false }
+export fn update(model: bool, event: Event<Message>) -> bool { match (event) { Event.Activate(Message.Toggle) => !model, _ => model } }
+export fn view(model: bool) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Marquee", 1),
+        marquee("announcements", model, Message.Toggle, [], [textComponent("announcement", "New workspace templates · Keyboard shortcuts · Shared source · Reduced motion stays readable")])
+    ])
+}

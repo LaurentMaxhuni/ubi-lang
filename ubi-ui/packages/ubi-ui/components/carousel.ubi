@@ -1,0 +1,9 @@
+import { View, Kind, Prop, Effect, node, group } from "../core.ubi";
+
+export fn carouselComponent<M>(key: string, label: string, selected: int, previous: M, next: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    let previousButton: View<M> = node(key + "-previous", Kind.Button, [Prop.Label("Previous " + label), Prop.Content("Previous"), Prop.Disabled(selected <= 0), Prop.Activate(previous)]);
+    let nextButton: View<M> = node(key + "-next", Kind.Button, [Prop.Label("Next " + label), Prop.Content("Next"), Prop.Disabled(selected >= length(children) - 1), Prop.Activate(next)]);
+    let surface = group(key + "-slides", Kind.EffectSurface, [Prop.Label(label), Prop.Effect(Effect.Carousel), Prop.Index(selected)], children);
+    group(key, Kind.Column, append(props, Prop.Label(label)), [previousButton, surface, nextButton])
+}
+export fn carousel<M>(key: string, label: string, selected: int, previous: M, next: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { carouselComponent(key, label, selected, previous, next, props, children) }

@@ -1,0 +1,35 @@
+import { View, Kind, Prop, MenuAction, OverlayKind, node, group } from "../core.ubi";
+import { textInputComponent } from "./input.ubi";
+
+fn asciiLower(value: string) -> string {
+    let mut result = "";
+    for (character in value) {
+        result = result + match (character) {
+            "A" => "a", "B" => "b", "C" => "c", "D" => "d", "E" => "e", "F" => "f", "G" => "g", "H" => "h", "I" => "i", "J" => "j", "K" => "k", "L" => "l", "M" => "m", "N" => "n", "O" => "o", "P" => "p", "Q" => "q", "R" => "r", "S" => "s", "T" => "t", "U" => "u", "V" => "v", "W" => "w", "X" => "x", "Y" => "y", "Z" => "z", _ => character
+        };
+    }
+    result
+}
+
+export fn commandPaletteComponent<M>(key: string, label: string, actions: List<MenuAction<M>>, query: string, open: bool, input: M, dismiss: M, props: List<Prop<M>>) -> View<M> {
+    let mut items: List<View<M>> = [];
+    let mut matches = 0;
+    for (action in actions) {
+        if (contains(asciiLower(action.label), asciiLower(query))) {
+            items = append(items, node(key + "-item-" + action.value, Kind.MenuItem, [Prop.Label(action.label), Prop.Content(action.label), Prop.Option(action.value), Prop.Disabled(action.disabled), Prop.Activate(action.message), Prop.Role("menuitem")]));
+            matches = matches + 1;
+        }
+    }
+    if (matches == 0) {
+        let emptyProps: List<Prop<M>> = [Prop.Label("No commands"), Prop.Content("No commands")];
+        let emptyState: View<M> = node(key + "-empty", Kind.Text, emptyProps);
+        items = append(items, emptyState);
+    }
+    let inputProps: List<Prop<M>> = [];
+    let search: View<M> = textInputComponent(key + "-search", "Search commands", query, input, inputProps);
+    let mut content: List<View<M>> = [search];
+    for (item in items) { content = append(content, item); }
+    let surface = group(key, Kind.Overlay, append(append(append(append(props, Prop.Label(label)), Prop.OverlayKind(OverlayKind.CommandPalette)), Prop.Open(open)), Prop.Dismiss(dismiss)), content);
+    surface
+}
+export fn commandPalette<M>(key: string, label: string, actions: List<MenuAction<M>>, query: string, open: bool, input: M, dismiss: M, props: List<Prop<M>>) -> View<M> { commandPaletteComponent(key, label, actions, query, open, input, dismiss, props) }

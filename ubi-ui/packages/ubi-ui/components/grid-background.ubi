@@ -1,0 +1,6 @@
+import { View, Kind, Prop, Effect, group } from "../core.ubi";
+
+export fn gridBackgroundComponent<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    group(key, Kind.EffectSurface, append(props, Prop.Effect(Effect.GridBackground)), children)
+}
+export fn gridBackground<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { gridBackgroundComponent(key, props, children) }

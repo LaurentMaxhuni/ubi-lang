@@ -1,0 +1,7 @@
+import { View, Kind, Prop, Effect, Transition, node } from "../core.ubi";
+
+export fn textRevealComponent<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> {
+    node(key, Kind.EffectSurface, append(append(append(append(props, Prop.Effect(Effect.TextReveal)), Prop.Content(content)), Prop.Label(content)), Prop.Enter(Transition.Rise)))
+}
+
+export fn textReveal<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { textRevealComponent(key, content, props) }

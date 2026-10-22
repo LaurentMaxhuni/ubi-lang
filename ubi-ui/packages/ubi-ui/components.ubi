@@ -1,4 +1,4 @@
-import { View, Prop, Tone, Choice } from "./core.ubi";
+import { View, Prop, Tone, Choice, MenuAction, TableColumn, TableRow } from "./core.ubi";
 import { windowComponent } from "./components/window.ubi";
 import { viewComponent } from "./components/view.ubi";
 import { columnComponent } from "./components/column.ubi";
@@ -39,6 +39,36 @@ import { textAreaComponent } from "./components/textarea.ubi";
 import { tabsComponent } from "./components/tabs.ubi";
 import { toggleComponent } from "./components/toggle.ubi";
 import { toggleGroupComponent } from "./components/toggle-group.ubi";
+import { numberTickerComponent } from "./components/number-ticker.ubi";
+import { textRevealComponent } from "./components/text-reveal.ubi";
+import { animatedListComponent } from "./components/animated-list.ubi";
+import { shimmerButtonComponent } from "./components/shimmer-button.ubi";
+import { dialogComponent } from "./components/dialog.ubi";
+import { alertDialogComponent } from "./components/alert-dialog.ubi";
+import { drawerComponent } from "./components/drawer.ubi";
+import { popoverComponent } from "./components/popover.ubi";
+import { tooltipComponent } from "./components/tooltip.ubi";
+import { toastComponent } from "./components/toast.ubi";
+import { selectComponent } from "./components/select.ubi";
+import { comboboxComponent } from "./components/combobox.ubi";
+import { dropdownMenuComponent } from "./components/dropdown-menu.ubi";
+import { contextMenuComponent } from "./components/context-menu.ubi";
+import { commandPaletteComponent } from "./components/command-palette.ubi";
+import { paginationComponent } from "./components/pagination.ubi";
+import { stepperComponent } from "./components/stepper.ubi";
+import { timelineComponent } from "./components/timeline.ubi";
+import { tableComponent } from "./components/table.ubi";
+import { spotlightCardComponent } from "./components/spotlight-card.ubi";
+import { tiltCardComponent } from "./components/tilt-card.ubi";
+import { cardStackComponent } from "./components/card-stack.ubi";
+import { carouselComponent } from "./components/carousel.ubi";
+import { dockComponent } from "./components/dock.ubi";
+import { marqueeComponent } from "./components/marquee.ubi";
+import { rotatingTextComponent } from "./components/rotating-text.ubi";
+import { borderBeamComponent } from "./components/border-beam.ubi";
+import { auroraBackgroundComponent } from "./components/aurora-background.ubi";
+import { gridBackgroundComponent } from "./components/grid-background.ubi";
+import { scrollRevealComponent } from "./components/scroll-reveal.ubi";
 
 export fn window<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { windowComponent(key, props, children) }
 export fn view<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { viewComponent(key, props, children) }
@@ -80,3 +110,33 @@ export fn textArea<M>(key: string, label: string, value: string, message: M, pro
 export fn tabs<M>(key: string, label: string, choices: List<Choice>, selected: string, message: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { tabsComponent(key, label, choices, selected, message, props, children) }
 export fn toggle<M>(key: string, content: string, selected: bool, message: M, props: List<Prop<M>>) -> View<M> { toggleComponent(key, content, selected, message, props) }
 export fn toggleGroup<M>(key: string, label: string, choices: List<Choice>, selected: List<string>, message: M, props: List<Prop<M>>) -> View<M> { toggleGroupComponent(key, label, choices, selected, message, props) }
+export fn numberTicker<M>(key: string, value: int, props: List<Prop<M>>) -> View<M> { numberTickerComponent(key, value, props) }
+export fn textReveal<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { textRevealComponent(key, content, props) }
+export fn animatedList<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { animatedListComponent(key, props, children) }
+export fn shimmerButton<M>(key: string, content: string, message: M, props: List<Prop<M>>) -> View<M> { shimmerButtonComponent(key, content, message, props) }
+export fn dialog<M>(key: string, label: string, open: bool, dismiss: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { dialogComponent(key, label, open, dismiss, props, children) }
+export fn alertDialog<M>(key: string, label: string, open: bool, dismiss: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { alertDialogComponent(key, label, open, dismiss, props, children) }
+export fn drawer<M>(key: string, label: string, open: bool, dismiss: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { drawerComponent(key, label, open, dismiss, props, children) }
+export fn popover<M>(key: string, label: string, open: bool, dismiss: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { popoverComponent(key, label, open, dismiss, props, children) }
+export fn tooltip<M>(key: string, anchor: string, content: string, open: bool, request: M, dismiss: M, props: List<Prop<M>>) -> View<M> { tooltipComponent(key, anchor, content, open, request, dismiss, props) }
+export fn toast<M>(key: string, label: string, open: bool, dismiss: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { toastComponent(key, label, open, dismiss, props, children) }
+export fn select<M>(key: string, label: string, choices: List<Choice>, selected: string, open: bool, request: M, change: M, dismiss: M, props: List<Prop<M>>) -> View<M> { selectComponent(key, label, choices, selected, open, request, change, dismiss, props) }
+export fn combobox<M>(key: string, label: string, choices: List<Choice>, selected: string, query: string, open: bool, request: M, input: M, change: M, dismiss: M, props: List<Prop<M>>) -> View<M> { comboboxComponent(key, label, choices, selected, query, open, request, input, change, dismiss, props) }
+export fn dropdownMenu<M>(key: string, label: string, actions: List<MenuAction<M>>, open: bool, request: M, dismiss: M, props: List<Prop<M>>) -> View<M> { dropdownMenuComponent(key, label, actions, open, request, dismiss, props) }
+export fn contextMenu<M>(key: string, anchor: string, label: string, actions: List<MenuAction<M>>, open: bool, request: M, dismiss: M, props: List<Prop<M>>) -> View<M> { contextMenuComponent(key, anchor, label, actions, open, request, dismiss, props) }
+export fn commandPalette<M>(key: string, label: string, actions: List<MenuAction<M>>, query: string, open: bool, input: M, dismiss: M, props: List<Prop<M>>) -> View<M> { commandPaletteComponent(key, label, actions, query, open, input, dismiss, props) }
+export fn pagination<M>(key: string, current: int, total: int, previous: M, next: M, props: List<Prop<M>>) -> View<M> { paginationComponent(key, current, total, previous, next, props) }
+export fn stepper<M>(key: string, label: string, choices: List<Choice>, selected: string, change: M, props: List<Prop<M>>) -> View<M> { stepperComponent(key, label, choices, selected, change, props) }
+export fn timeline<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { timelineComponent(key, props, children) }
+export fn table<M>(key: string, label: string, columns: List<TableColumn>, rows: List<TableRow>, sort: M, props: List<Prop<M>>) -> View<M> { tableComponent(key, label, columns, rows, sort, props) }
+export fn spotlightCard<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { spotlightCardComponent(key, props, children) }
+export fn tiltCard<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { tiltCardComponent(key, props, children) }
+export fn cardStack<M>(key: string, label: string, selected: int, previous: M, next: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { cardStackComponent(key, label, selected, previous, next, props, children) }
+export fn carousel<M>(key: string, label: string, selected: int, previous: M, next: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { carouselComponent(key, label, selected, previous, next, props, children) }
+export fn dock<M>(key: string, label: string, actions: List<MenuAction<M>>, props: List<Prop<M>>) -> View<M> { dockComponent(key, label, actions, props) }
+export fn marquee<M>(key: string, paused: bool, toggle: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { marqueeComponent(key, paused, toggle, props, children) }
+export fn rotatingText<M>(key: string, phrases: List<string>, selected: int, advance: M, paused: bool, toggle: M, props: List<Prop<M>>) -> View<M> { rotatingTextComponent(key, phrases, selected, advance, paused, toggle, props) }
+export fn borderBeam<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { borderBeamComponent(key, props, children) }
+export fn auroraBackground<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { auroraBackgroundComponent(key, props, children) }
+export fn gridBackground<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { gridBackgroundComponent(key, props, children) }
+export fn scrollReveal<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { scrollRevealComponent(key, props, children) }

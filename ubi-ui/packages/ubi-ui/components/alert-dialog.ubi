@@ -1,0 +1,7 @@
+import { View, Prop, OverlayKind } from "../core.ubi";
+import { overlayComponent } from "./overlay.ubi";
+
+export fn alertDialogComponent<M>(key: string, label: string, open: bool, dismiss: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    overlayComponent(key, label, OverlayKind.AlertDialog, open, dismiss, props, children)
+}
+export fn alertDialog<M>(key: string, label: string, open: bool, dismiss: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { alertDialogComponent(key, label, open, dismiss, props, children) }

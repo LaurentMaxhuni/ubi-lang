@@ -1,0 +1,5 @@
+import { View, Kind, Prop, OverlayKind, group } from "../core.ubi";
+
+export fn overlayComponent<M>(key: string, label: string, kind: OverlayKind, open: bool, dismiss: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    group(key, Kind.Overlay, append(append(append(append(props, Prop.Label(label)), Prop.OverlayKind(kind)), Prop.Open(open)), Prop.Dismiss(dismiss)), children)
+}

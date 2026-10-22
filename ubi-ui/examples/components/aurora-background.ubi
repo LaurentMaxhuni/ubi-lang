@@ -1,0 +1,17 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
+import { auroraBackground } from "../../packages/ubi-ui/components/aurora-background.ubi";
+
+export enum Message { Explore }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int { match (event) { Event.Activate(Message.Explore) => model + 1, _ => model } }
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Aurora Background", 1),
+        auroraBackground("aurora", [Prop.Padding(24), Prop.Height(220)], [headingComponent("welcome", "A quieter workspace", 2), textComponent("copy", "A bounded gradient field stays behind readable content."), buttonComponent("explore", "Explore workspace", Message.Explore, [])]),
+        textComponent("actions", "Actions: " + toString(model))
+    ])
+}

@@ -1,0 +1,19 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { rowComponent } from "../../packages/ubi-ui/components/row.ubi";
+import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
+import { numberTicker } from "../../packages/ubi-ui/components/number-ticker.ubi";
+
+export enum Message { Increment, Decrement }
+export fn init() -> int { 128 }
+export fn update(model: int, event: Event<Message>) -> int {
+    match (event) { Event.Activate(Message.Increment) => model + 1, Event.Activate(Message.Decrement) => model - 1, _ => model }
+}
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Number Ticker", 1),
+        numberTicker("value", model, [Prop.FontSize(64)]),
+        rowComponent("controls", [Prop.Gap(Space.Sm)], [buttonComponent("decrement", "Decrease", Message.Decrement, []), buttonComponent("increment", "Increase", Message.Increment, [])])
+    ])
+}

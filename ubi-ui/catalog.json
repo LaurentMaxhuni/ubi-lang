@@ -1523,5 +1523,1325 @@
         "source": "examples/components/toggle-group.ubi"
       }
     ]
+  },
+  {
+    "slug": "number-ticker",
+    "name": "Number Ticker",
+    "category": "Effects",
+    "description": "Animate a signed integer while exposing the committed value to assistive technology.",
+    "function": "numberTicker",
+    "module": "packages/ubi-ui/components/number-ticker.ubi",
+    "keyboard": "Static numeric text; the logical value remains readable when motion is reduced.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key."
+      },
+      {
+        "name": "value",
+        "type": "int",
+        "description": "Committed signed integer."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Motion and presentation properties."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Number Ticker example",
+        "source": "examples/components/number-ticker.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "text-reveal",
+    "name": "Text Reveal",
+    "category": "Effects",
+    "description": "Reveal a sentence while keeping one continuous accessible string.",
+    "function": "textReveal",
+    "module": "packages/ubi-ui/components/text-reveal.ubi",
+    "keyboard": "The full text is available immediately; use a new stable key to replay the entrance.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Complete sentence to display."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Motion and presentation properties."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Text Reveal example",
+        "source": "examples/components/text-reveal.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "animated-list",
+    "name": "Animated List",
+    "category": "Effects",
+    "description": "Present stable keyed children in committed reading order as they are inserted or reordered.",
+    "function": "animatedList",
+    "module": "packages/ubi-ui/components/animated-list.ubi",
+    "keyboard": "Children remain in source order and keep their own keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Motion and presentation properties."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed items."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Animated List example",
+        "source": "examples/components/animated-list.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "shimmer-button",
+    "name": "Shimmer Button",
+    "category": "Effects",
+    "description": "A standard action button with an optional decorative sheen and controlled busy state.",
+    "function": "shimmerButton",
+    "module": "packages/ubi-ui/components/shimmer-button.ubi",
+    "keyboard": "Uses standard Button keyboard, disabled, and busy behavior; sheen is decorative.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Visible action label."
+      },
+      {
+        "name": "message",
+        "type": "M",
+        "description": "Typed activation message."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Button state and presentation properties."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Shimmer Button example",
+        "source": "examples/components/shimmer-button.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "dialog",
+    "name": "Dialog",
+    "category": "Overlay",
+    "description": "A controlled modal surface with an explicit dismissal message.",
+    "function": "dialog",
+    "module": "packages/ubi-ui/components/dialog.ubi",
+    "keyboard": "Escape and the close action request dismissal; modal content is inactive when closed.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Current open state owned by the application model."
+      },
+      {
+        "name": "dismiss",
+        "type": "M",
+        "description": "Typed message emitted when the component requests dismissal."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Dialog example",
+        "source": "examples/components/dialog.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "alert-dialog",
+    "name": "Alert Dialog",
+    "category": "Overlay",
+    "description": "A controlled modal for a consequential choice with caller-owned actions.",
+    "function": "alertDialog",
+    "module": "packages/ubi-ui/components/alert-dialog.ubi",
+    "keyboard": "Modal focus behavior follows the host; provide explicit actions because Escape does not dismiss an alert dialog.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Current open state owned by the application model."
+      },
+      {
+        "name": "dismiss",
+        "type": "M",
+        "description": "Typed message emitted when the component requests dismissal."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Alert Dialog example",
+        "source": "examples/components/alert-dialog.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "drawer",
+    "name": "Drawer",
+    "category": "Overlay",
+    "description": "A controlled side surface for focused navigation or supporting content.",
+    "function": "drawer",
+    "module": "packages/ubi-ui/components/drawer.ubi",
+    "keyboard": "Escape and the close action request dismissal; closed content leaves layout and focus order immediately.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Current open state owned by the application model."
+      },
+      {
+        "name": "dismiss",
+        "type": "M",
+        "description": "Typed message emitted when the component requests dismissal."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Drawer example",
+        "source": "examples/components/drawer.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "popover",
+    "name": "Popover",
+    "category": "Overlay",
+    "description": "A controlled nonmodal surface attached to a stable view anchor.",
+    "function": "popover",
+    "module": "packages/ubi-ui/components/popover.ubi",
+    "keyboard": "Escape and the close action request dismissal; focus behavior remains owned by the host and caller.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Current open state owned by the application model."
+      },
+      {
+        "name": "dismiss",
+        "type": "M",
+        "description": "Typed message emitted when the component requests dismissal."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Popover example",
+        "source": "examples/components/popover.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "tooltip",
+    "name": "Tooltip",
+    "category": "Overlay",
+    "description": "An anchored description requested by the host without replacing its source-owned text.",
+    "function": "tooltip",
+    "module": "packages/ubi-ui/components/tooltip.ubi",
+    "keyboard": "The anchor retains its own keyboard behavior; tooltip requests and dismissal are explicit model events.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "anchor",
+        "type": "string",
+        "description": "Stable key of the anchor node in this view."
+      },
+      {
+        "name": "content",
+        "type": "string",
+        "description": "Visible text content."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Current open state owned by the application model."
+      },
+      {
+        "name": "request",
+        "type": "M",
+        "description": "Typed message emitted when an overlay is requested."
+      },
+      {
+        "name": "dismiss",
+        "type": "M",
+        "description": "Typed message emitted when the component requests dismissal."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Tooltip example",
+        "source": "examples/components/tooltip.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "toast",
+    "name": "Toast",
+    "category": "Feedback",
+    "description": "A controlled transient message with explicit dismissal and optional timeout.",
+    "function": "toast",
+    "module": "packages/ubi-ui/components/toast.ubi",
+    "keyboard": "Dismissal is available as a typed action; closed messages leave semantics and layout immediately.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Current open state owned by the application model."
+      },
+      {
+        "name": "dismiss",
+        "type": "M",
+        "description": "Typed message emitted when the component requests dismissal."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Toast example",
+        "source": "examples/components/toast.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "select",
+    "name": "Select",
+    "category": "Input",
+    "description": "A controlled choice field whose open, selected, and dismissed states live in the model.",
+    "function": "select",
+    "module": "packages/ubi-ui/components/select.ubi",
+    "keyboard": "Selection, open, and dismissal events are explicit; disabled choices cannot be selected.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "choices",
+        "type": "List<Choice>",
+        "description": "Choices with unique values and readable labels."
+      },
+      {
+        "name": "selected",
+        "type": "string",
+        "description": "Selected choice value from the application model."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Current open state owned by the application model."
+      },
+      {
+        "name": "request",
+        "type": "M",
+        "description": "Typed message emitted when an overlay is requested."
+      },
+      {
+        "name": "change",
+        "type": "M",
+        "description": "Typed message emitted when the selection changes."
+      },
+      {
+        "name": "dismiss",
+        "type": "M",
+        "description": "Typed message emitted when the component requests dismissal."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Select example",
+        "source": "examples/components/select.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "combobox",
+    "name": "Combobox",
+    "category": "Input",
+    "description": "A controlled editable choice field with source-owned filtering and selection.",
+    "function": "combobox",
+    "module": "packages/ubi-ui/components/combobox.ubi",
+    "keyboard": "Input and selection are separate typed events; disabled choices stay unavailable and the query remains readable.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "choices",
+        "type": "List<Choice>",
+        "description": "Choices with unique values and readable labels."
+      },
+      {
+        "name": "selected",
+        "type": "string",
+        "description": "Selected choice value from the application model."
+      },
+      {
+        "name": "query",
+        "type": "string",
+        "description": "Current query text from the application model."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Current open state owned by the application model."
+      },
+      {
+        "name": "request",
+        "type": "M",
+        "description": "Typed message emitted when an overlay is requested."
+      },
+      {
+        "name": "input",
+        "type": "M",
+        "description": "Typed message emitted when editable text changes."
+      },
+      {
+        "name": "change",
+        "type": "M",
+        "description": "Typed message emitted when the selection changes."
+      },
+      {
+        "name": "dismiss",
+        "type": "M",
+        "description": "Typed message emitted when the component requests dismissal."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Combobox example",
+        "source": "examples/components/combobox.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "dropdown-menu",
+    "name": "Dropdown Menu",
+    "category": "Navigation",
+    "description": "A controlled anchored list of named application actions.",
+    "function": "dropdownMenu",
+    "module": "packages/ubi-ui/components/dropdown-menu.ubi",
+    "keyboard": "Menu actions emit their declared messages; disabled actions remain unavailable to activation.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "actions",
+        "type": "List<MenuAction<M>>",
+        "description": "Named actions with unique values and typed messages."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Current open state owned by the application model."
+      },
+      {
+        "name": "request",
+        "type": "M",
+        "description": "Typed message emitted when an overlay is requested."
+      },
+      {
+        "name": "dismiss",
+        "type": "M",
+        "description": "Typed message emitted when the component requests dismissal."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Dropdown Menu example",
+        "source": "examples/components/dropdown-menu.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "context-menu",
+    "name": "Context Menu",
+    "category": "Navigation",
+    "description": "A controlled action menu requested at a stable view anchor.",
+    "function": "contextMenu",
+    "module": "packages/ubi-ui/components/context-menu.ubi",
+    "keyboard": "Actions are source-owned; keyboard and pointer requests use the anchor key and typed messages.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "anchor",
+        "type": "string",
+        "description": "Stable key of the anchor node in this view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "actions",
+        "type": "List<MenuAction<M>>",
+        "description": "Named actions with unique values and typed messages."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Current open state owned by the application model."
+      },
+      {
+        "name": "request",
+        "type": "M",
+        "description": "Typed message emitted when an overlay is requested."
+      },
+      {
+        "name": "dismiss",
+        "type": "M",
+        "description": "Typed message emitted when the component requests dismissal."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Context Menu example",
+        "source": "examples/components/context-menu.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "command-palette",
+    "name": "Command Palette",
+    "category": "Navigation",
+    "description": "A controlled searchable action list filtered by the application model.",
+    "function": "commandPalette",
+    "module": "packages/ubi-ui/components/command-palette.ubi",
+    "keyboard": "Query, action, and dismissal events are source-owned; disabled actions cannot activate.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "actions",
+        "type": "List<MenuAction<M>>",
+        "description": "Named actions with unique values and typed messages."
+      },
+      {
+        "name": "query",
+        "type": "string",
+        "description": "Current query text from the application model."
+      },
+      {
+        "name": "open",
+        "type": "bool",
+        "description": "Current open state owned by the application model."
+      },
+      {
+        "name": "input",
+        "type": "M",
+        "description": "Typed message emitted when editable text changes."
+      },
+      {
+        "name": "dismiss",
+        "type": "M",
+        "description": "Typed message emitted when the component requests dismissal."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Command Palette example",
+        "source": "examples/components/command-palette.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "pagination",
+    "name": "Pagination",
+    "category": "Navigation",
+    "description": "A bounded page selector with explicit previous and next messages.",
+    "function": "pagination",
+    "module": "packages/ubi-ui/components/pagination.ubi",
+    "keyboard": "Previous and next controls disable at the first and last pages; the current page stays readable.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "current",
+        "type": "int",
+        "description": "Current one-based page number."
+      },
+      {
+        "name": "total",
+        "type": "int",
+        "description": "Total number of pages."
+      },
+      {
+        "name": "previous",
+        "type": "M",
+        "description": "Typed message for the previous item action."
+      },
+      {
+        "name": "next",
+        "type": "M",
+        "description": "Typed message for the next item action."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Pagination example",
+        "source": "examples/components/pagination.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "stepper",
+    "name": "Stepper",
+    "category": "Navigation",
+    "description": "A labeled sequence of steps controlled by a selected value.",
+    "function": "stepper",
+    "module": "packages/ubi-ui/components/stepper.ubi",
+    "keyboard": "Selection is controlled by the application model; disabled steps cannot be selected.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "choices",
+        "type": "List<Choice>",
+        "description": "Choices with unique values and readable labels."
+      },
+      {
+        "name": "selected",
+        "type": "string",
+        "description": "Selected choice value from the application model."
+      },
+      {
+        "name": "change",
+        "type": "M",
+        "description": "Typed message emitted when the selection changes."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Stepper example",
+        "source": "examples/components/stepper.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "timeline",
+    "name": "Timeline",
+    "category": "Content",
+    "description": "A semantic sequence of caller-owned events in reading order.",
+    "function": "timeline",
+    "module": "packages/ubi-ui/components/timeline.ubi",
+    "keyboard": "The sequence follows source order; child controls keep their own keyboard behavior.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Timeline example",
+        "source": "examples/components/timeline.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "table",
+    "name": "Table",
+    "category": "Content",
+    "description": "A semantic table composed from typed column and keyed row records.",
+    "function": "table",
+    "module": "packages/ubi-ui/components/table.ubi",
+    "keyboard": "Sortable headers emit a typed selection message; nonsortable headers remain static and rows preserve source order.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "columns",
+        "type": "List<TableColumn>",
+        "description": "Column definitions with unique keys and sortable state."
+      },
+      {
+        "name": "rows",
+        "type": "List<TableRow>",
+        "description": "Rows with unique keys and cells aligned to the columns."
+      },
+      {
+        "name": "sort",
+        "type": "M",
+        "description": "Typed message emitted when a sortable column is selected."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Table example",
+        "source": "examples/components/table.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "spotlight-card",
+    "name": "Spotlight Card",
+    "category": "Effects",
+    "description": "A bounded card highlight that keeps nested actions and content source-owned.",
+    "function": "spotlightCard",
+    "module": "packages/ubi-ui/components/spotlight-card.ubi",
+    "keyboard": "Nested actions keep normal keyboard behavior. The browser follows pointer position; native uses bounded gradient quads or a static highlight.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Spotlight Card example",
+        "source": "examples/components/spotlight-card.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "tilt-card",
+    "name": "Tilt Card",
+    "category": "Effects",
+    "description": "A card with bounded pointer tilt and unchanged child semantics.",
+    "function": "tiltCard",
+    "module": "packages/ubi-ui/components/tilt-card.ubi",
+    "keyboard": "Nested actions keep normal keyboard behavior. Browser tilt is bounded; native uses a static card presentation.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Tilt Card example",
+        "source": "examples/components/tilt-card.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "card-stack",
+    "name": "Card Stack",
+    "category": "Effects",
+    "description": "A controlled stack with explicit previous and next actions.",
+    "function": "cardStack",
+    "module": "packages/ubi-ui/components/card-stack.ubi",
+    "keyboard": "Previous and next actions change the selected index in the reducer; only the active child remains interactive.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "selected",
+        "type": "int",
+        "description": "Selected child index owned by the application model."
+      },
+      {
+        "name": "previous",
+        "type": "M",
+        "description": "Typed message for the previous item action."
+      },
+      {
+        "name": "next",
+        "type": "M",
+        "description": "Typed message for the next item action."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Card Stack example",
+        "source": "examples/components/card-stack.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "carousel",
+    "name": "Carousel",
+    "category": "Effects",
+    "description": "A manually controlled carousel with explicit previous and next actions.",
+    "function": "carousel",
+    "module": "packages/ubi-ui/components/carousel.ubi",
+    "keyboard": "Navigation is explicit with no autoplay; only the active child is interactive and the selected item is readable.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "selected",
+        "type": "int",
+        "description": "Selected child index owned by the application model."
+      },
+      {
+        "name": "previous",
+        "type": "M",
+        "description": "Typed message for the previous item action."
+      },
+      {
+        "name": "next",
+        "type": "M",
+        "description": "Typed message for the next item action."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Carousel example",
+        "source": "examples/components/carousel.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "dock",
+    "name": "Dock",
+    "category": "Effects",
+    "description": "A compact row of named actions with stable source order and targets.",
+    "function": "dock",
+    "module": "packages/ubi-ui/components/dock.ubi",
+    "keyboard": "Each action is a normal keyboard button. Proximity scaling is decorative and does not reduce the minimum target size.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "label",
+        "type": "string",
+        "description": "Accessible name for the component."
+      },
+      {
+        "name": "actions",
+        "type": "List<MenuAction<M>>",
+        "description": "Named actions with unique values and typed messages."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Dock example",
+        "source": "examples/components/dock.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "marquee",
+    "name": "Marquee",
+    "category": "Effects",
+    "description": "A pausable ambient strip with one semantic copy of caller-owned content.",
+    "function": "marquee",
+    "module": "packages/ubi-ui/components/marquee.ubi",
+    "keyboard": "The pause control is explicit; content stays readable in static mode and appears once in the semantic tree.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "paused",
+        "type": "bool",
+        "description": "Whether ambient movement is paused by application state."
+      },
+      {
+        "name": "toggle",
+        "type": "M",
+        "description": "Typed message that toggles the paused state."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Marquee example",
+        "source": "examples/components/marquee.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "rotating-text",
+    "name": "Rotating Text",
+    "category": "Effects",
+    "description": "A source-selected phrase with explicit pause and advance messages.",
+    "function": "rotatingText",
+    "module": "packages/ubi-ui/components/rotating-text.ubi",
+    "keyboard": "Pause and phrase selection are model-owned; native may present a static phrase when ambient animation is unavailable.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "phrases",
+        "type": "List<string>",
+        "description": "Phrases available for the current selection."
+      },
+      {
+        "name": "selected",
+        "type": "int",
+        "description": "Selected child index owned by the application model."
+      },
+      {
+        "name": "advance",
+        "type": "M",
+        "description": "Typed message requesting the next phrase."
+      },
+      {
+        "name": "paused",
+        "type": "bool",
+        "description": "Whether ambient movement is paused by application state."
+      },
+      {
+        "name": "toggle",
+        "type": "M",
+        "description": "Typed message that toggles the paused state."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Rotating Text example",
+        "source": "examples/components/rotating-text.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "border-beam",
+    "name": "Border Beam",
+    "category": "Effects",
+    "description": "A bounded decorative border effect around caller-owned content.",
+    "function": "borderBeam",
+    "module": "packages/ubi-ui/components/border-beam.ubi",
+    "keyboard": "Decorative only, with no tab stop. Browser uses bounded gradients; native uses a static border treatment.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Border Beam example",
+        "source": "examples/components/border-beam.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "aurora-background",
+    "name": "Aurora Background",
+    "category": "Effects",
+    "description": "A bounded ambient surface behind caller-owned readable content.",
+    "function": "auroraBackground",
+    "module": "packages/ubi-ui/components/aurora-background.ubi",
+    "keyboard": "Decorative only, with no tab stop. Browser uses bounded gradients; native may use a static multiquad treatment.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Aurora Background example",
+        "source": "examples/components/aurora-background.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "grid-background",
+    "name": "Grid Background",
+    "category": "Effects",
+    "description": "A bounded decorative grid surface that does not intercept content input.",
+    "function": "gridBackground",
+    "module": "packages/ubi-ui/components/grid-background.ubi",
+    "keyboard": "Decorative only, with no tab stop. Browser uses bounded gradients; native may use a static grid treatment.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Grid Background example",
+        "source": "examples/components/grid-background.ubi"
+      }
+    ]
+  },
+  {
+    "slug": "scroll-reveal",
+    "name": "Scroll Reveal",
+    "category": "Effects",
+    "description": "A one-shot entrance for content that exists before it becomes visible.",
+    "function": "scrollReveal",
+    "module": "packages/ubi-ui/components/scroll-reveal.ubi",
+    "keyboard": "Content remains in reading and focus order; keyboard focus settles the entrance immediately and reduced motion shows it at once.",
+    "props": [
+      {
+        "name": "key",
+        "type": "string",
+        "description": "Stable node key; unique across the view."
+      },
+      {
+        "name": "props",
+        "type": "List<Prop<M>>",
+        "description": "Additional validated native properties; do not repeat properties owned by this constructor."
+      },
+      {
+        "name": "children",
+        "type": "List<View<M>>",
+        "description": "Caller-owned keyed child views."
+      }
+    ],
+    "examples": [
+      {
+        "title": "Scroll Reveal example",
+        "source": "examples/components/scroll-reveal.ubi"
+      }
+    ]
   }
 ]

@@ -1,0 +1,25 @@
+import { View, Event, Prop, Space, Choice } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { combobox } from "../../packages/ubi-ui/components/combobox.ubi";
+
+export record Model { open: bool, selected: string, query: string }
+export enum Message { Request, Dismiss, Input, Change }
+export fn init() -> Model { Model { open: false, selected: "accent", query: "" } }
+export fn update(model: Model, event: Event<Message>) -> Model {
+    match (event) {
+        Event.Activate(Message.Request) => Model { ...model, open: true },
+        Event.Activate(Message.Dismiss) => Model { ...model, open: false },
+        Event.Input(Message.Input, value) => Model { ...model, open: true, query: value },
+        Event.Select(Message.Change, value) => Model { open: false, selected: value, query: value },
+        _ => model
+    }
+}
+export fn view(model: Model) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Combobox", 1),
+        combobox("theme", "Theme", [Choice { value: "accent", label: "Forest accent", disabled: false }, Choice { value: "paper", label: "Warm paper", disabled: false }, Choice { value: "night", label: "Night sky", disabled: false }], model.selected, model.query, model.open, Message.Request, Message.Input, Message.Change, Message.Dismiss, []),
+        textComponent("selection", "Selected theme: " + model.selected)
+    ])
+}

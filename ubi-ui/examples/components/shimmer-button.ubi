@@ -1,0 +1,16 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { shimmerButton } from "../../packages/ubi-ui/components/shimmer-button.ubi";
+
+export enum Message { Save }
+export fn init() -> bool { false }
+export fn update(model: bool, event: Event<Message>) -> bool { match (event) { Event.Activate(Message.Save) => !model, _ => model } }
+export fn view(model: bool) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Shimmer Button", 1),
+        textComponent("description", "The action keeps standard button behavior while saving state controls its sheen."),
+        shimmerButton("save", if (model) { "Saved" } else { "Save changes" }, Message.Save, [Prop.Busy(model)])
+    ])
+}

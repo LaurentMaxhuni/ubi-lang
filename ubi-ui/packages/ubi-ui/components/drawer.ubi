@@ -1,0 +1,7 @@
+import { View, Prop, OverlayKind } from "../core.ubi";
+import { overlayComponent } from "./overlay.ubi";
+
+export fn drawerComponent<M>(key: string, label: string, open: bool, dismiss: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    overlayComponent(key, label, OverlayKind.Drawer, open, dismiss, props, children)
+}
+export fn drawer<M>(key: string, label: string, open: bool, dismiss: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { drawerComponent(key, label, open, dismiss, props, children) }

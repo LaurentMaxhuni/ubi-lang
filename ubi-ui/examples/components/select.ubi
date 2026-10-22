@@ -1,0 +1,24 @@
+import { View, Event, Prop, Space, Choice } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { select } from "../../packages/ubi-ui/components/select.ubi";
+
+export record Model { open: bool, selected: string }
+export enum Message { Request, Dismiss, Change }
+export fn init() -> Model { Model { open: false, selected: "weekly" } }
+export fn update(model: Model, event: Event<Message>) -> Model {
+    match (event) {
+        Event.Activate(Message.Request) => Model { ...model, open: true },
+        Event.Activate(Message.Dismiss) => Model { ...model, open: false },
+        Event.Select(Message.Change, value) => Model { open: false, selected: value },
+        _ => model
+    }
+}
+export fn view(model: Model) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Select", 1),
+        select("frequency", "Digest frequency", [Choice { value: "daily", label: "Daily", disabled: false }, Choice { value: "weekly", label: "Weekly", disabled: false }, Choice { value: "never", label: "Never", disabled: true }], model.selected, model.open, Message.Request, Message.Change, Message.Dismiss, []),
+        textComponent("value", "Selected: " + model.selected)
+    ])
+}

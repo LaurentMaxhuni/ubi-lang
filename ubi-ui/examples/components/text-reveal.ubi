@@ -1,0 +1,17 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { rowComponent } from "../../packages/ubi-ui/components/row.ubi";
+import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
+import { textReveal } from "../../packages/ubi-ui/components/text-reveal.ubi";
+
+export enum Message { Replay }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int { match (event) { Event.Activate(Message.Replay) => model + 1, _ => model } }
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Text Reveal", 1),
+        textReveal("story-" + toString(model), "Every journey needs a clear next step.", [Prop.FontSize(32), Prop.MaxWidth(640)]),
+        rowComponent("controls", [Prop.Gap(Space.Sm)], [buttonComponent("replay", "Replay reveal", Message.Replay, [])])
+    ])
+}

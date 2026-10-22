@@ -3,7 +3,21 @@ export enum Kind {
     Window, View, Column, Row, Flex, Grid, ScrollView, Card, Text, Heading,
     Separator, Button, IconButton, Checkbox, Switch, Slider, TextInput,
     PasswordInput, Badge, ProgressBar, Radio, Tab, Toggle, ToggleItem, Link,
-    TextArea, NumberInput, Avatar, Alert, Kbd, Skeleton, Label
+    TextArea, NumberInput, Avatar, Alert, Kbd, Skeleton, Label, Overlay,
+    MenuItem, OptionItem, EffectSurface, Pagination, Table, TableRow,
+    TableHeader, TableCell
+}
+export enum Easing { Linear, EaseOut, EaseInOut, Spring }
+export enum Transition { None, Fade, Rise, Scale }
+export enum OverlayKind {
+    Dialog, AlertDialog, Drawer, Popover, Tooltip, Toast,
+    Select, Combobox, DropdownMenu, ContextMenu, CommandPalette
+}
+export enum Placement { Top, Right, Bottom, Left, Center }
+export enum Effect {
+    NumberTicker, TextReveal, AnimatedList, Shimmer, SpotlightCard, TiltCard,
+    CardStack, Carousel, Dock, Marquee, RotatingText, BorderBeam,
+    AuroraBackground, GridBackground, ScrollReveal
 }
 export enum Space { None, Xs, Sm, Md, Lg, Xl, Xxl }
 export enum Tone { Neutral, Primary, Success, Warning, Danger }
@@ -17,9 +31,19 @@ export enum Prop<M> {
     MinHeight(int), MaxWidth(int), MaxHeight(int), Padding(int), Grow(int),
     Columns(int), FontSize(int), Center(bool), Clip(bool), Absolute(int, int),
     Progress(int), Selected(bool), Option(string), Group(string), Min(int),
-    Max(int), Step(int), ReadOnly(bool), Role(string), Expanded(bool)
+    Max(int), Step(int), ReadOnly(bool), Role(string), Expanded(bool),
+    Motion(Motion), Enter(Transition), Exit(Transition), Opacity(int),
+    Translate(int, int), Scale(int), Disclosure(bool), Page(int), PageCount(int),
+    Effect(Effect), Number(int), Index(int), AutoPlay(bool), PeriodMs(int),
+    Paused(bool), Advance(M), OverlayKind(OverlayKind), Open(bool), Anchor(string),
+    Placement(Placement), Dismiss(M), TimeoutMs(int), LabelledBy(string),
+    DescribedBy(string), OpenRequest(M)
 }
 export record Choice { value: string, label: string, disabled: bool }
+export record Motion { durationMs: int, delayMs: int, easing: Easing }
+export record MenuAction<M> { value: string, label: string, message: M, disabled: bool }
+export record TableColumn { key: string, label: string, sortable: bool }
+export record TableRow { key: string, cells: List<string> }
 export record Node<M> {
     key: string, kind: Kind, props: List<Prop<M>>, children: List<string>
 }

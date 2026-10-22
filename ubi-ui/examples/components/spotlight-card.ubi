@@ -1,0 +1,17 @@
+import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
+import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
+import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
+import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
+import { spotlightCard } from "../../packages/ubi-ui/components/spotlight-card.ubi";
+
+export enum Message { Open }
+export fn init() -> int { 0 }
+export fn update(model: int, event: Event<Message>) -> int { match (event) { Event.Activate(Message.Open) => model + 1, _ => model } }
+export fn view(model: int) -> View<Message> {
+    windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
+        headingComponent("title", "Spotlight Card", 1),
+        spotlightCard("feature", [Prop.Padding(24), Prop.MaxWidth(560)], [headingComponent("feature-title", "A focused highlight", 2), textComponent("copy", "Move a pointer across the surface; keyboard and touch keep the same content."), buttonComponent("action", "Open feature", Message.Open, [])]),
+        textComponent("status", "Actions: " + toString(model))
+    ])
+}

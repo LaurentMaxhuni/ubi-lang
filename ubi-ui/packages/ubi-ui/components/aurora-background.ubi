@@ -1,0 +1,6 @@
+import { View, Kind, Prop, Effect, group } from "../core.ubi";
+
+export fn auroraBackgroundComponent<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> {
+    group(key, Kind.EffectSurface, append(props, Prop.Effect(Effect.AuroraBackground)), children)
+}
+export fn auroraBackground<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { auroraBackgroundComponent(key, props, children) }

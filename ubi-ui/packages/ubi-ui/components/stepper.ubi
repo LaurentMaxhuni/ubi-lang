@@ -1,0 +1,10 @@
+import { View, Kind, Prop, Choice, node, group } from "../core.ubi";
+
+export fn stepperComponent<M>(key: string, label: string, choices: List<Choice>, selected: string, change: M, props: List<Prop<M>>) -> View<M> {
+    let mut items: List<View<M>> = [];
+    for (choice in choices) {
+        items = append(items, node(key + "-step-" + choice.value, Kind.OptionItem, [Prop.Label(choice.label), Prop.Content(choice.label), Prop.Option(choice.value), Prop.Selected(choice.value == selected), Prop.Disabled(choice.disabled), Prop.Change(change), Prop.Group(key), Prop.Role("button")]));
+    }
+    group(key, Kind.Row, append(append(props, Prop.Label(label)), Prop.Role("group")), items)
+}
+export fn stepper<M>(key: string, label: string, choices: List<Choice>, selected: string, change: M, props: List<Prop<M>>) -> View<M> { stepperComponent(key, label, choices, selected, change, props) }
