@@ -24,7 +24,10 @@ fn event(key: &str, tag: &str, message: &str, value: Option<Value>) -> Event {
 #[test]
 fn every_catalog_entry_compiles_and_mounts_its_individual_source_example() {
     let catalog: Vec<Value> = serde_json::from_str(include_str!("../ubi-ui/catalog.json")).unwrap();
-    assert!(catalog.len() >= 40, "original component catalog must remain available");
+    assert!(
+        catalog.len() >= 40,
+        "original component catalog must remain available"
+    );
     let mut slugs = std::collections::BTreeSet::new();
     for item in catalog {
         let slug = item["slug"].as_str().unwrap();

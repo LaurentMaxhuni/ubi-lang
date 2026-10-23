@@ -1,5 +1,4 @@
 use serde_json::{json, Value};
-use std::io::Write;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
@@ -13,7 +12,8 @@ fn all_web_examples_match_native_initial_views_and_controlled_event_transitions(
     let output = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("target")
         .join(format!("ui-web-test-{}", std::process::id()));
-    assert_eq!(web_export::export(&output).unwrap(), 41);
+    let catalog: Vec<Value> = serde_json::from_str(include_str!("../ubi-ui/catalog.json")).unwrap();
+    assert_eq!(web_export::export(&output).unwrap(), catalog.len() + 1);
     let manifest: Vec<Value> =
         serde_json::from_slice(&std::fs::read(output.join("manifest.json")).unwrap()).unwrap();
     let mut fixtures = Vec::new();
@@ -76,21 +76,16 @@ fn all_web_examples_match_native_initial_views_and_controlled_event_transitions(
         fixtures.push(json!({"slug":app["slug"],"module":app["module"],"initial":initial,"view":view,"cases":cases}));
     }
     let script = Path::new(env!("CARGO_MANIFEST_DIR")).join("ubi-ui/tools/verify_web.mjs");
-    let mut child = Command::new("node")
+    let fixture_path = output.join("fixtures.json");
+    std::fs::write(&fixture_path, serde_json::to_vec(&fixtures).unwrap()).unwrap();
+    let result = Command::new("node")
         .arg(script)
         .arg(&output)
-        .stdin(Stdio::piped())
+        .arg(&fixture_path)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .spawn()
+        .output()
         .expect("Node is required to verify the browser backend");
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(serde_json::to_string(&fixtures).unwrap().as_bytes())
-        .unwrap();
-    let result = child.wait_with_output().unwrap();
     println!("{}", String::from_utf8_lossy(&result.stdout));
     assert!(
         result.status.success(),

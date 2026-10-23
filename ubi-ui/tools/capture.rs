@@ -7,13 +7,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args_os().skip(1);
     let first = args
         .next()
-        .ok_or("usage: native-ui-capture [--components] <existing-empty-directory>")?;
-    if first == "--components" {
+        .ok_or("usage: native-ui-capture [--components|--motion] <existing-empty-directory>")?;
+    if first == "--components" || first == "--motion" {
         let out = std::path::PathBuf::from(args.next().ok_or("missing capture directory")?);
         if args.next().is_some() {
             return Err("unexpected capture argument".into());
         }
-        return components(&out);
+        return if first == "--motion" {
+            motion_samples(&out)
+        } else {
+            components(&out)
+        };
     }
     let out = std::path::PathBuf::from(first);
     if args.next().is_some() {
@@ -40,6 +44,62 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Sample real source examples with the same deterministic presentation path
+/// used by the desktop host. Logical state stays committed at every timestamp.
+fn motion_samples(out: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
+    if !out.is_dir() {
+        return Err("capture directory must already exist".into());
+    }
+    let mut session = ubi_ui_platform::CaptureSession::new()?;
+    for (slug, key, repeats) in [
+        ("switch", "demo", 1),
+        ("number-ticker", "increment", 64),
+        ("text-reveal", "replay", 1),
+        ("animated-list", "reorder", 1),
+        ("carousel", "highlights-next", 1),
+    ] {
+        let source = format!("examples/components/{slug}.ubi");
+        let compiler = sources::compiler(&source)?;
+        let mut app = NativeApplication::new(
+            compiler.runtime().map_err(|e| format!("{slug}: {e:?}"))?,
+            &source,
+        )?;
+        let from = app.view().clone();
+        for _ in 0..repeats {
+            let control = app.view().nodes.get(key).ok_or("missing sample action")?;
+            let event = if let Some(message) = &control.activate {
+                json!({"tag":"Activate","values":[message]})
+            } else if let Some(message) = &control.toggle {
+                json!({"tag":"Toggle","values":[message,!control.checked]})
+            } else {
+                return Err(format!("{slug}: missing sample binding").into());
+            };
+            app.dispatch(&Event {
+                key: key.into(),
+                value: event,
+            })?;
+        }
+        for time in [0, 110, 440] {
+            session.write_at(
+                &app,
+                &from,
+                &out.join(format!("{slug}-{time:03}ms.png")),
+                900,
+                480,
+                true,
+                time,
+                ubi_ui_platform::MotionPreference::Full,
+            )?;
+        }
+        println!("{slug}: checked source, sampled at 0/110/440ms");
+    }
+    println!(
+        "Native motion samples captured on {}",
+        session.adapter_name()
+    );
+    Ok(())
+}
+
 fn components(out: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
     if !out.is_dir() {
         return Err("capture directory must already exist".into());
@@ -63,7 +123,37 @@ fn components(out: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
             .ok_or("missing component example")?;
         let compiler = sources::compiler(source)?;
         let runtime = compiler.runtime().map_err(|e| format!("{slug}: {e:?}"))?;
-        let app = NativeApplication::new(runtime, source)?;
+        let mut app = NativeApplication::new(runtime, source)?;
+        if app
+            .view()
+            .nodes
+            .values()
+            .any(|node| node.overlay_kind.is_some() && !node.open)
+        {
+            let (key, message) = app
+                .view()
+                .order
+                .iter()
+                .find_map(|key| {
+                    app.view().nodes[key]
+                        .activate
+                        .as_ref()
+                        .map(|message| (key.clone(), message.clone()))
+                })
+                .ok_or("overlay example needs an explicit opening action")?;
+            app.dispatch(&Event {
+                key,
+                value: json!({"tag":"Activate","values":[message]}),
+            })?;
+            if !app
+                .view()
+                .nodes
+                .values()
+                .any(|node| node.overlay_kind.is_some() && node.open)
+            {
+                return Err(format!("{slug}: opening action did not open the overlay").into());
+            }
+        }
         let preview = component_preview(app.view());
         for (mode, dark) in [("light", false), ("dark", true)] {
             session.write(

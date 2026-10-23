@@ -4,7 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { encode } from '../../examples/ui/web/codec.mjs';
 import { argument } from '../web/renderer.mjs';
-const fixtures = JSON.parse(fs.readFileSync(0, 'utf8'));
+const fixtures = JSON.parse(fs.readFileSync(process.argv[3] ?? 0, 'utf8'));
 const root = process.argv[2];
 let events = 0;
 for (const fixture of fixtures) {
@@ -19,6 +19,7 @@ for (const fixture of fixtures) {
     events++;
   }
 }
-assert.equal(fixtures.length, 41);
+const catalog = JSON.parse(fs.readFileSync(new URL('../catalog.json', import.meta.url), 'utf8'));
+assert.equal(fixtures.length, catalog.length + 1);
 assert.ok(events >= 30, 'representative controlled event coverage');
 console.log(`${fixtures.length} real Ubi browser apps match native execution; ${events} event transitions`);

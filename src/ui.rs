@@ -63,17 +63,26 @@ impl Application for NativeApplication {
         if node.read_only && tag == "Input" {
             return Err("event target read-only".into());
         }
-        let expected = match tag {
-            "Activate" => &node.activate,
-            "Input" => &node.input,
-            "Toggle" => &node.toggle,
-            "Select" => &node.change,
+        let matches_binding = |binding: &Option<Value>| {
+            binding
+                .as_ref()
+                .is_some_and(|message| values.first() == Some(message))
+        };
+        let registered = match tag {
+            "Activate" => [
+                &node.activate,
+                &node.dismiss,
+                &node.open_request,
+                &node.advance,
+            ]
+            .into_iter()
+            .any(matches_binding),
+            "Input" => matches_binding(&node.input),
+            "Toggle" => matches_binding(&node.toggle),
+            "Select" => matches_binding(&node.change),
             _ => return Err("unsupported native event".into()),
         };
-        if expected
-            .as_ref()
-            .is_none_or(|message| values.first() != Some(message))
-        {
+        if !registered {
             return Err("event message does not match binding".into());
         }
         let next = self
