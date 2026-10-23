@@ -10,8 +10,8 @@ export enum Message { Reorder }
 export fn init() -> bool { false }
 export fn update(model: bool, event: Event<Message>) -> bool { match (event) { Event.Activate(Message.Reorder) => !model, _ => model } }
 export fn view(model: bool) -> View<Message> {
-    let first: View<Message> = textComponent("first", if (model) { "Second item" } else { "First item" });
-    let second: View<Message> = textComponent("second", if (model) { "First item" } else { "Second item" });
+    let first: View<Message> = textComponent("first", "First item");
+    let second: View<Message> = textComponent("second", "Second item");
     windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
         headingComponent("title", "Animated List", 1),
         animatedList("items", [], if (model) { [second, first] } else { [first, second] }),
