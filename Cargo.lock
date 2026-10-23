@@ -1954,6 +1954,7 @@ dependencies = [
  "ubi-ui-render",
  "ubi-ui-theme",
  "wgpu",
+ "windows-sys 0.61.2",
  "winit",
 ]
 

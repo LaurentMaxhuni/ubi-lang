@@ -43,6 +43,67 @@ fn wrapped_labels_and_alerts_reserve_their_painted_text_height() {
 }
 
 #[test]
+fn text_reveal_and_tooltip_reserve_their_painted_text_bounds() {
+    struct WrappedText;
+    impl TextMeasure for WrappedText {
+        fn measure(&mut self, text: &str, _: f32, max: f32) -> (f32, f32) {
+            let width = text.chars().count() as f32 * 8.0;
+            (width.min(max), (width / max).ceil().max(1.0) * 20.0)
+        }
+    }
+
+    let content = "word ".repeat(50);
+    let reveal = view(vec![
+        node("root", "Column", json!([]), &["reveal", "next"]),
+        node(
+            "reveal",
+            "EffectSurface",
+            json!([
+                {"tag":"Effect","values":[{"tag":"TextReveal","values":[]}]},
+                {"tag":"Content","values":[content]}
+            ]),
+            &[],
+        ),
+        node("next", "Button", json!([]), &[]),
+    ]);
+    let scene = Layout::default()
+        .compute(&reveal, 160.0, 1000.0, &mut WrappedText)
+        .unwrap();
+    let reveal_bounds = scene.boxes["reveal"].bounds;
+    assert!(
+        reveal_bounds.height > 0.0,
+        "TextReveal collapsed to zero height"
+    );
+    assert!(
+        scene.boxes["next"].bounds.y >= reveal_bounds.y + reveal_bounds.height,
+        "following content overlaps TextReveal"
+    );
+
+    let tooltip = view(vec![
+        node("root", "Column", json!([]), &["trigger", "tip"]),
+        node("trigger", "Button", json!([]), &[]),
+        node(
+            "tip",
+            "Overlay",
+            json!([
+                {"tag":"OverlayKind","values":[{"tag":"Tooltip","values":[]}]},
+                {"tag":"Open","values":[true]},
+                {"tag":"Anchor","values":["trigger"]},
+                {"tag":"Label","values":["A helpful tooltip message"]},
+                {"tag":"Content","values":["A helpful tooltip message"]}
+            ]),
+            &[],
+        ),
+    ]);
+    let scene = Layout::default()
+        .compute(&tooltip, 240.0, 180.0, &mut WrappedText)
+        .unwrap();
+    let tip_bounds = scene.boxes["tip"].bounds;
+    assert!(tip_bounds.width > 32.0, "Tooltip collapsed to zero width");
+    assert!(tip_bounds.height > 16.0, "Tooltip collapsed to zero height");
+}
+
+#[test]
 fn replacing_container_or_child_kind_relinks_retained_layout_ids() {
     let first = view(vec![
         node("root", "Row", json!([]), &["a", "b"]),

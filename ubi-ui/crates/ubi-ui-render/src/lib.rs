@@ -5,7 +5,7 @@ use bytemuck::{Pod, Zeroable};
 pub use text::Text;
 use ubi_ui_core::{Error, View};
 use ubi_ui_input::Input;
-use ubi_ui_layout::Scene;
+use ubi_ui_layout::{PresentedScene, Scene};
 use ubi_ui_theme::Theme;
 use wgpu::util::DeviceExt;
 
@@ -184,6 +184,43 @@ impl Renderer {
         dpi: f32,
         viewport: (f32, f32),
     ) -> Result<Frame, Error> {
+        self.prepare_core(view, scene, None, input, theme, system_dark, dpi, viewport)
+    }
+    /// Build a frame from motion-adjusted geometry and append visual exit layers.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prepare_presented(
+        &mut self,
+        view: &View,
+        presented: &PresentedScene,
+        input: &Input,
+        theme: &Theme,
+        system_dark: bool,
+        dpi: f32,
+        viewport: (f32, f32),
+    ) -> Result<Frame, Error> {
+        self.prepare_core(
+            view,
+            &presented.scene,
+            Some(presented),
+            input,
+            theme,
+            system_dark,
+            dpi,
+            viewport,
+        )
+    }
+    #[allow(clippy::too_many_arguments)]
+    fn prepare_core(
+        &mut self,
+        view: &View,
+        scene: &Scene,
+        presented: Option<&PresentedScene>,
+        input: &Input,
+        theme: &Theme,
+        system_dark: bool,
+        dpi: f32,
+        viewport: (f32, f32),
+    ) -> Result<Frame, Error> {
         if !dpi.is_finite()
             || !(0.25..=8.0).contains(&dpi)
             || !viewport.0.is_finite()
@@ -204,6 +241,7 @@ impl Renderer {
             system_dark,
             dpi,
             viewport,
+            presented,
             &mut self.text,
             &mut self.atlas,
             &self.queue,
@@ -221,6 +259,7 @@ impl Renderer {
                 system_dark,
                 dpi,
                 viewport,
+                presented,
                 &mut self.text,
                 &mut self.atlas,
                 &self.queue,
