@@ -119,7 +119,15 @@ pub fn export(destination: &Path) -> Result<usize, String> {
             json!({"slug":slug,"name":name,"source":entry,"module":format!("{slug}/app.mjs")}),
         );
     }
-    for file in ["renderer.mjs", "validate.mjs", "renderer.css"] {
+    for file in [
+        "renderer.mjs",
+        "validate.mjs",
+        "motion.mjs",
+        "presentation.mjs",
+        "overlays.mjs",
+        "effects.mjs",
+        "renderer.css",
+    ] {
         write(
             destination,
             &format!("runtime/{file}"),

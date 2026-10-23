@@ -56,3 +56,96 @@ test('native defaults and source property order determine final layout', () => {
   assert.equal(validateView(view(node('root','Heading'))).nodes[0].style.fontSize,26);
   for(const props of [[tag('Absolute',-100001,0)],[tag('Columns',65)],[tag('FontSize',7)],[tag('FontSize',97)],[tag('Step',2147483648)]]) assert.throws(()=>validateView(view(node('root','View',props))));
 });
+
+test('normalizes bounded motion and animation component ABI', () => {
+  const motion={durationMs:220,delayMs:20,easing:tag('Spring')};
+  const normalized=validateView(view(node('root','EffectSurface',[
+    tag('Effect',tag('SpotlightCard')),tag('Motion',motion),tag('Opacity',80),tag('Translate',-8,12),tag('Scale',96),tag('Enter',tag('Rise')),
+  ],['child']),node('child')));
+  assert.deepEqual(normalized.nodes[0].props.Motion,{durationMs:220,delayMs:20,easing:'Spring'});
+  assert.deepEqual(normalized.nodes[0].props.Translate,[-8,12]);
+  assert.equal(normalized.nodes[0].props.Enter,'Rise');
+  const anchored=validateView(view(node('root','Column',[],['overlay','trigger']),node('overlay','Overlay',[tag('OverlayKind',tag('Popover')),tag('Anchor','trigger')]),node('trigger','Button',[tag('Activate',tag('Open'))])));
+  assert.equal(anchored.nodes[1].props.Placement,'Bottom');
+  assert.equal(validateView(view(node('root','Pagination',[tag('Page',2),tag('PageCount',4)]))).nodes[0].props.Page,2);
+  const rejected=[
+    view(node('root','EffectSurface',[tag('Effect',tag('Shimmer'))])),
+    view(node('root','Button',[tag('Effect',tag('TiltCard'))])),
+    view(node('root','EffectSurface',[tag('Effect',tag('NumberTicker'))])),
+    view(node('root','EffectSurface',[tag('Effect',tag('TextReveal')),tag('Number',3)])),
+    view(node('root','EffectSurface',[tag('Effect',tag('RotatingText')),tag('Index',2)],['child']),node('child')),
+    view(node('root','Pagination',[tag('Page',5),tag('PageCount',4)])),
+    view(node('root','Text',[tag('Motion',{durationMs:2001,delayMs:0,easing:tag('Linear')})])),
+    view(node('root','Text',[tag('Opacity',101)])),
+  ];
+  for(const raw of rejected) assert.throws(()=>validateView(raw),TypeError);
+});
+
+test('Disclosure is valid on source containers and rejected on leaves', () => {
+  const normalized=validateView(view(node('root','Column',[tag('Disclosure',true)],['child']),node('child','Text')));
+  assert.equal(normalized.nodes[0].props.Disclosure,true);
+  assert.throws(()=>validateView(view(node('root','Text',[tag('Disclosure',false)]))),TypeError);
+});
+
+test('overlay references and accessible modal contracts validate before render', () => {
+  const trigger=node('trigger','Button',[tag('Label','Open help'),tag('Activate',tag('Open'))]);
+  const tooltip=node('tooltip','Overlay',[tag('OverlayKind',tag('Tooltip')),tag('Label','Help text'),tag('Anchor','trigger'),tag('OpenRequest',tag('Request')),tag('Dismiss',tag('Close'))]);
+  assert.equal(validateView(view(node('root','Column',[],['trigger','tooltip']),trigger,tooltip)).nodes[2].props.Anchor,'trigger');
+  for(const raw of [
+    view(node('root','Overlay',[tag('OverlayKind',tag('Dialog')),tag('Open',true)])),
+    view(node('root','Overlay',[tag('OverlayKind',tag('Popover')),tag('Anchor','missing')])),
+    view(node('root','Overlay',[tag('OverlayKind',tag('Tooltip')),tag('Anchor','root'),tag('OpenRequest',tag('Request'))])),
+    view(node('root','Overlay',[tag('OverlayKind',tag('Toast')),tag('TimeoutMs',60001)])),
+    view(node('root','Text',[tag('LabelledBy','missing')])),
+    view(node('root','Overlay',[tag('OverlayKind',tag('Dialog')),tag('Label','Settings'),tag('LabelledBy','root')]))
+  ]) assert.throws(()=>validateView(raw),TypeError);
+});
+
+test('overlay validation matches native placement, anchor, tooltip and accessible-label rules', () => {
+  const drawer=validateView(view(node('drawer','Overlay',[tag('OverlayKind',tag('Drawer')),tag('Label','Settings')])));
+  assert.equal(drawer.nodes[0].props.Placement,'Right');
+  const trigger=node('trigger','Button',[tag('Label','Help')]);
+  const describedTooltip=node('tip','Overlay',[tag('OverlayKind',tag('Tooltip')),tag('Content','Additional help'),tag('Anchor','trigger')]);
+  assert.doesNotThrow(()=>validateView(view(node('root','Column',[],['trigger','tip']),trigger,describedTooltip)));
+
+  const cyclic=()=>validateView(view(
+    node('root','Column',[],['a','b']),
+    node('a','Overlay',[tag('OverlayKind',tag('Popover')),tag('Anchor','b')]),
+    node('b','Overlay',[tag('OverlayKind',tag('Popover')),tag('Anchor','a')]),
+  ));
+  assert.throws(cyclic,TypeError);
+  assert.throws(()=>validateView(view(node('root','Overlay',[tag('OverlayKind',tag('Dialog')),tag('Label','   ')]))),TypeError);
+  assert.throws(()=>validateView(view(
+    node('root','Column',[],['trigger','tip']),trigger,
+    node('tip','Overlay',[tag('OverlayKind',tag('Tooltip')),tag('Content','Help'),tag('Anchor','missing')]),
+  )),TypeError);
+  assert.throws(()=>validateView(view(
+    node('root','Column',[],['trigger','other','tip']),trigger,
+    node('other','Button',[tag('Label','Other'),tag('DescribedBy','tip')]),
+    node('tip','Overlay',[tag('OverlayKind',tag('Tooltip')),tag('Content','Help'),tag('Anchor','trigger')]),
+  )),TypeError);
+  assert.throws(()=>validateView(view(
+    node('root','Column',[],['trigger','tip']),trigger,
+    node('tip','Overlay',[tag('OverlayKind',tag('Tooltip')),tag('Content','Help'),tag('Anchor','trigger')],['child']),
+    node('child','Button',[tag('Label','Action')]),
+  )),TypeError);
+});
+
+test('table schema keeps sortable action contract and rejects duplicate keys or widths', () => {
+  const table=()=>view(
+    node('table','Table',[tag('Label','Invoices'),tag('Role','table')],['headers','r1']),
+    node('headers','TableRow',[tag('Role','row')],['h1','h2']),
+    node('h1','TableHeader',[tag('Label','Name'),tag('Content','Name'),tag('Option','name'),tag('Change',tag('Sort'))]),
+    node('h2','TableHeader',[tag('Label','Amount'),tag('Content','Amount'),tag('Option','amount'),tag('Disabled',true)]),
+    node('r1','TableRow',[tag('Role','row'),tag('Option','invoice-1')],['c1','c2']),
+    node('c1','TableCell',[tag('Content','Acme'),tag('Option','name')]),
+    node('c2','TableCell',[tag('Content','$18'),tag('Option','amount')]),
+  );
+  const normalized=validateView(table());
+  assert.equal(normalized.nodes.find(item=>item.kind==='TableHeader').props.Change.tag,'Sort');
+  assert.equal(normalized.nodes.find(item=>item.key==='h2').props.Change,undefined);
+  const invalid=table(); invalid.nodes.find(item=>item.key==='h2').props[2]=tag('Option','name');
+  assert.throws(()=>validateView(invalid),TypeError);
+  const tooFew=table(); tooFew.nodes.find(item=>item.key==='r1').children.pop();
+  assert.throws(()=>validateView(tooFew),TypeError);
+});

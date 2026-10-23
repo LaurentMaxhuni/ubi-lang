@@ -1,5 +1,8 @@
 import { encode } from './codec.mjs';
 import { validateView, containers, editable, interactive } from './validate.mjs';
+import { createPresentation } from './presentation.mjs';
+import { createOverlays } from './overlays.mjs';
+import { createEffects } from './effects.mjs';
 export { validateView } from './validate.mjs';
 
 const owners = new WeakMap();
@@ -10,8 +13,9 @@ export function argument(value) {
   const encoded = encode(value);
   return value !== null && typeof value === 'object' ? encoded : value;
 }
-const enabled = node => !node.props.Disabled && !node.props.Busy;
+const enabled = node => !node.props.Disabled && !node.props.Busy && (node.kind!=='TableHeader'||node.props.Change!==undefined);
 const isGroupItem = node => ['Radio','Tab','ToggleItem'].includes(node.kind) && node.props.Group;
+const isActionable = node => interactive.has(node.kind) || (node.kind==='TableHeader'&&node.props.Change!==undefined);
 const attr = (element, name, value) => value===undefined || value===null || value==='' ? element.removeAttribute(name) : element.setAttribute(name,String(value));
 function place(parent, children) {
   children.forEach((child,i)=>{ if(parent.childNodes[i]!==child) parent.insertBefore(child,parent.childNodes[i]??null); });
@@ -48,8 +52,9 @@ function retainInteraction(root) {
 }
 function tagFor(node) {
   if(editable.has(node.kind) || ['Checkbox','Switch','Radio','Slider'].includes(node.kind)) return 'label';
-  if(['Button','IconButton','Toggle','ToggleItem','Tab','Link'].includes(node.kind)) return 'button';
-  return {Heading:`h${node.props.Level}`,Text:'p',Kbd:'kbd',Label:'span',Badge:'span',Avatar:'span',ProgressBar:'progress',Separator:'hr'}[node.kind]??'div';
+  if(['Button','IconButton','Toggle','ToggleItem','Tab','Link','MenuItem','OptionItem'].includes(node.kind) || (node.kind==='TableHeader'&&node.props.Change!==undefined)) return 'button';
+  if(node.kind==='TableHeader'||node.kind==='TableCell'||node.kind==='Table'||node.kind==='TableRow'||node.kind==='EffectSurface'||node.kind==='Overlay'||['Accordion','Collapsible','Pagination'].includes(node.kind)) return 'div';
+  return {Heading:`h${node.props.Level}`,Text:'p',Kbd:'kbd',Label:'span',Badge:'span',Avatar:'span',ProgressBar:'div',Separator:'hr'}[node.kind]??'div';
 }
 function create(document,node) {
   const element=document.createElement(tagFor(node)); let control=element, caption;
@@ -60,7 +65,22 @@ function create(document,node) {
     if(editable.has(node.kind) || node.kind==='Slider') element.append(caption,control); else element.append(control,caption);
   }
   if(element.localName==='button') element.type='button';
-  return {element,control,caption,kind:node.kind};
+  const entry={element,control,caption,kind:node.kind,effect:node.props.Effect};
+  if(node.kind==='ProgressBar') {
+    entry.progressFill=document.createElement('span');entry.progressFill.className='ubi-progress-fill';entry.progressFill.setAttribute('aria-hidden','true');element.append(entry.progressFill);
+  }
+  if(node.props.Effect==='NumberTicker'||node.props.Effect==='TextReveal') {
+    entry.semantic=document.createElement('span');entry.semantic.className='ubi-sr-only';
+    entry.visual=document.createElement('span');entry.visual.setAttribute('aria-hidden','true');
+    if(node.props.Effect==='NumberTicker') {
+      entry.semantic.classList.add('ubi-number-semantic');
+      entry.numberVisual=entry.visual;entry.numberVisual.className='ubi-number-visual';
+    } else {
+      entry.semantic.classList.add('ubi-text-reveal-semantic');entry.textVisual=entry.visual;entry.textVisual.className='ubi-text-reveal-visual';
+    }
+    element.append(entry.semantic,entry.visual);
+  }
+  return entry;
 }
 function styles(element,node) {
   const p=node.props,s=node.style,style=element.style;
@@ -83,10 +103,12 @@ export function mount(root, app, options = {}) {
   if(!root || root.nodeType!==1) throw new TypeError('Ubi UI mount requires an element');
   for(const name of ['init','view','update']) if(typeof app?.[name]!=='function') throw new TypeError(`Missing Ubi app ${name}`);
   if(options.theme!==undefined && !['light','dark','system'].includes(options.theme)) throw new TypeError('Unsupported Ubi theme');
+  if(options.motion!==undefined&&!['system','full','reduced'].includes(options.motion)) throw new TypeError('Unsupported Ubi motion mode');
   owners.get(root)?.dispose();
   const id=`ubi-web-${++nextMount}`,document=root.ownerDocument;
   const media=document.defaultView.matchMedia?.('(prefers-color-scheme: dark)');
-  let theme=options.theme, model, view, rawView, elements=new Map(), bindings=new Map(), revision=0, closed=false, processing=false, broken=false;
+  const presentation=createPresentation(root,options),overlays=createOverlays(root),effects=createEffects(root,options);
+  let theme=options.theme, motionMode=options.motion??'system', model, view, rawView, elements=new Map(), bindings=new Map(), revision=0, closed=false, processing=false, rendering=false, broken=false;
   function report(error) {
     try { options.onError?.(error instanceof Error?error:new Error(String(error))); }
     catch(fault) { console.error('Ubi UI error handler failed',fault); }
@@ -103,26 +125,36 @@ export function mount(root, app, options = {}) {
     const nextElements=new Map(), nextBindings=new Map();
     for(const [i,node] of next.nodes.entries()) {
       const old=elements.get(node.key);
-      const entry=old?.kind===node.kind && old.element.localName===tagFor(node)?old:create(document,node);
+      const entry=old?.kind===node.kind && old.effect===node.props.Effect && old.element.localName===tagFor(node)?old:create(document,node);
       const {element,control,caption}=entry,p=node.props;
       if(!element.id) element.id=`${id}-${revision+1}-${i}`;
       element.className=`ubi-node ubi-${node.kind.toLowerCase()}`;
       element.setAttribute('data-ubi-key',node.key);
-      element.hidden=Boolean(options.preview && next.nodes.find(item=>item.key===next.root)?.children.includes(node.key) && ['title','description'].includes(node.key));
+      attr(element,'data-ubi-effect',p.Effect);
+      element.hidden=Boolean((node.kind==='Overlay'&&!p.Open)||(options.preview && next.nodes.find(item=>item.key===next.root)?.children.includes(node.key) && ['title','description'].includes(node.key)));
+      if(node.kind==='Overlay')element.inert=!p.Open;
+      if(node.props.Role==='tablist')element.classList.add('ubi-tablist');
       attr(element,'data-tone',p.Tone.toLowerCase()); attr(element,'data-variant',p.Variant.toLowerCase());
       attr(element,'data-checked',p.Checked?'true':null);
       attr(element,'data-disabled',enabled(node)?null:'true');
       styles(element,node);
-      const role=p.Role??({Window:'region',Alert:'alert',Avatar:'img',Link:'link',Tab:'tab',Switch:'switch'}[node.kind]);
+      if(['Button','IconButton','Link','Switch','Tab','ToggleItem'].includes(node.kind)) {
+        const motion=p.Motion??{durationMs:['Switch','Tab','ToggleItem'].includes(node.kind)?220:140,easing:['Switch','Tab','ToggleItem'].includes(node.kind)?'Spring':'EaseOut'};
+        const easing={Linear:'linear',EaseOut:'cubic-bezier(.16,1,.3,1)',EaseInOut:'ease-in-out',Spring:'cubic-bezier(.2,1.3,.5,1)'}[motion.easing]??'cubic-bezier(.16,1,.3,1)';
+        element.style.setProperty('--ubi-feedback-duration',`${motion.durationMs}ms`);
+        element.style.setProperty('--ubi-feedback-easing',easing);
+      }
+      const role=p.Role??({Window:'region',Alert:'alert',Avatar:'img',Link:'link',Tab:'tab',Switch:'switch',ProgressBar:'progressbar',Overlay:({Dialog:'dialog',AlertDialog:'alertdialog',Drawer:'dialog',CommandPalette:'dialog',Popover:'region',Tooltip:'tooltip',Toast:'status',Select:'listbox',Combobox:'listbox',DropdownMenu:'menu',ContextMenu:'menu'})[p.OverlayKind],MenuItem:'menuitem',OptionItem:'option',Table:'table',TableRow:'row',TableHeader:'columnheader',TableCell:'cell'}[node.kind]);
       attr(control,'role',role);
       attr(control,'aria-label',p.Label || (node.kind==='Avatar'?p.Content:null));
       attr(control,'aria-busy',p.Busy?'true':null);
-      attr(control,'aria-expanded',p.Expanded);
+      attr(control,'aria-expanded',node.kind==='Accordion'||node.kind==='Collapsible'?p.Disclosure:p.Expanded);
       attr(control,'aria-disabled',!enabled(node)?'true':null);
       attr(control,'aria-readonly',p.ReadOnly?'true':null);
-      attr(control,'aria-selected',node.kind==='Tab'?p.Checked:undefined);
+      attr(control,'aria-selected',node.kind==='OptionItem'?p.Selected:node.kind==='Tab'?p.Checked:undefined);
       attr(control,'aria-pressed',['Toggle','ToggleItem'].includes(node.kind)?p.Checked:node.kind==='Button'&&p.Pressed?true:undefined);
-      if('disabled' in control && interactive.has(node.kind)) control.disabled=!enabled(node);
+      if(node.kind==='TextInput') {attr(control,'aria-controls',null);attr(control,'aria-activedescendant',null);attr(control,'aria-haspopup',null);attr(control,'aria-autocomplete',null);}
+      if('disabled' in control && isActionable(node)) control.disabled=!enabled(node);
       if(editable.has(node.kind)) {
         control.readOnly=p.ReadOnly; control.maxLength=16384;
         if(control.value!==p.Value) {
@@ -135,12 +167,35 @@ export function mount(root, app, options = {}) {
       if(['Checkbox','Switch','Radio'].includes(node.kind)) control.checked=p.Checked;
       if(node.kind==='Radio') {control.name=`${id}-${p.Group||node.key}`; control.value=p.Option;}
       if(node.kind==='Slider') {control.min='0';control.max='100';control.step='1';control.value=String(p.Progress);}
-      if(node.kind==='ProgressBar') {element.max=100;element.value=p.Progress;}
+      if(node.kind==='ProgressBar') {
+        attr(element,'aria-valuemin','0');attr(element,'aria-valuemax','100');attr(element,'aria-valuenow',String(p.Progress));
+        attr(element,'aria-label',p.Label);
+        entry.progressFill.style.setProperty('--ubi-progress-visual',`${p.Progress}%`);
+      }
+      if(entry.semantic) {
+        const text=entry.effect==='NumberTicker'?String(p.Number):String(p.Label??p.Content??'');
+        if(entry.semantic.textContent!==text)entry.semantic.textContent=text;
+        if(entry.numberVisual && entry.numberVisual.textContent!==String(p.Number))entry.numberVisual.textContent=String(p.Number);
+        if(entry.textVisual && !p.Content && entry.textVisual.textContent)entry.textVisual.textContent='';
+        if(entry.semantic.parentElement===element)element.classList.toggle('ubi-text-reveal',entry.effect==='TextReveal');
+        if(entry.effect==='NumberTicker') {attr(element,'role','status');element.setAttribute('aria-live','polite');element.setAttribute('aria-atomic','true');attr(element,'aria-label',p.Label);}
+      }
       if(caption && caption.textContent!==(p.Label||p.Content)) caption.textContent=p.Label||p.Content;
-      if(!caption && !containers.has(node.kind) && node.kind!=='ProgressBar' && element.textContent!==p.Content) element.textContent=p.Content;
+      if(!caption && !entry.semantic && !node.children.length && node.kind!=='ProgressBar' && element.textContent!==p.Content) element.textContent=p.Content;
       if(node.kind==='Separator') attr(element,'aria-orientation','horizontal');
-      if(interactive.has(node.kind)) nextBindings.set(control,{node,revision:revision+1});
+      if(isActionable(node)) nextBindings.set(control,{node,revision:revision+1,control});
       nextElements.set(node.key,entry);
+    }
+    for(const node of next.nodes) {
+      const element=nextElements.get(node.key).element,control=nextElements.get(node.key).control,p=node.props;
+      attr(control,'aria-labelledby',p.LabelledBy?nextElements.get(p.LabelledBy)?.element.id:undefined);
+      attr(control,'aria-describedby',p.DescribedBy?nextElements.get(p.DescribedBy)?.element.id:undefined);
+    }
+    for(const node of next.nodes) if(node.kind==='Overlay'&&node.props.OverlayKind==='Combobox') {
+      const anchor=nextElements.get(node.props.Anchor)?.control,overlay=nextElements.get(node.key)?.element;
+      if(!anchor)continue;
+      attr(anchor,'role','combobox');attr(anchor,'aria-haspopup','listbox');attr(anchor,'aria-autocomplete','list');
+      attr(anchor,'aria-controls',overlay?.id);attr(anchor,'aria-expanded',node.props.Open?'true':'false');
     }
     for(const node of next.nodes) if(containers.has(node.kind)) place(nextElements.get(node.key).element,node.children.map(key=>nextElements.get(key).element));
     // Roving focus is scoped to this mount and source group identity.
@@ -150,7 +205,7 @@ export function mount(root, app, options = {}) {
       const target=peers.find(peer=>peer.props.Checked)??peers[0];
       nextElements.get(node.key).control.tabIndex=target?.key===node.key?0:-1;
       if(node.kind==='Tab') {
-        const panel=next.nodes.find(peer=>peer.props.Role==='tabpanel' && peer.key===`${node.props.Group}-panel`);
+        const panel=next.nodes.find(peer=>peer.props.Role==='tabpanel' && (peer.props.Group===node.props.Group || (peer.props.Group===undefined && peer.key===`${node.props.Group}-panel`)));
         attr(nextElements.get(node.key).control,'aria-controls',panel?nextElements.get(panel.key).element.id:null);
         if(panel && node.props.Checked) attr(nextElements.get(panel.key).element,'aria-labelledby',nextElements.get(node.key).element.id);
       }
@@ -163,15 +218,30 @@ export function mount(root, app, options = {}) {
     // Encode model before calling view so unsupported objects cannot mutate state.
     const encoded=argument(candidate),candidateModel=clone(candidate);
     const candidateRaw=app.view(encoded),next=validateView(candidateRaw);
-    const candidateView=clone(candidateRaw), restore=snapshot(root), retain=retainInteraction(root);
-    const previous={elements,bindings,revision};
-    try { patch(next); retain(); }
-    catch(error) {
-      ({elements,bindings,revision}=previous);
-      try {restore();} catch(fault) {broken=true;disconnect();report(new Error('Ubi UI rollback failed; remount required',{cause:fault}));}
-      throw error;
+    const candidateView=clone(candidateRaw), prepared=presentation.prepare(next,elements), preparedEffects=effects.prepare(next,elements), restore=snapshot(root), interactionFocus=document.activeElement, retain=retainInteraction(root);
+    const previous={elements,bindings,revision,model,view,rawView};
+    let overlaysAttempted=false,effectsAttempted=false;
+    rendering=true;
+    try {
+      patch(next); retain();
+      model=candidateModel;view=next;rawView=candidateView;
+      overlaysAttempted=true;
+      overlays.commit(next,elements,dispatchMessage,interactionFocus);
+      effectsAttempted=true;
+      effects.commit(next,elements,motionMode,dispatchMessage,preparedEffects);
+      presentation.commit(prepared,elements);
     }
-    model=candidateModel;view=next;rawView=candidateView;
+    catch(error) {
+      ({elements,bindings,revision,model,view,rawView}=previous);
+      try {
+        restore();
+        if(view){
+          if(overlaysAttempted)overlays.commit(view,elements,dispatchMessage);
+          if(effectsAttempted)effects.commit(view,elements,motionMode,dispatchMessage,undefined,{rollback:true});
+        }
+      } catch(fault) {broken=true;disconnect();report(new Error('Ubi UI rollback failed; remount required',{cause:fault}));}
+      throw error;
+    } finally {rendering=false;}
   }
   function resetControls() {
     for(const node of view.nodes) {
@@ -181,20 +251,33 @@ export function mount(root, app, options = {}) {
       if(node.kind==='Slider') control.value=String(node.props.Progress);
     }
   }
-  function dispatch(binding,tag,value) {
+  function dispatch(binding,tag,value,sourceProp,allowClosedOverlay=false) {
     const node=binding.node,p=node.props,prop={Activate:'Activate',Input:'Input',Toggle:'Toggle',Select:'Change'}[tag];
-    if(closed || broken || processing || owners.get(root)!==handle || binding.revision!==revision || !enabled(node) || (p.ReadOnly&&tag==='Input') || !Object.hasOwn(p,prop)) {resetControls();return;}
+    const messageProp=sourceProp??prop,eventTag=sourceProp?'Activate':tag;
+    if(closed || broken || processing || rendering || owners.get(root)!==handle || binding.revision!==revision || !enabled(node) || (binding.control?.closest('[hidden],[inert]')&&!allowClosedOverlay) || (p.ReadOnly&&tag==='Input') || !Object.hasOwn(p,messageProp)) {resetControls();return;}
     processing=true;
     try {
       if(tag==='Input') {
         if(new TextEncoder().encode(value).length>16384) throw new TypeError('Input exceeds Ubi text limit');
         if(node.kind==='NumberInput' && value!=='' && value!=='-' && (!/^-?\d+$/.test(value) || !Number.isInteger(Number(value)) || Number(value)<-2147483648 || Number(value)>2147483647)) throw new TypeError('Expected 32-bit integer input');
       }
-      const event={tag,values:tag==='Activate'?[p[prop]]:[p[prop],value]};
+      const event={tag:eventTag,values:eventTag==='Activate'?[p[messageProp]]:[p[messageProp],value]};
       const candidate=app.update(argument(model),encode(event));
       render(candidate);
     } catch(error) {resetControls();report(error);}
     finally {processing=false;}
+  }
+  function dispatchMessage(source,prop,context) {
+    const node=view?.nodes.find(item=>item.key===source.key&&item.kind===source.kind);
+    if(!node||node.props[prop]===undefined)return;
+    let allowClosedOverlay=false;
+    if(prop==='OpenRequest') {
+      if(context?.type!=='anchor-open'||node.kind!=='Overlay'||node.props.Open||!['Tooltip','ContextMenu'].includes(node.props.OverlayKind)||context.anchorKey!==node.props.Anchor)return;
+      const anchor=view.nodes.find(item=>item.key===node.props.Anchor),entry=elements.get(node.props.Anchor);
+      if(!anchor||!enabled(anchor)||!entry||!root.contains(entry.element)||!root.contains(entry.control)||entry.element.closest('[hidden],[inert]')||entry.control.closest('[hidden],[inert]'))return;
+      allowClosedOverlay=true;
+    }
+    dispatch({node,revision,control:elements.get(node.key)?.control},'Activate',undefined,prop,allowClosedOverlay);
   }
   function bindingFor(event) {
     if(closed || broken || owners.get(root)!==handle) return null;
@@ -204,7 +287,12 @@ export function mount(root, app, options = {}) {
   function activate(binding) {
     const {kind,props}=binding.node;
     if(['Toggle','Checkbox','Switch'].includes(kind)) dispatch(binding,'Toggle',!props.Checked);
-    else if(['Radio','Tab','ToggleItem'].includes(kind)) dispatch(binding,'Select',props.Option);
+    else if(kind==='OptionItem') {
+      const input=overlays.comboboxInputForOption(binding.node);
+      dispatch(binding,'Select',props.Option);
+      if(input?.isConnected)input.focus({preventScroll:true});
+    }
+    else if(['Radio','Tab','ToggleItem','TableHeader'].includes(kind)) dispatch(binding,'Select',props.Option);
     else dispatch(binding,'Activate');
   }
   function click(event) {
@@ -224,6 +312,14 @@ export function mount(root, app, options = {}) {
   function keydown(event) {
     const binding=bindingFor(event);if(!binding) return;
     const node=binding.node;
+    if(node.kind==='TextInput'&&overlays.handleComboboxInputKeydown(event,node,option=>{
+      const entry=elements.get(option.key),optionBinding=entry&&bindings.get(entry.control);
+      if(optionBinding)activate(optionBinding);
+    }))return;
+    if(['MenuItem','OptionItem'].includes(node.kind)) {
+      if(overlays.handleMenuKeydown(event,node))return;
+      if(!event.repeat&&['Enter',' '].includes(event.key)){event.preventDefault();activate(binding);return;}
+    }
     if(!isGroupItem(node) || !['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End'].includes(event.key)) return;
     event.preventDefault();
     if(!enabled(node)) return;
@@ -239,7 +335,8 @@ export function mount(root, app, options = {}) {
   function disconnect() {for(const [event,listener] of Object.entries(listeners)) root.removeEventListener(event,listener);media?.removeEventListener?.('change',onTheme);}
   const onTheme=()=>applyTheme();
   const handle={
-    dispose() {if(closed)return;closed=true;disconnect();bindings.clear();if(owners.get(root)===handle)owners.delete(root);},
+    dispose() {if(closed)return;closed=true;disconnect();effects.dispose();overlays.dispose();presentation.dispose();bindings.clear();if(owners.get(root)===handle)owners.delete(root);},
+    setMotion(mode) {if(!['system','full','reduced'].includes(mode))throw new TypeError('Unsupported Ubi motion mode');if(closed)return;motionMode=mode;presentation.setMotion(mode);effects.setMotion(mode);},
     setTheme(mode) {if(!['light','dark','system'].includes(mode))throw new TypeError('Unsupported Ubi theme');if(closed)return;theme=mode;applyTheme();},
     getModel:()=>clone(model),getView:()=>clone(rawView),
   };

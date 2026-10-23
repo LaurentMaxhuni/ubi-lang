@@ -81,6 +81,98 @@ await test('semantic feedback text has readable contrast in both themes',root=>{
     assert(ratio>=4.5,`${theme} ${tone} contrast ${ratio.toFixed(2)}`);handle.dispose();
   }
 });
+await test('simultaneous mounts isolate radio groups, state and themes',root=>{
+  const first=document.createElement('div'),second=document.createElement('div');root.append(first,second);
+  const app={init:()=> 'a',update:(_,event)=>JSON.parse(event).values[1],view:model=>view(
+    node('root','Row',[prop('Role','radiogroup')],['a','b']),
+    ...['a','b'].map(key=>node(key,'Radio',[prop('Label',key),prop('Group','same-group'),prop('Option',key),prop('Selected',model===key),prop('Change',message)]))
+  )};
+  const a=mount(first,app,{theme:'light'}),b=mount(second,app,{theme:'dark'});
+  try {
+    const aInputs=first.querySelectorAll('input'),bInputs=second.querySelectorAll('input');
+    assert(aInputs[0].name!==bInputs[0].name,'radio names must be mount-scoped');
+    aInputs[1].click();
+    assert(a.getModel()==='b'&&b.getModel()==='a'&&bInputs[0].checked,'one mount must not uncheck another');
+    a.setTheme('dark');b.setTheme('light');
+    assert(first.querySelector('[data-ubi-key="root"]').dataset.ubiTheme==='dark'&&second.querySelector('[data-ubi-key="root"]').dataset.ubiTheme==='light','themes remain independent');
+  } finally {a.dispose();b.dispose();}
+});
+function fakeClock() {
+  let time=0, nextId=0;
+  const callbacks=new Map();
+  return {
+    now:()=>time,
+    requestFrame:callback=>{const id=++nextId;callbacks.set(id,callback);return id;},
+    cancelFrame:id=>callbacks.delete(id),
+    pending:()=>callbacks.size,
+    step:next=>{time=next;const pending=[...callbacks.values()];callbacks.clear();for(const callback of pending)callback(time);},
+  };
+}
+const linearMotion={durationMs:100,delayMs:0,easing:tag('Linear')};
+await test('finite motion uses presentation frames and sleeps after settling',root=>{
+  const clock=fakeClock();let updates=0,views=0;
+  const app={init:()=>0,update:model=>{updates++;return model+1;},view:model=>{views++;return view(
+    node('root','Window',[],['move','target']),node('move','Button',[prop('Content','Move'),prop('Activate',message)]),
+    node('target','Text',[prop('Content','Moving'),prop('Motion',linearMotion),tag('Translate',model*100,0)])
+  );}};
+  const handle=mount(root,app,{motion:'full',clock});
+  const target=root.querySelector('[data-ubi-key="target"]');
+  root.querySelector('button').click();
+  const calls=[updates,views];
+  clock.step(25);
+  assert(parseFloat(target.style.getPropertyValue('--ubi-motion-x'))===25,'quarter-frame presentation');
+  for(let time=26;time<=150;time++)clock.step(time);
+  assert(updates===calls[0]&&views===calls[1],'frames must not rerun update or view');
+  assert(clock.pending()===0,'settled presentation must stop requesting frames');
+  root.querySelector('button').click();clock.step(175);
+  assert(clock.pending()>0,'new transition schedules a frame');
+  handle.setMotion('reduced');
+  assert(clock.pending()===0&&parseFloat(target.style.getPropertyValue('--ubi-motion-x'))===200,'reduced motion settles and cancels frames');
+  handle.setMotion('full');root.querySelector('button').click();
+  assert(clock.pending()>0,'full motion restarts for a later update');
+  handle.dispose();assert(clock.pending()===0,'dispose cancels pending frames');
+});
+await test('a failed DOM commit preserves an in-flight animation',root=>{
+  const clock=fakeClock(),errors=[];
+  const app={init:()=>0,update:model=>model+1,view:model=>view(
+    node('root','Window',[],['move','target',...(model>1?['extra']:[])]),
+    node('move','Button',[prop('Content','Move'),prop('Activate',message)]),
+    node('target','Text',[prop('Content','Moving'),prop('Motion',linearMotion),tag('Translate',model*100,0)]),
+    ...(model>1?[node('extra','Text',[prop('Content','Extra')])]:[])
+  )};
+  const handle=mount(root,app,{motion:'full',clock,onError:error=>errors.push(error)});
+  const button=root.querySelector('button'),target=root.querySelector('[data-ubi-key="target"]');
+  button.focus();button.click();clock.step(25);
+  const container=root.querySelector('[data-ubi-key="root"]'),insert=container.insertBefore;
+  container.insertBefore=function(...args){container.insertBefore=insert;throw Error('injected animated patch failure');};
+  button.click();
+  assert(errors.length===1&&handle.getModel()===1&&document.activeElement===button,'logical state and focus roll back');
+  clock.step(50);
+  assert(parseFloat(target.style.getPropertyValue('--ubi-motion-x'))===50,'previous track continues on its original timeline');
+  clock.step(150);assert(clock.pending()===0,'previous track still settles');
+  handle.dispose();
+});
+await test('visual exits remove editable values and live identity',root=>{
+  const clock=fakeClock();
+  const app={init:()=>true,update:model=>!model,view:model=>view(
+    node('root','Window',[],['toggle',...(model?['card']:[])]),
+    node('toggle','Button',[prop('Content','Toggle'),prop('Activate',message)]),
+    ...(model?[
+      node('card','Column',[prop('Motion',linearMotion),prop('Exit',tag('Fade'))],['secret','caption']),
+      node('secret','PasswordInput',[prop('Label','Secret'),prop('Value','private-value')]),
+      node('caption','Text',[prop('Content','Visible caption')])
+    ]:[])
+  )};
+  const handle=mount(root,app,{motion:'full',clock});
+  root.querySelector('button').click();
+  const exit=root.querySelector('.ubi-exit-layer');
+  assert(exit&&exit.inert&&exit.getAttribute('aria-hidden')==='true','exit must be visual-only');
+  assert(!exit.querySelector('input,[id],[data-ubi-key],[tabindex]'),'exit omits editable content and live identities');
+  assert(!exit.innerHTML.includes('private-value'),'exit cannot retain password values');
+  root.querySelector('button').click();
+  assert(root.querySelectorAll('[data-ubi-key="card"]').length===1&&!root.querySelector('.ubi-exit-layer'),'resurrection keeps one live identity');
+  handle.dispose();assert(clock.pending()===0,'exit disposal cancels frames');
+});
 output.textContent=results.map(result=>`${result.ok?'PASS':'FAIL'} ${result.name}${result.error?'\n'+result.error:''}`).join('\n');
 document.body.dataset.testStatus=results.every(result=>result.ok)?'passed':'failed';
 window.__ubiBrowserTests=results;
