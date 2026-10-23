@@ -1,0 +1,629 @@
+[
+  {
+    "name": "ticker signed lower boundary",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "surface"
+          ]
+        },
+        {
+          "key": "surface",
+          "kind": {
+            "tag": "EffectSurface",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "NumberTicker",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Number",
+              "values": [
+                -2147483648
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "ticker number outside i32",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "surface"
+          ]
+        },
+        {
+          "key": "surface",
+          "kind": {
+            "tag": "EffectSurface",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "NumberTicker",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Number",
+              "values": [
+                2147483648
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "shimmer button",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "button"
+          ]
+        },
+        {
+          "key": "button",
+          "kind": {
+            "tag": "Button",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "Shimmer",
+                  "values": []
+                }
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "shimmer cannot be a surface",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "surface"
+          ]
+        },
+        {
+          "key": "surface",
+          "kind": {
+            "tag": "EffectSurface",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "Shimmer",
+                  "values": []
+                }
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "tilt belongs to a surface",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "button"
+          ]
+        },
+        {
+          "key": "button",
+          "kind": {
+            "tag": "Button",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "TiltCard",
+                  "values": []
+                }
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "text reveal is a leaf",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "surface"
+          ]
+        },
+        {
+          "key": "surface",
+          "kind": {
+            "tag": "EffectSurface",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "TextReveal",
+                  "values": []
+                }
+              ]
+            }
+          ],
+          "children": [
+            "text"
+          ]
+        },
+        {
+          "key": "text",
+          "kind": {
+            "tag": "Text",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Content",
+              "values": [
+                "Words"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "rotation has phrase and typed advance",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "surface"
+          ]
+        },
+        {
+          "key": "surface",
+          "kind": {
+            "tag": "EffectSurface",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "RotatingText",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "AutoPlay",
+              "values": [
+                true
+              ]
+            },
+            {
+              "tag": "Advance",
+              "values": [
+                {
+                  "tag": "Next",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "PeriodMs",
+              "values": [
+                250
+              ]
+            }
+          ],
+          "children": [
+            "text"
+          ]
+        },
+        {
+          "key": "text",
+          "kind": {
+            "tag": "Text",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Content",
+              "values": [
+                "Phrase"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "rotation autoplay requires advance",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "surface"
+          ]
+        },
+        {
+          "key": "surface",
+          "kind": {
+            "tag": "EffectSurface",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "RotatingText",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "AutoPlay",
+              "values": [
+                true
+              ]
+            }
+          ],
+          "children": [
+            "text"
+          ]
+        },
+        {
+          "key": "text",
+          "kind": {
+            "tag": "Text",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Content",
+              "values": [
+                "Phrase"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "rotation requires phrase",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "surface"
+          ]
+        },
+        {
+          "key": "surface",
+          "kind": {
+            "tag": "EffectSurface",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "RotatingText",
+                  "values": []
+                }
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "rotation period below minimum",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "surface"
+          ]
+        },
+        {
+          "key": "surface",
+          "kind": {
+            "tag": "EffectSurface",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "RotatingText",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "PeriodMs",
+              "values": [
+                249
+              ]
+            }
+          ],
+          "children": [
+            "text"
+          ]
+        },
+        {
+          "key": "text",
+          "kind": {
+            "tag": "Text",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Content",
+              "values": [
+                "Phrase"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "carousel index outside content",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "surface"
+          ]
+        },
+        {
+          "key": "surface",
+          "kind": {
+            "tag": "EffectSurface",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "Carousel",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Index",
+              "values": [
+                1
+              ]
+            }
+          ],
+          "children": [
+            "text"
+          ]
+        },
+        {
+          "key": "text",
+          "kind": {
+            "tag": "Text",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Content",
+              "values": [
+                "Slide"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "zero indexed empty carousel",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "surface"
+          ]
+        },
+        {
+          "key": "surface",
+          "kind": {
+            "tag": "EffectSurface",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "Carousel",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Index",
+              "values": [
+                0
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": true
+  }
+]

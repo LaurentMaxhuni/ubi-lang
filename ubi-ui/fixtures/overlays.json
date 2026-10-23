@@ -1,0 +1,811 @@
+[
+  {
+    "name": "labelled closed modal",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "overlay"
+          ]
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Dialog",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Label",
+              "values": [
+                "Settings"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "modal requires name",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "overlay"
+          ]
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Dialog",
+                  "values": []
+                }
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "modal whitespace is not a name",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "overlay"
+          ]
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Dialog",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Label",
+              "values": [
+                "   "
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "toast upper timeout boundary",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "overlay"
+          ]
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Toast",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "TimeoutMs",
+              "values": [
+                60000
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "toast timeout beyond boundary",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "overlay"
+          ]
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Toast",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "TimeoutMs",
+              "values": [
+                60001
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "timeout belongs only to toast",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "overlay"
+          ]
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Dialog",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Label",
+              "values": [
+                "Settings"
+              ]
+            },
+            {
+              "tag": "TimeoutMs",
+              "values": [
+                1
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "dangling anchor",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "overlay"
+          ]
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Popover",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Anchor",
+              "values": [
+                "missing"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "self anchor",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "overlay"
+          ]
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Popover",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Anchor",
+              "values": [
+                "overlay"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "content-only tooltip",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "trigger",
+            "overlay"
+          ]
+        },
+        {
+          "key": "trigger",
+          "kind": {
+            "tag": "Button",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Label",
+              "values": [
+                "Trigger"
+              ]
+            }
+          ],
+          "children": []
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Tooltip",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Anchor",
+              "values": [
+                "trigger"
+              ]
+            },
+            {
+              "tag": "Content",
+              "values": [
+                "Help text"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "tooltip cannot contain controls",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "trigger",
+            "overlay"
+          ]
+        },
+        {
+          "key": "trigger",
+          "kind": {
+            "tag": "Button",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Label",
+              "values": [
+                "Trigger"
+              ]
+            }
+          ],
+          "children": []
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Tooltip",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Anchor",
+              "values": [
+                "trigger"
+              ]
+            },
+            {
+              "tag": "Label",
+              "values": [
+                "Help"
+              ]
+            }
+          ],
+          "children": [
+            "inside"
+          ]
+        },
+        {
+          "key": "inside",
+          "kind": {
+            "tag": "Button",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Label",
+              "values": [
+                "Action"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "tooltip description points from its anchor",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "trigger",
+            "overlay"
+          ]
+        },
+        {
+          "key": "trigger",
+          "kind": {
+            "tag": "Button",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Label",
+              "values": [
+                "Trigger"
+              ]
+            },
+            {
+              "tag": "DescribedBy",
+              "values": [
+                "overlay"
+              ]
+            }
+          ],
+          "children": []
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Tooltip",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Anchor",
+              "values": [
+                "trigger"
+              ]
+            },
+            {
+              "tag": "Label",
+              "values": [
+                "Help"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": true
+  },
+  {
+    "name": "tooltip description cannot name another trigger",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "trigger",
+            "other",
+            "overlay"
+          ]
+        },
+        {
+          "key": "trigger",
+          "kind": {
+            "tag": "Button",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Label",
+              "values": [
+                "Trigger"
+              ]
+            }
+          ],
+          "children": []
+        },
+        {
+          "key": "other",
+          "kind": {
+            "tag": "Button",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "DescribedBy",
+              "values": [
+                "overlay"
+              ]
+            }
+          ],
+          "children": []
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Tooltip",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Anchor",
+              "values": [
+                "trigger"
+              ]
+            },
+            {
+              "tag": "Label",
+              "values": [
+                "Help"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "cyclic overlay anchors",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "a",
+            "b"
+          ]
+        },
+        {
+          "key": "a",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Popover",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Anchor",
+              "values": [
+                "b"
+              ]
+            }
+          ],
+          "children": []
+        },
+        {
+          "key": "b",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Popover",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Anchor",
+              "values": [
+                "a"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  },
+  {
+    "name": "unanchored modal still rejects supplied dangling anchor",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [],
+          "children": [
+            "overlay"
+          ]
+        },
+        {
+          "key": "overlay",
+          "kind": {
+            "tag": "Overlay",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "OverlayKind",
+              "values": [
+                {
+                  "tag": "Dialog",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Label",
+              "values": [
+                "Settings"
+              ]
+            },
+            {
+              "tag": "Anchor",
+              "values": [
+                "missing"
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": false
+  }
+]

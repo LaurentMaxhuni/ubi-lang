@@ -1,0 +1,208 @@
+{
+  "samples": [
+    {
+      "from": 0,
+      "to": 100,
+      "startMs": 100,
+      "nowMs": 0,
+      "motion": {
+        "durationMs": 100,
+        "delayMs": 0,
+        "easing": "Linear"
+      },
+      "expected": 0
+    },
+    {
+      "from": 0,
+      "to": 100,
+      "startMs": 0,
+      "nowMs": 50,
+      "motion": {
+        "durationMs": 100,
+        "delayMs": 0,
+        "easing": "Linear"
+      },
+      "expected": 50
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "startMs": 0,
+      "nowMs": 50,
+      "motion": {
+        "durationMs": 100,
+        "delayMs": 0,
+        "easing": "EaseOut"
+      },
+      "expected": 0.875
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "startMs": 0,
+      "nowMs": 25,
+      "motion": {
+        "durationMs": 100,
+        "delayMs": 0,
+        "easing": "EaseInOut"
+      },
+      "expected": 0.0625
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "startMs": 0,
+      "nowMs": 50,
+      "motion": {
+        "durationMs": 100,
+        "delayMs": 0,
+        "easing": "EaseInOut"
+      },
+      "expected": 0.5
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "startMs": 0,
+      "nowMs": 75,
+      "motion": {
+        "durationMs": 100,
+        "delayMs": 0,
+        "easing": "EaseInOut"
+      },
+      "expected": 0.9375
+    },
+    {
+      "from": 10,
+      "to": -10,
+      "startMs": 0,
+      "nowMs": 100,
+      "motion": {
+        "durationMs": 100,
+        "delayMs": 0,
+        "easing": "Linear"
+      },
+      "expected": -10
+    },
+    {
+      "from": -20,
+      "to": 20,
+      "startMs": 0,
+      "nowMs": 50,
+      "motion": {
+        "durationMs": 100,
+        "delayMs": 50,
+        "easing": "Linear"
+      },
+      "expected": -20
+    },
+    {
+      "from": -20,
+      "to": 20,
+      "startMs": 0,
+      "nowMs": 100,
+      "motion": {
+        "durationMs": 100,
+        "delayMs": 50,
+        "easing": "Linear"
+      },
+      "expected": 0
+    },
+    {
+      "from": 5,
+      "to": 9,
+      "startMs": 0,
+      "nowMs": 0,
+      "motion": {
+        "durationMs": 0,
+        "delayMs": 1000,
+        "easing": "Spring"
+      },
+      "expected": 9
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "startMs": 0,
+      "nowMs": 0,
+      "motion": {
+        "durationMs": 220,
+        "delayMs": 0,
+        "easing": "Spring"
+      },
+      "expected": 0
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "startMs": 0,
+      "nowMs": 220,
+      "motion": {
+        "durationMs": 220,
+        "delayMs": 0,
+        "easing": "Spring"
+      },
+      "expected": 1
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "startMs": 0,
+      "nowMs": 22,
+      "motion": {
+        "durationMs": 220,
+        "delayMs": 0,
+        "easing": "Spring"
+      },
+      "expected": 0.4251620962480369
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "startMs": 0,
+      "nowMs": 55,
+      "motion": {
+        "durationMs": 220,
+        "delayMs": 0,
+        "easing": "Spring"
+      },
+      "expected": 1.0954722313697698
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "startMs": 0,
+      "nowMs": 110,
+      "motion": {
+        "durationMs": 220,
+        "delayMs": 0,
+        "easing": "Spring"
+      },
+      "expected": 1.0116000500218243
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "startMs": 0,
+      "nowMs": 165,
+      "motion": {
+        "durationMs": 220,
+        "delayMs": 0,
+        "easing": "Spring"
+      },
+      "expected": 0.9870455645412884
+    },
+    {
+      "from": 0,
+      "to": 1,
+      "startMs": 0,
+      "nowMs": 198,
+      "motion": {
+        "durationMs": 220,
+        "delayMs": 0,
+        "easing": "Spring"
+      },
+      "expected": 1.0001091119737493
+    }
+  ]
+}
