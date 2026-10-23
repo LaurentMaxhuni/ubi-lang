@@ -1,17 +1,21 @@
 # Ubi implementation plan
 
-## Proposed Ubi UI expansion, requested 2026-10-22
+## Ubi UI expansion, authorized 2026-10-22
 
 User approved the Skiper / Animate UI / React Bits / Magic UI direction after
 [reference research](docs/ubi-ui-design-references.md), then approved the written
-[motion and component design](docs/superpowers/specs/2026-10-22-ubi-ui-motion-design.md)
-covers shared web/native motion, existing control upgrades and 30 additional
+[motion and component design](docs/superpowers/specs/2026-10-22-ubi-ui-motion-design.md).
+The design covers shared web/native motion, existing control upgrades and 30 additional
 components. Implementation is divided into linked plans for
 [motion and the first four additions](docs/superpowers/plans/2026-10-22-ubi-ui-motion.md),
 [15 application components](docs/superpowers/plans/2026-10-22-ubi-ui-application-components.md)
 and [11 remaining expressive components](docs/superpowers/plans/2026-10-22-ubi-ui-expressive-components.md).
-Written-plan review and execution-method selection are pending; runtime motion
-and the new components are not implemented yet.
+User approved execution and restricted subagents to GPT-6 Luna at max reasoning.
+All 30 source additions and examples exist; the catalog contains 70 components.
+Browser/native motion and interaction integration passed final review corrections.
+[Verification](docs/ubi-ui-motion-verification.md) records 336 Rust tests,
+54 Node tests, the 71-example browser matrix, source interactions, native GPU
+captures and platform coverage limits. Documentation builds 82 static pages.
 
 ## New priority: Ubi UI, requested 2026-10-21
 

@@ -1,5 +1,11 @@
 # Ubi UI Motion and First Components Implementation Plan
 
+## Execution status, 2026-10-23
+
+Tasks 1-6 implemented: bounded ABI, pure motion, both hosts, existing controls and first four additions. Task 7 release checks passed within the documented host coverage.
+
+User approved all three plans and execution. All subagents used GPT-6 Luna at max reasoning, as requested. The detailed sequences below are the original approved procedure, retained as reference rather than an outstanding work queue. Intermediate catalog checkpoints and proposed per-task commit messages were consolidated around the shared host implementation. The authoritative final results and remaining platform limits are in [verification](../../ubi-ui-motion-verification.md). Physical mobile/native OS accessibility checks remain outside verified coverage.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Deliver shared motion, seven existing control upgrades, and four real animated Ubi components.
@@ -54,11 +60,11 @@ Refresh the graph after source changes before relying on new relationships.
 
 **Interfaces:** Ubi exports exactly `Easing`, `Transition`, `Motion` and six motion properties from the spec. Rust exports equivalent enums and `Motion { duration_ms: u32, delay_ms: u32, easing: Easing }`; normalized Node gains optional motion, enter/exit and target opacity/translation/scale. Opacity defaults to 1, translation to `[0,0]`, scale to 1 after normalization. A missing Motion stays distinguishable from explicit zero duration.
 
-- [ ] Add matching `motion_bounds_and_shape` cases in Rust and Node: accept all boundary values, reject duration 2001, delay 1001, opacity 101, scale 24/201, translation 100001, fractional integers, duplicate props, unknown easing, extra record fields and malformed nested enum payloads. Assert old examples still decode unchanged.
-- [ ] Run `rtk cargo test --locked -p ubi-ui-core --test motion` and `rtk proxy node --test ubi-ui/web/tests/validate.test.mjs`; confirm failures identify unsupported new ABI, rather than setup errors.
-- [ ] Implement public types and both decoders using existing validation/error conventions. Keep all existing graph/codec budgets; do not allow arbitrary CSS or unknown properties.
-- [ ] Run those commands again plus `rtk cargo test --locked --test native_components`; expect all assertions passing with the catalog still at 40.
-- [ ] Commit as `feat(ui): add validated shared motion contract`.
+- Add matching `motion_bounds_and_shape` cases in Rust and Node: accept all boundary values, reject duration 2001, delay 1001, opacity 101, scale 24/201, translation 100001, fractional integers, duplicate props, unknown easing, extra record fields and malformed nested enum payloads. Assert old examples still decode unchanged.
+- Run `rtk cargo test --locked -p ubi-ui-core --test motion` and `rtk proxy node --test ubi-ui/web/tests/validate.test.mjs`; confirm failures identify unsupported new ABI, rather than setup errors.
+- Implement public types and both decoders using existing validation/error conventions. Keep all existing graph/codec budgets; do not allow arbitrary CSS or unknown properties.
+- Run those commands again plus `rtk cargo test --locked --test native_components`; expect all assertions passing with the catalog still at 40.
+- Commit as `feat(ui): add validated shared motion contract`.
 
 ## Task 2: Pure frame sampling and bounded lifecycle
 
@@ -70,11 +76,11 @@ Both modules export `MotionState`. Rust methods are `commit(&mut self, targets: 
 
 Channels include opacity, translate-x/y, scale and internal control values; channels are host-owned, never arbitrary executable source properties. Sanitize snapshots before storing them; input/password/text-area/number-input nodes have no exit snapshots. Every node owns a bounded set of channels; cap at 16 per node. Reject nonfinite host targets before mutating state.
 
-- [ ] Add shared fixtures and `samples_match_reference_curve`: assert exact endpoints, linear midpoint 0.5, EaseOut midpoint 0.875, EaseInOut midpoint 0.5, Spring formula from spec, delay boundaries and zero-duration immediate target. Store reference numbers in JSON; each runner compares to fixtures, not just to its own formula.
-- [ ] Add `interruption_and_exit_lifetime`: retarget a 0→100 linear track at 50ms of 100ms and assert new start 50; a delayed retarget starts from the last presented value; same-key/same-kind resurrection cancels exit; different kind replaces it; 4097 exiting nodes retain only the newest 4096; editable snapshots retain no content/value. `dispose()` leaves no tracks/exits.
-- [ ] Run `rtk cargo test --locked -p ubi-ui-core --test motion` and `rtk proxy node --test ubi-ui/web/tests/motion.test.mjs`; verify new sampling/lifecycle tests fail before implementation.
-- [ ] Implement spec easing, endpoint clamping, interruption, bounded snapshots and deterministic sampling. Finite transitions jump to elapsed-time targets after suspension; reduced motion settles all tracks and releases exits immediately.
-- [ ] Repeat both suites; expect all shared samples within `0.00001` and zero retained state after disposal. Commit as `feat(ui): sample bounded keyed motion across hosts`.
+- Add shared fixtures and `samples_match_reference_curve`: assert exact endpoints, linear midpoint 0.5, EaseOut midpoint 0.875, EaseInOut midpoint 0.5, Spring formula from spec, delay boundaries and zero-duration immediate target. Store reference numbers in JSON; each runner compares to fixtures, not just to its own formula.
+- Add `interruption_and_exit_lifetime`: retarget a 0→100 linear track at 50ms of 100ms and assert new start 50; a delayed retarget starts from the last presented value; same-key/same-kind resurrection cancels exit; different kind replaces it; 4097 exiting nodes retain only the newest 4096; editable snapshots retain no content/value. `dispose()` leaves no tracks/exits.
+- Run `rtk cargo test --locked -p ubi-ui-core --test motion` and `rtk proxy node --test ubi-ui/web/tests/motion.test.mjs`; verify new sampling/lifecycle tests fail before implementation.
+- Implement spec easing, endpoint clamping, interruption, bounded snapshots and deterministic sampling. Finite transitions jump to elapsed-time targets after suspension; reduced motion settles all tracks and releases exits immediately.
+- Repeat both suites; expect all shared samples within `0.00001` and zero retained state after disposal. Commit as `feat(ui): sample bounded keyed motion across hosts`.
 
 ## Task 3: Browser integration, rollback and idle scheduling
 
@@ -82,11 +88,11 @@ Channels include opacity, translate-x/y, scale and internal control values; chan
 
 **Interfaces:** `mount(root, app, options)` preserves existing options/handle methods. Add `options.motion` equal to `'system' | 'full' | 'reduced'` (default system) and optional host clock `{now(), requestFrame(callback), cancelFrame(id)}`. It is a trusted embedding/test interface, not Ubi capability access. Add `handle.setMotion(mode)` with the same validation. Production clock uses monotonic time and requestAnimationFrame. Export `createPresentation(root, options)` returning `prepare(nextView, entries)`, `commit(prepared)`, `sample(nowMs)`, `setMotion(mode)` and `dispose()` from the new DOM module; prepared state is private until successful logical/DOM commit.
 
-- [ ] Add `failed_patch_preserves_motion` and `exit_reuse_preserves_focus`: deliberately fail a DOM patch after preparing motion; assert model/view, active track, focus/selection and DOM ownership remain unchanged. Remove/reinsert a key and assert one live ID, no live exit bindings and no editable snapshots.
-- [ ] Add fake-clock tests: 100 frame callbacks do not invoke app reducers/views again; reduced-motion change settles and cancels callbacks; hiding cancels ambient scheduling, resuming samples elapsed finite time; disposal removes media/visibility listeners and cancels the frame. Scope all CSS and media handling to each mount.
-- [ ] Run `rtk proxy node --test ubi-ui/web/tests/presentation.test.mjs`; serve repo root with `rtk proxy python -m http.server 4318 --bind 127.0.0.1`, open `/ubi-ui/web/tests/browser.html` through the browser tool and confirm new regression failures before integration.
-- [ ] Integrate prepared presentation commits after successful DOM/state commit; rollback cannot mutate previous tracks. Snapshot exits without live IDs/event listeners. Add transforms/opacity via scoped style variables; browser hit geometry follows the same transforms. Export all imported runtime modules by extending the existing explicit exporter allowlist.
-- [ ] Repeat Node/browser checks; run `rtk cargo test --locked --test web_ui`. Verify exported preview pages load their new relative module imports. Commit as `feat(ui): animate browser views transactionally`.
+- Add `failed_patch_preserves_motion` and `exit_reuse_preserves_focus`: deliberately fail a DOM patch after preparing motion; assert model/view, active track, focus/selection and DOM ownership remain unchanged. Remove/reinsert a key and assert one live ID, no live exit bindings and no editable snapshots.
+- Add fake-clock tests: 100 frame callbacks do not invoke app reducers/views again; reduced-motion change settles and cancels callbacks; hiding cancels ambient scheduling, resuming samples elapsed finite time; disposal removes media/visibility listeners and cancels the frame. Scope all CSS and media handling to each mount.
+- Run `rtk proxy node --test ubi-ui/web/tests/presentation.test.mjs`; serve repo root with `rtk proxy python -m http.server 4318 --bind 127.0.0.1`, open `/ubi-ui/web/tests/browser.html` through the browser tool and confirm new regression failures before integration.
+- Integrate prepared presentation commits after successful DOM/state commit; rollback cannot mutate previous tracks. Snapshot exits without live IDs/event listeners. Add transforms/opacity via scoped style variables; browser hit geometry follows the same transforms. Export all imported runtime modules by extending the existing explicit exporter allowlist.
+- Repeat Node/browser checks; run `rtk cargo test --locked --test web_ui`. Verify exported preview pages load their new relative module imports. Commit as `feat(ui): animate browser views transactionally`.
 
 ## Task 4: Native presentation, transformed input and frame scheduling
 
@@ -96,11 +102,11 @@ Channels include opacity, translate-x/y, scale and internal control values; chan
 
 Platform `MotionPreference { System, Full, Reduced }` defaults to System. Preserve `run`/`Options`; add `run_with_motion(app: impl Application + 'static, options: Options, preference: MotionPreference) -> Result<(), Error>`. Host timestamps come from `Instant`; use MotionState active/deadline to request redraw/WaitUntil and return to Wait when settled. Add `capture_at(app: &impl Application, from: &View, path: &Path, width: u32, height: u32, dark: bool, now_ms: u64, preference: MotionPreference) -> Result<String, Error>`; seed from the previous View at time zero, commit current app.view at zero, and sample at now_ms. Preserve capture's existing create-new-file behavior. Platform preference adapter returns reduced on query failure. Windows queries `SPI_GETCLIENTAREAANIMATION` and rechecks on activation and before scheduling motion; unsupported OS adapters use reduced. Verify current official Windows API documentation before implementation, then use a target-only direct `windows-sys` dependency matching the already locked version; do not import an ambient shell setting.
 
-- [ ] Add `nested_transform_hit_and_clip`: a translated/scaled child under a transformed clipped parent produces the same visible/click/focus bounds at DPI 1 and 2; old coordinates do not hit the moved child; exit layers do not appear in hit/accessibility output. Add GPU timestamp captures whose pixel bounds match presented geometry.
-- [ ] Add `host_sleeps_after_motion` and `preference_change_settles`: finite motion requests frames until its deadline, then no pending redraw/timer; occluded/zero-size windows do not spin; preference change removes exits/ambient loops; failed application dispatch preserves tracks.
-- [ ] Run `rtk cargo test --locked -p ubi-ui-layout -p ubi-ui-input -p ubi-ui-platform -p ubi-ui-render`; verify focused new assertions fail before integration. GPU unavailability is an explicit environment limitation, not a pass.
-- [ ] Implement presented geometry, painter transforms/alpha and native host scheduling. Expand render primitive budgets for exits only within the existing bounded frame limit; release snapshots on close/device teardown. Keep application commit atomic.
-- [ ] Repeat focused suites; run `rtk cargo run --locked --features native-ui -- ui examples/gallery.ubi --root ubi-ui --smoke`. Record Windows full-motion and reduced-motion evidence and idle frame count. Commit as `feat(ui): render and schedule native motion`.
+- Add `nested_transform_hit_and_clip`: a translated/scaled child under a transformed clipped parent produces the same visible/click/focus bounds at DPI 1 and 2; old coordinates do not hit the moved child; exit layers do not appear in hit/accessibility output. Add GPU timestamp captures whose pixel bounds match presented geometry.
+- Add `host_sleeps_after_motion` and `preference_change_settles`: finite motion requests frames until its deadline, then no pending redraw/timer; occluded/zero-size windows do not spin; preference change removes exits/ambient loops; failed application dispatch preserves tracks.
+- Run `rtk cargo test --locked -p ubi-ui-layout -p ubi-ui-input -p ubi-ui-platform -p ubi-ui-render`; verify focused new assertions fail before integration. GPU unavailability is an explicit environment limitation, not a pass.
+- Implement presented geometry, painter transforms/alpha and native host scheduling. Expand render primitive budgets for exits only within the existing bounded frame limit; release snapshots on close/device teardown. Keep application commit atomic.
+- Repeat focused suites; run `rtk cargo run --locked --features native-ui -- ui examples/gallery.ubi --root ubi-ui --smoke`. Record Windows full-motion and reduced-motion evidence and idle frame count. Commit as `feat(ui): render and schedule native motion`.
 
 ## Task 5: Upgrade existing controls without inventing catalog entries
 
@@ -108,11 +114,11 @@ Platform `MotionPreference { System, Full, Reduced }` defaults to System. Preser
 
 **Interfaces:** public constructor signatures stay unchanged. Add `Prop.Disclosure(bool)` on containers; these containers always exist, with logical content represented only while open and visual snapshots supporting close. Measured disclosure height adjusts sibling geometry each frame. Tabs/segmented controls resolve the selected child's stable key using existing Group/Selected semantics. A missing Motion resolves the spec defaults; explicit zero disables all motion, including shimmer. Control channels live in host MotionState.
 
-- [ ] Add `control_motion_defaults_and_opt_out`: assert 140ms EaseOut feedback, 220ms Spring selection/switch, 220ms EaseInOut disclosure, immediate semantic selected/value changes and static zero-duration output. Verify old imports/signatures and all 40 examples compile.
-- [ ] Add `disclosure_reverse_resize_and_focus`: close while a child is focused, assert immediate focus cleanup and noninteractive visual exit; reopen halfway without a jump; resize during expansion updates target/siblings without replaying entry. Skeleton reduced mode is static and schedules no callbacks.
-- [ ] Run focused Rust/Node/browser checks from Tasks 1–4; confirm new component assertions fail first.
-- [ ] Implement control-part sampling and source disclosure markers; keep tab panel semantics active-only and the focus ring immediate. Do not add duplicate Motion/Role props in source helpers.
-- [ ] Run focused checks plus `rtk cargo test --locked --test native_components --test web_ui`; expect catalog 40 and all old behavior preserved. Commit as `feat(ui): animate selection disclosure and feedback controls`.
+- Add `control_motion_defaults_and_opt_out`: assert 140ms EaseOut feedback, 220ms Spring selection/switch, 220ms EaseInOut disclosure, immediate semantic selected/value changes and static zero-duration output. Verify old imports/signatures and all 40 examples compile.
+- Add `disclosure_reverse_resize_and_focus`: close while a child is focused, assert immediate focus cleanup and noninteractive visual exit; reopen halfway without a jump; resize during expansion updates target/siblings without replaying entry. Skeleton reduced mode is static and schedules no callbacks.
+- Run focused Rust/Node/browser checks from Tasks 1–4; confirm new component assertions fail first.
+- Implement control-part sampling and source disclosure markers; keep tab panel semantics active-only and the focus ring immediate. Do not add duplicate Motion/Role props in source helpers.
+- Run focused checks plus `rtk cargo test --locked --test native_components --test web_ui`; expect catalog 40 and all old behavior preserved. Commit as `feat(ui): animate selection disclosure and feedback controls`.
 
 ## Task 6: Four new animated components and real examples
 
@@ -129,11 +135,11 @@ shimmerButton<M>(key: string, content: string, message: M, props: List<Prop<M>>)
 
 Use signed decimal formatting for ticker, including negative values; clamp overshoot before integer display. Announce only logical values. TextReveal exposes one continuous accessible string; per-word visual runs are hidden from semantics. AnimatedList reorders keyed child positions without changing reading order. ShimmerButton retains standard Button busy/disabled behavior. All four use motion defaults/overrides from earlier tasks; no imperative frame calls in Ubi.
 
-- [ ] Add `first_motion_components_roundtrip`: compile each real Ubi example, compare native/JS init/update/view, assert expected kinds/effects and four unique catalog entries. Replace hard-coded 40/41 assertions in `tests/native_components.rs`, `tests/web_ui.rs`, `ubi-ui/tools/verify_web.mjs` and browser catalog scripts with catalog-derived expected counts (catalog plus one gallery); assert exact catalog count 44 at this release checkpoint.
-- [ ] Add `ticker_negative_interrupt_and_reveal_semantics`, `animated_list_reorder_keeps_focus`, `shimmer_busy_does_not_activate`: sample intermediate values, interrupt, toggle reduced motion, reorder a focused child, verify one semantic string/value and zero unexpected actions.
-- [ ] Run matching focused checks and confirm failures before adding source/host behavior.
-- [ ] Implement source modules, facade forwarders and host effects; add reducers showing update/replay/reorder/busy toggles. Document copyable source, named effects, motion toggles and honest native/browser support.
-- [ ] Run `rtk cargo test --locked --test native_components --test web_ui`, browser component catalog and timestamp GPU captures; verify 44 components plus gallery. Commit as `feat(ui): add first four animated Ubi components`.
+- Add `first_motion_components_roundtrip`: compile each real Ubi example, compare native/JS init/update/view, assert expected kinds/effects and four unique catalog entries. Replace hard-coded 40/41 assertions in `tests/native_components.rs`, `tests/web_ui.rs`, `ubi-ui/tools/verify_web.mjs` and browser catalog scripts with catalog-derived expected counts (catalog plus one gallery); assert exact catalog count 44 at this release checkpoint.
+- Add `ticker_negative_interrupt_and_reveal_semantics`, `animated_list_reorder_keeps_focus`, `shimmer_busy_does_not_activate`: sample intermediate values, interrupt, toggle reduced motion, reorder a focused child, verify one semantic string/value and zero unexpected actions.
+- Run matching focused checks and confirm failures before adding source/host behavior.
+- Implement source modules, facade forwarders and host effects; add reducers showing update/replay/reorder/busy toggles. Document copyable source, named effects, motion toggles and honest native/browser support.
+- Run `rtk cargo test --locked --test native_components --test web_ui`, browser component catalog and timestamp GPU captures; verify 44 components plus gallery. Commit as `feat(ui): add first four animated Ubi components`.
 
 ## Task 7: First release verification and evidence
 
@@ -141,10 +147,10 @@ Use signed decimal formatting for ticker, including negative values; clamp overs
 
 **Interfaces:** existing real-preview routes and source highlighting stay functional. Documentation distinguishes sampled GPU stills from motion interaction evidence and names hosts actually exercised.
 
-- [ ] Run `rtk cargo test --locked --workspace --features native-ui`, `rtk proxy node --test ubi-ui/web/tests/*.test.mjs ubi-ui/docs/tests/*.test.mjs`, `rtk cargo fmt --all -- --check`, `rtk cargo clippy --workspace --all-targets --features native-ui -- -D warnings`, and `rtk proxy npm --prefix ubi-ui/docs run build`. Retain full failing logs when output is condensed.
-- [ ] Serve repo as in Task 3; exercise browser regressions and `/ubi-ui/tools/browser_catalog.html`, live documentation previews, copy/theme/reset, 320/768/1440px widths, full/reduced modes and multiple independent mounts. Capture native start/mid/end frames plus real window interaction; verify no idle redraw after finite completion. Record performance measurements without claiming an unmeasured frame-rate guarantee.
-- [ ] Review the combined diff against all five Review Focus conditions, hostile ABI handling, focus/security budgets and source ownership. Fix concrete failures and rerun only affected checks before repeating final required checks.
-- [ ] Record exact commands, results, screenshots and remaining OS/device/screen-reader limitations. Mark completed tasks truthfully and commit as `docs(ui): record animated foundation verification`.
+- Run `rtk cargo test --locked --workspace --features native-ui`, `rtk proxy node --test ubi-ui/web/tests/*.test.mjs ubi-ui/docs/tests/*.test.mjs`, `rtk cargo fmt --all -- --check`, `rtk cargo clippy --workspace --all-targets --features native-ui -- -D warnings`, and `rtk proxy npm --prefix ubi-ui/docs run build`. Retain full failing logs when output is condensed.
+- Serve repo as in Task 3; exercise browser regressions and `/ubi-ui/tools/browser_catalog.html`, live documentation previews, copy/theme/reset, 320/768/1440px widths, full/reduced modes and multiple independent mounts. Capture native start/mid/end frames plus real window interaction; verify no idle redraw after finite completion. Record performance measurements without claiming an unmeasured frame-rate guarantee.
+- Review the combined diff against all five Review Focus conditions, hostile ABI handling, focus/security budgets and source ownership. Fix concrete failures and rerun only affected checks before repeating final required checks.
+- Record exact commands, results, screenshots and remaining OS/device/screen-reader limitations. Mark completed tasks truthfully and commit as `docs(ui): record animated foundation verification`.
 
 ## Handoff
 
@@ -177,6 +183,4 @@ assert.equal(pendingFrames, 0); // after disposal
 ```
 
 This is plan 1 of 3. Plans 2 and 3 are part of the same proposed implementation
-scope and each has its own release verification. No implementation is authorized
-by this document alone: user reviews the written plans and selects native or
-subagent-driven execution before coding.
+scope. Their release verification was consolidated after all 70 components were integrated. User approval and execution selection were received before coding.

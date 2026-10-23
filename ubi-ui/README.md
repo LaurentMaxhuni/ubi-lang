@@ -14,7 +14,7 @@ cargo run --locked --example ui-web-export -- target/ubi-web
 python -m http.server 4319 --bind 127.0.0.1 --directory target/ubi-web
 ```
 
-Open `/` on that server for forty interactive component applications and the
+Open `/` on that server for seventy interactive component applications and the
 gallery. The output is a portable static directory with relative assets; bundle
 it in mobile or desktop WebViews, or deploy it to a web host. The same source
 modules and reducers run in the native Rust host below. See the [browser host
@@ -99,7 +99,7 @@ retain their order. There is no claim of GPU performance based on CPU timings.
 
 ## Implemented components
 
-The [catalog](catalog.json) contains 40 components, each with a separate module,
+The [catalog](catalog.json) contains 70 components, each with a separate module,
 runnable example and documentation page:
 
 - Layout: Window, View, Column, Row, Flex, Grid, ScrollView, Card, Separator.
@@ -108,16 +108,25 @@ runnable example and documentation page:
   SearchInput, SegmentedControl, TextArea, Toggle, ToggleGroup.
 - Navigation/disclosure: Breadcrumb, Link, Tabs, Accordion, Collapsible.
 - Feedback: Alert, Badge, Empty, Progress, Skeleton.
+- Application: Dialog, AlertDialog, Drawer, Popover, Tooltip, Toast, Select,
+  Combobox, DropdownMenu, ContextMenu, CommandPalette, Pagination, Stepper,
+  Timeline and Table.
+- Effects: SpotlightCard, TiltCard, CardStack, Carousel, Dock, Marquee,
+  NumberTicker, TextReveal, RotatingText, ShimmerButton, BorderBeam,
+  AuroraBackground, GridBackground, ScrollReveal and AnimatedList.
 
 Controls are controlled by Ubi state. RadioGroup/Tabs select during arrow
 navigation. SegmentedControl/ToggleGroup arrows move focus; Space/Enter select or
 toggle. NumberInput accepts signed integer text and clamps arrow-step commits to
 its configured range. TextArea supports newlines and multiline caret movement.
-Skeleton is static; Avatar displays initials; Link dispatches an application
+Avatar displays initials; Link dispatches an application
 message. Label is visible text: also provide an accessible name on its control.
 
-Select, ComboBox, SplitView, overlays, Toast and Spinner remain deferred.
-Motion/effects/blocks/data/AI/icons packages are not implemented during this phase.
+SplitView, date pickers, Spinner and separate blocks/data/AI/icons packages remain
+deferred. Motion belongs to host presentation: Ubi owns logical state and typed
+events. The [motion verification notes](../docs/ubi-ui-motion-verification.md)
+record integration status and platform limits. Decorative native fallbacks are
+documented per component.
 
 ## Documentation and captures
 
@@ -131,7 +140,7 @@ npm run build
 
 Next.js/React/Tailwind are confined to this documentation portal. It reads actual
 Ubi declarations, the catalog and complete examples during build. The portal has
-six guides and 40 component pages, grouped navigation, Ctrl/Cmd+K search, theme
+eight guides and 70 component pages, grouped navigation, Ctrl/Cmd+K search, theme
 switching, source copying and Preview/Native/Code tabs. Preview runs the actual
 compiled Ubi application with working web controls; Native shows its desktop GPU
 capture; Code shows highlighted Ubi source. Reset restarts the preview, while
@@ -142,12 +151,16 @@ Generate new captures in an empty directory (files never overwrite):
 ```powershell
 cargo run --locked --features native-ui --example native-ui-capture -- <existing-empty-directory>
 cargo run --locked --features native-ui --example native-ui-capture -- --components <existing-empty-directory>
+cargo run --locked --features native-ui --example native-ui-capture -- --motion <existing-empty-directory>
 cargo run --locked --features native-ui -- ui examples/gallery.ubi --root ubi-ui --capture <new.png>
 cargo run --locked --features native-ui -- ui examples/gallery.ubi --root ubi-ui --smoke
 ```
 
-Component capture mode renders all 40 real examples at 900×480 in light and dark
-themes. Copy the resulting 80 PNGs into `docs/public/components/` before building.
+Component capture mode renders all 70 real examples at 900×480 in light and dark
+themes. Overlay examples first dispatch their source-owned opening action. Copy
+the resulting 140 PNGs into `docs/public/components/` before building. Motion mode
+samples real component updates at fixed timestamps using the native presentation
+and GPU path.
 
 `--smoke` creates a hidden native window, acquires a swapchain frame, renders the
 Ubi view and presents it, then exits with a success marker. It does not claim
@@ -172,7 +185,9 @@ Windows native and browser execution are verified. Linux/macOS native execution,
 native WebAssembly/mobile hosts,
 native screen-reader bridges, advanced text shaping/bidirectional text/font
 fallback, clipboard and range selection, horizontal scrolling, arbitrary Ubi
-color-token definitions and animated transitions are not implemented/verified.
+color-token definitions are not implemented/verified. Expanded motion and
+component verification is tracked separately in the
+[current evidence](../docs/ubi-ui-motion-verification.md).
 Accessibility records expose roles/names/values/states/bounds; password values
 are redacted. Pure reducers run on the event thread under execution limits, so
 expensive work belongs outside update/view. Events failing evaluation currently

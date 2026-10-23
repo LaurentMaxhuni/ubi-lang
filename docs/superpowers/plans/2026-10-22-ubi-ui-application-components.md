@@ -1,5 +1,11 @@
 # Ubi UI Application Components Implementation Plan
 
+## Execution status, 2026-10-23
+
+Tasks 1-5 implemented: overlay contracts, cross-host focus/input, six overlays, selection/menus and application composites. Task 6 release checks passed within the documented host coverage.
+
+User approved all three plans and execution. All subagents used GPT-6 Luna at max reasoning, as requested. The detailed sequences below are the original approved procedure, retained as reference rather than an outstanding work queue. Intermediate catalog checkpoints and proposed per-task commit messages were consolidated around the shared host implementation. The authoritative final results and remaining platform limits are in [verification](../../ubi-ui-motion-verification.md). Physical mobile/native OS accessibility checks remain outside verified coverage.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add 15 usable Ubi application components with shared overlay, selection, focus and semantic behavior.
@@ -46,10 +52,10 @@
 
 Add shared `MenuAction<M> { value: string, label: string, message: M, disabled: bool }`, `TableColumn { key: string, label: string, sortable: bool }`, `TableRow { key: string, cells: List<string> }` source records. Menu items store value in Prop.Option; table headers/rows store column/row key in Prop.Option. These values must be nonempty and unique within their owner; normalized host semantic validation rejects duplicates before commit. Extend Role's allowlist only for implemented overlay/menu/listbox/table semantics.
 
-- [ ] Add matching `overlay_relationships_and_bounds`: Label/LabelledBy rules, dangling/self label/description/anchor references, duplicate menu values, wrong property-kind pairs, cyclic overlay ancestry, TimeoutMs -1/60001, default Open=false and exact placement defaults. Fixture assertion: `assert_eq!(decoded.open, false)`; invalid cases assert `View::decode(raw).is_err()` and `assert.throws(() => validateView(raw))`.
-- [ ] Run `rtk cargo test --locked -p ubi-ui-core --test overlay` and `rtk proxy node --test ubi-ui/web/tests/validate.test.mjs`; verify unsupported-ABI failures first.
-- [ ] Implement decoders and semantic validation without weakening existing Role/codec bounds. Preserve source keys; assign browser IDs only inside a mount.
-- [ ] Repeat checks and existing `native_components` / `web_ui` tests; commit as `feat(ui): validate overlay and selection contracts`.
+- Add matching `overlay_relationships_and_bounds`: Label/LabelledBy rules, dangling/self label/description/anchor references, duplicate menu values, wrong property-kind pairs, cyclic overlay ancestry, TimeoutMs -1/60001, default Open=false and exact placement defaults. Fixture assertion: `assert_eq!(decoded.open, false)`; invalid cases assert `View::decode(raw).is_err()` and `assert.throws(() => validateView(raw))`.
+- Run `rtk cargo test --locked -p ubi-ui-core --test overlay` and `rtk proxy node --test ubi-ui/web/tests/validate.test.mjs`; verify unsupported-ABI failures first.
+- Implement decoders and semantic validation without weakening existing Role/codec bounds. Preserve source keys; assign browser IDs only inside a mount.
+- Repeat checks and existing `native_components` / `web_ui` tests; commit as `feat(ui): validate overlay and selection contracts`.
 
 ## Task 2: Cross-host overlay stack, positioning and focus
 
@@ -59,12 +65,12 @@ Add shared `MenuAction<M> { value: string, label: string, message: M, disabled: 
 
 Browser `createOverlayStack(root, dispatch)` returns matching sync/dismiss/dispose behavior plus DOM-specific focus containment and aria/inert wiring. `dispatch(key, message)` is the renderer's existing validated revision-aware activation path. Paint overlay layers above normal scene in stack order. Closed overlays leave hit/focus/semantics immediately; retained visual exits reuse plan 1.
 
-- [ ] Add `topmost_modal_focus_and_dismissal`: two open layers, Escape closes only the eligible top; AlertDialog ignores Escape/backdrop; removing/disabling its trigger selects the documented fallback. Assert `events.length === 1`, `assert.equal(document.activeElement, survivingTrigger)`, and `assert_eq!(input.hit(...), None)` for underlying modal-inert content.
-- [ ] Add `outside_pointer_pair_and_anchor_edges`: inside-down/outside-up never dismisses; outside-down/outside-up dismisses once; scroll/resize/animated-anchor movement recomputes placement; tiny viewport remains finite/clipped. Right-click position and Shift+F10 use the correct pointer/anchor bounds.
-- [ ] Add `stale_overlay_generation_is_ignored`: queued callback from a closed generation cannot act on its reopened replacement, and disposal removes all listeners/timers. Assert `assert.equal(reopenedModel.open, true)` after delivering the stale callback.
-- [ ] Run focused Rust layout/input tests and Node overlays tests, then browser harness; confirm failures before integration.
-- [ ] Implement stack/placement/focus as host infrastructure, with source model controlling actual open/closed state. Trap Tab/Shift+Tab only in active modals; Tooltip has no focusable content. Do not mutate application model in layout/paint.
-- [ ] Repeat tests plus native/GPU window checks; verify CSS portals remain within mount ownership and style isolation. Commit as `feat(ui): manage overlays focus and viewport placement`.
+- Add `topmost_modal_focus_and_dismissal`: two open layers, Escape closes only the eligible top; AlertDialog ignores Escape/backdrop; removing/disabling its trigger selects the documented fallback. Assert `events.length === 1`, `assert.equal(document.activeElement, survivingTrigger)`, and `assert_eq!(input.hit(...), None)` for underlying modal-inert content.
+- Add `outside_pointer_pair_and_anchor_edges`: inside-down/outside-up never dismisses; outside-down/outside-up dismisses once; scroll/resize/animated-anchor movement recomputes placement; tiny viewport remains finite/clipped. Right-click position and Shift+F10 use the correct pointer/anchor bounds.
+- Add `stale_overlay_generation_is_ignored`: queued callback from a closed generation cannot act on its reopened replacement, and disposal removes all listeners/timers. Assert `assert.equal(reopenedModel.open, true)` after delivering the stale callback.
+- Run focused Rust layout/input tests and Node overlays tests, then browser harness; confirm failures before integration.
+- Implement stack/placement/focus as host infrastructure, with source model controlling actual open/closed state. Trap Tab/Shift+Tab only in active modals; Tooltip has no focusable content. Do not mutate application model in layout/paint.
+- Repeat tests plus native/GPU window checks; verify CSS portals remain within mount ownership and style isolation. Commit as `feat(ui): manage overlays focus and viewport placement`.
 
 ## Task 3: Six overlay components with source-owned examples
 
@@ -74,10 +80,10 @@ Browser `createOverlayStack(root, dispatch)` returns matching sync/dismiss/dispo
 
 Tooltip requests opening on trigger focus immediately, on pointer hover after 350ms, dismisses on blur/leave/Escape, and ignores touch hover emulation. Suppress duplicate opening requests within a generation. Toast timeout measures visible unpaused time, pauses on hover/focus/hidden host, resets on a new opening generation, and emits Dismiss once; zero means no timer. Source examples include visible close controls and a safe initial AlertDialog cancel action.
 
-- [ ] Add `overlay_examples_roundtrip`: native/JS init/update/view agree; controlled open and dismiss messages close the intended component. Assert catalog count 50 and every new example owns a distinct source module.
-- [ ] Add `tooltip_focus_touch_and_timeout` and `toast_pause_reopen`: assert no tooltip request at 349ms, one at 350ms, immediate focus request, no touch-hover request; toast focus/hover pauses remaining time, close/reopen invalidates old timer; `assert.equal(dismissCount, 1)` after expiry and repeated ticks.
-- [ ] Run failing source/host cases, implement the six modules and host presentation details, then rerun native/web/browser and sampling/GPU checks in full/reduced modes.
-- [ ] Publish only working entries/previews and commit as `feat(ui): add dialogs drawers popovers tooltips and toasts`.
+- Add `overlay_examples_roundtrip`: native/JS init/update/view agree; controlled open and dismiss messages close the intended component. Assert catalog count 50 and every new example owns a distinct source module.
+- Add `tooltip_focus_touch_and_timeout` and `toast_pause_reopen`: assert no tooltip request at 349ms, one at 350ms, immediate focus request, no touch-hover request; toast focus/hover pauses remaining time, close/reopen invalidates old timer; `assert.equal(dismissCount, 1)` after expiry and repeated ticks.
+- Run failing source/host cases, implement the six modules and host presentation details, then rerun native/web/browser and sampling/GPU checks in full/reduced modes.
+- Publish only working entries/previews and commit as `feat(ui): add dialogs drawers popovers tooltips and toasts`.
 
 ## Task 4: Selection, menus and CommandPalette
 
@@ -95,11 +101,11 @@ commandPalette<M>(key: string, label: string, actions: List<MenuAction<M>>, quer
 
 Choice selection emits Event.Select(change, value); per-action menus emit Event.Activate(action.message). Trigger opening is Event.Activate(request). Query changes use Event.Input(input, text). Filter labels deterministically in pure Ubi using lowercase substring matching; keep original values/keys and order. Source fixtures cover Unicode without claiming locale-sensitive matching. Host keyboard logic navigates enabled choices with arrows/Home/End; typeahead buffer expires after 500ms; Escape dismisses. No component registers global Cmd/Ctrl+K; application triggers commandPalette explicitly. ContextMenu intercepts context/Shift+F10 only on its own anchor. Native input needs a context-request path and modifier-aware F10 mapping, without changing existing key meaning elsewhere.
 
-- [ ] Add `selection_filter_and_disabled_roundtrip`: empty/all-disabled sets activate nothing, duplicate labels preserve distinct values, no match displays a labelled empty state, selected value persists when filtered out. Assert `assert_eq!(selected_value, "second-stable-key")` after selecting the second duplicate label.
-- [ ] Add `ime_and_menu_keyboard`: composition updates do not trigger selection; Enter while composing activates nothing; committed query filters once; arrows skip disabled items; Home/End/typeahead focus the expected value; context shortcuts outside anchors remain unhandled.
-- [ ] Run focused failing Ubi/native/Node/browser tests before extending input, constructors and examples.
-- [ ] Implement shared selection behavior and source-composed trigger/list surfaces. Editable Combobox retains native input focus/caret and uses active-descendant semantics for list navigation; pointer selection cannot lose the pending query before commit.
-- [ ] Repeat both host suites and verify command selection/focus return with full/reduced motion. Assert catalog 55; commit as `feat(ui): add selects searchable menus and command palette`.
+- Add `selection_filter_and_disabled_roundtrip`: empty/all-disabled sets activate nothing, duplicate labels preserve distinct values, no match displays a labelled empty state, selected value persists when filtered out. Assert `assert_eq!(selected_value, "second-stable-key")` after selecting the second duplicate label.
+- Add `ime_and_menu_keyboard`: composition updates do not trigger selection; Enter while composing activates nothing; committed query filters once; arrows skip disabled items; Home/End/typeahead focus the expected value; context shortcuts outside anchors remain unhandled.
+- Run focused failing Ubi/native/Node/browser tests before extending input, constructors and examples.
+- Implement shared selection behavior and source-composed trigger/list surfaces. Editable Combobox retains native input focus/caret and uses active-descendant semantics for list navigation; pointer selection cannot lose the pending query before commit.
+- Repeat both host suites and verify command selection/focus return with full/reduced motion. Assert catalog 55; commit as `feat(ui): add selects searchable menus and command palette`.
 
 ## Task 5: Pagination, Stepper, Timeline and Table
 
@@ -116,10 +122,10 @@ table<M>(key: string, label: string, columns: List<TableColumn>, rows: List<Tabl
 
 Pagination has previous/next actions plus current/total text; current is one-based. Add container `Kind.Pagination` with integer `Prop.Page(int)` / `Prop.PageCount(int)` valid only on this kind, each bounded `1..100000`. Host validation rejects `current > total` before commit. Stepper uses controlled Select events through OptionItem with validated button semantics. Timeline uses ordered list/listitem role mappings with each child's own readable title. Table headers emit Event.Select(sort, column.key) only when sortable; actual row sorting occurs in the Ubi reducer. Reject row-width mismatches, duplicate/empty keys and more than 64 columns before committing a table; retain overall graph budgets. This Table is for bounded data, with no implied virtualization or editable cells.
 
-- [ ] Add `pagination_boundaries`: assert previous disabled at 1, next disabled at total, and invalid states reject without losing previous view. `assert!(decode_page(0, 10).is_err())` names a local test helper, not a new public API.
-- [ ] Add `table_sort_duplicate_text_keeps_keys`: two rows with identical cell text retain different source keys and focus after ascending/descending sort; non-sortable headers emit no event, empty rows render a readable empty state; malformed widths reject. Add Stepper controlled selection and Timeline reading-order/native-semantic tests.
-- [ ] Run failing native/JS/browser cases; implement source composition and shared table geometry/semantics with the smallest host additions.
-- [ ] Repeat both host checks, narrow scrolling and GPU alignment capture. Assert catalog 59 and commit as `feat(ui): add pagination stepper timeline and table`.
+- Add `pagination_boundaries`: assert previous disabled at 1, next disabled at total, and invalid states reject without losing previous view. `assert!(decode_page(0, 10).is_err())` names a local test helper, not a new public API.
+- Add `table_sort_duplicate_text_keeps_keys`: two rows with identical cell text retain different source keys and focus after ascending/descending sort; non-sortable headers emit no event, empty rows render a readable empty state; malformed widths reject. Add Stepper controlled selection and Timeline reading-order/native-semantic tests.
+- Run failing native/JS/browser cases; implement source composition and shared table geometry/semantics with the smallest host additions.
+- Repeat both host checks, narrow scrolling and GPU alignment capture. Assert catalog 59 and commit as `feat(ui): add pagination stepper timeline and table`.
 
 ## Task 6: Application release verification
 
@@ -127,12 +133,12 @@ Pagination has previous/next actions plus current/total text; current is one-bas
 
 **Interfaces:** catalog reaches 59 only after all 15 source modules and required behavior work on both hosts. Exporter uses catalog-derived counts from plan 1.
 
-- [ ] Run full release commands from plan 1 Task 7; require all relevant Rust/Node suites, format, Clippy, documentation build and `rtk git diff --check` passing.
-- [ ] Exercise all 15 real examples in both themes, reduced/full motion and 320/768/1440px widths. Check modal keyboard order, nested layering, timeout/pause, text composition and source copy/reset. Confirm contextual shortcuts do not hijack unrelated controls.
-- [ ] Check native logical/accessibility snapshots, real window behavior, sampled motion frames and absence of queued work after teardown. Record OS/device/manual limitations explicitly.
-- [ ] Review all five Review Focus conditions and fix concrete failures, then commit verification as `docs(ui): record application component verification`.
+- Run full release commands from plan 1 Task 7; require all relevant Rust/Node suites, format, Clippy, documentation build and `rtk git diff --check` passing.
+- Exercise all 15 real examples in both themes, reduced/full motion and 320/768/1440px widths. Check modal keyboard order, nested layering, timeout/pause, text composition and source copy/reset. Confirm contextual shortcuts do not hijack unrelated controls.
+- Check native logical/accessibility snapshots, real window behavior, sampled motion frames and absence of queued work after teardown. Record OS/device/manual limitations explicitly.
+- Review all five Review Focus conditions and fix concrete failures, then commit verification as `docs(ui): record application component verification`.
 
 ## Handoff
 
 Complete after plan 1 and before [plan 3](2026-10-22-ubi-ui-expressive-components.md).
-Execution method and written-plan review remain pending user selection.
+Execution completed using the approved subagent workflow and final root integration checks.

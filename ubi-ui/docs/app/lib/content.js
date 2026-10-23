@@ -9,6 +9,7 @@ export const guides = [
   { slug: "state-and-events", title: "State & events", description: "A model, a reducer, and a view. One predictable update cycle." },
   { slug: "layout", title: "Layout", description: "Compose stacks, flexible rows, grids, and scrolling content." },
   { slug: "theming", title: "Theming", description: "Consistent surfaces, spacing, and control states in light and dark." },
+  { slug: "motion", title: "Motion", description: "Expressive interactions, shared Ubi state, and motion that respects your preferences." },
   { slug: "accessibility", title: "Accessibility", description: "Build clear names, visible focus, and keyboard behavior into your interface." },
   { slug: "platforms", title: "Platforms", description: "Current host support, verification boundaries, and known limitations." },
 ];

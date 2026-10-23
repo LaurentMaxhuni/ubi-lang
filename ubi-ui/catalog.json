@@ -2342,7 +2342,7 @@
     "slug": "timeline",
     "name": "Timeline",
     "category": "Content",
-    "description": "A semantic sequence of caller-owned events in reading order.",
+    "description": "A semantic sequence of caller-owned events with bounded staggered entrances.",
     "function": "timeline",
     "module": "packages/ubi-ui/components/timeline.ubi",
     "keyboard": "The sequence follows source order; child controls keep their own keyboard behavior.",
