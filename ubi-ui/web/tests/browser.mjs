@@ -12,9 +12,10 @@ async function test(name,fn) {
   try {await fn(root);results.push({name,ok:true});} catch(error) {results.push({name,ok:false,error:String(error.stack)});} finally {root.remove();}
 }
 await test('typed source ABI, retained input, IME, theme and disposal',root=>{
-  const app={init:()=>'',update:(_,event)=>JSON.parse(event).values[1],view:model=>view(node('root','Window',[],['input']),node('input','TextInput',[prop('Label','Name'),prop('Value',model),prop('Input',message)]))};
+  const app={init:()=>'',update:(_,event)=>JSON.parse(event).values[1],view:model=>view(node('root','Window',[],['input']),node('input','TextInput',[prop('Label','Name'),prop('Content','Type your name'),prop('Value',model),prop('Input',message)]))};
   const handle=mount(root,app),input=root.querySelector('input'); input.focus(); input.value='Orbit';input.setSelectionRange(3,3);
   input.dispatchEvent(new InputEvent('input',{bubbles:true}));
+  assert(input.placeholder==='Type your name','source input placeholder');
   assert(handle.getModel()==='Orbit','input reducer');assert(root.querySelector('input')===input,'keyed identity');assert(document.activeElement===input&&input.selectionStart===3,'focus and selection');
   input.value='Orbit!';input.dispatchEvent(new InputEvent('input',{bubbles:true,isComposing:true}));assert(handle.getModel()==='Orbit','IME intermediate ignored');
   input.dispatchEvent(new CompositionEvent('compositionend',{bubbles:true}));assert(handle.getModel()==='Orbit!','IME committed');
@@ -172,6 +173,40 @@ await test('visual exits remove editable values and live identity',root=>{
   root.querySelector('button').click();
   assert(root.querySelectorAll('[data-ubi-key="card"]').length===1&&!root.querySelector('.ubi-exit-layer'),'resurrection keeps one live identity');
   handle.dispose();assert(clock.pending()===0,'exit disposal cancels frames');
+});
+await test('explicit source spacing wins over control, compact and preview CSS defaults',root=>{
+  const app={init:()=>0,update:model=>model+1,view:()=>view(
+    node('root','Window',[prop('Padding',40),prop('Gap',tag('Xl'))],['card']),
+    node('card','EffectSurface',[prop('Effect',tag('SpotlightCard')),prop('Padding',28),prop('Gap',tag('Lg'))],['button','badge']),
+    node('button','Button',[prop('Content','Action'),prop('Padding',20),prop('Activate',message)]),
+    node('badge','Badge',[prop('Content','Label'),prop('Padding',12),prop('FontSize',18)])
+  )};
+  for(const preview of [false,true]) {
+    const handle=mount(root,app,{preview});
+    const style=key=>getComputedStyle(root.querySelector(`[data-ubi-key="${key}"]`));
+    assert(style('root').paddingTop==='40px',`window padding ignored in preview=${preview}`);
+    assert(style('root').gap==='24px','source gap ignored');
+    assert(style('card').paddingTop==='28px'&&style('card').gap==='16px','card spacing ignored at narrow width');
+    const button=root.querySelector('[data-ubi-key="button"]'),badge=root.querySelector('[data-ubi-key="badge"]');
+    assert(style('card').display==='flex'&&badge.getBoundingClientRect().top-button.getBoundingClientRect().bottom>=16,'effect container does not lay out its child gap');
+    assert(style('button').paddingLeft==='20px','button padding ignored');
+    assert(style('badge').paddingLeft==='12px'&&style('badge').fontSize==='18px','badge spacing/typography ignored');
+    handle.dispose();
+  }
+});
+await test('a source update inside a spotlight preserves the current pointer highlight',root=>{
+  const app={init:()=>0,update:model=>model+1,view:model=>view(
+    node('root','Window',[],['surface']),
+    node('surface','EffectSurface',[prop('Effect',tag('SpotlightCard')),prop('Padding',24)],['action']),
+    node('action','Button',[prop('Content',`Opened ${model}`),prop('Activate',message)])
+  )};
+  const handle=mount(root,app,{motion:'full'}),surface=root.querySelector('[data-ubi-key="surface"]'),button=root.querySelector('button'),bounds=surface.getBoundingClientRect();
+  button.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerType:'mouse',clientX:bounds.left+bounds.width*.8,clientY:bounds.top+bounds.height*.4}));
+  const x=surface.style.getPropertyValue('--ubi-pointer-x'),y=surface.style.getPropertyValue('--ubi-pointer-y');
+  assert(x&&y,'pointer effect did not update');
+  button.click();
+  assert(handle.getModel()===1&&surface.style.getPropertyValue('--ubi-pointer-x')===x&&surface.style.getPropertyValue('--ubi-pointer-y')===y,'source update snapped the pointer effect back to its center');
+  handle.dispose();
 });
 output.textContent=results.map(result=>`${result.ok?'PASS':'FAIL'} ${result.name}${result.error?'\n'+result.error:''}`).join('\n');
 document.body.dataset.testStatus=results.every(result=>result.ok)?'passed':'failed';

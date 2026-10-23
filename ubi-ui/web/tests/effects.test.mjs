@@ -292,3 +292,21 @@ test('Skeleton uses the static marker in reduced motion and clears it in full mo
   assert.equal(element.getAttribute('data-ubi-static'),null);
   effects.dispose();
 });
+
+test('pointer effects honor zero-duration motion and settle when reduced motion starts',()=>{
+  const f=visualFixture(),handlers=new Map(),element=f.makeElement();
+  f.root.addEventListener=(type,handler)=>handlers.set(type,handler);
+  f.root.contains=target=>target===element;
+  element.closest=()=>element;element.setAttribute('data-ubi-key','tilt');
+  const entries=new Map([['tilt',{element}]]),view=durationMs=>({nodes:[{key:'tilt',kind:'EffectSurface',children:[],props:{Effect:'TiltCard',Motion:{durationMs,delayMs:0,easing:'EaseOut'}}}]}),effects=createEffects(f.root,{motion:'full'});
+  effects.commit(view(0),entries,'full');
+  handlers.get('pointermove')({target:element,pointerType:'mouse',clientX:0,clientY:0});
+  assert.equal(element.style.values.get('--ubi-tilt-x'),'0deg');
+  effects.commit(view(180),entries,'full');
+  handlers.get('pointermove')({target:element,pointerType:'mouse',clientX:0,clientY:0});
+  assert.equal(element.style.values.get('--ubi-tilt-x'),'6deg');
+  effects.setMotion('reduced');
+  assert.equal(element.style.values.get('--ubi-tilt-x'),'0deg');
+  assert.equal(element.getAttribute('data-ubi-static'),'');
+  effects.dispose();
+});

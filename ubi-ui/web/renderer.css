@@ -6,8 +6,8 @@
 [data-ubi-mount] [data-ubi-theme="dark"] { --ubi-bg:#14221a; --ubi-fg:#e8efe6; --ubi-muted:#a6b8aa; --ubi-panel:#1a2b20; --ubi-border:#2d4434; --ubi-accent:#a7d4b1; --ubi-accent-fg:#10271b; color-scheme:dark; }
 [data-ubi-mount] .ubi-node[hidden] { display:none !important; }
 [data-ubi-mount] .ubi-window { background:var(--ubi-bg); width:100%; display:flex; flex-direction:column; overflow:auto; }
-[data-ubi-mount] .ubi-view,[data-ubi-mount] .ubi-column,[data-ubi-mount] .ubi-scrollview,[data-ubi-mount] .ubi-card { display:flex; flex-direction:column; align-items:stretch; }
-[data-ubi-mount] .ubi-row,[data-ubi-mount] .ubi-flex { display:flex; flex-wrap:wrap; align-items:center; }
+[data-ubi-mount] .ubi-view,[data-ubi-mount] .ubi-column,[data-ubi-mount] .ubi-scrollview,[data-ubi-mount] .ubi-card,[data-ubi-mount] .ubi-accordion,[data-ubi-mount] .ubi-collapsible,[data-ubi-mount] .ubi-overlay,[data-ubi-mount] .ubi-effectsurface { display:flex; flex-direction:column; align-items:stretch; }
+[data-ubi-mount] .ubi-row,[data-ubi-mount] .ubi-flex,[data-ubi-mount] .ubi-pagination { display:flex; flex-wrap:wrap; align-items:center; }
 [data-ubi-mount] .ubi-grid { display:grid; align-items:start; }
 [data-ubi-mount] .ubi-scrollview { overflow:auto; overscroll-behavior:contain; }
 [data-ubi-mount] .ubi-card { border:1px solid var(--ubi-border); border-radius:12px; background:var(--ubi-panel); }
@@ -84,6 +84,9 @@
 [data-ubi-mount] .ubi-overlay[data-ubi-overlay-kind="Toast"] { width:min(380px,calc(100vw - 32px)); padding:16px 18px; border-radius:14px; box-shadow:0 14px 40px rgb(0 0 0 / .18); }
 [data-ubi-mount] .ubi-overlay[data-ubi-overlay-kind="Drawer"] { width:min(440px,92vw); height:100dvh; max-height:100dvh; border-radius:0; }
 [data-ubi-mount] .ubi-overlay:focus-visible { outline:2px solid var(--ubi-accent); outline-offset:4px; }
+[data-ubi-mount] .ubi-overlay:is([data-ubi-overlay-kind="Select"],[data-ubi-overlay-kind="Combobox"],[data-ubi-overlay-kind="DropdownMenu"],[data-ubi-overlay-kind="ContextMenu"]) { padding:6px; gap:4px !important; }
+[data-ubi-mount] button.ubi-menuitem,[data-ubi-mount] button.ubi-optionitem { width:100%; justify-content:flex-start; background:transparent; color:var(--ubi-fg); border-color:transparent; }
+[data-ubi-mount] button.ubi-menuitem:hover,[data-ubi-mount] button.ubi-optionitem:hover,[data-ubi-mount] button.ubi-optionitem[aria-selected="true"] { background:var(--ubi-panel); }
 [data-ubi-mount] .ubi-disclosure-exit { position:absolute; inset:0 auto auto 0; width:100%; pointer-events:none; }
 [data-ubi-mount] .ubi-table { display:flex; flex-direction:column; width:100%; overflow:auto; border:1px solid var(--ubi-border); border-radius:14px; background:var(--ubi-bg); }
 [data-ubi-mount] .ubi-tablerow { display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); width:100%; border-bottom:1px solid var(--ubi-border); }
@@ -93,8 +96,11 @@
 [data-ubi-mount] button.ubi-tableheader { width:100%; justify-content:flex-start; color:var(--ubi-muted); }
 [data-ubi-mount] .ubi-effectsurface[data-ubi-effect="SpotlightCard"],[data-ubi-mount] .ubi-effectsurface[data-ubi-effect="TiltCard"],[data-ubi-mount] .ubi-effectsurface[data-ubi-effect="CardStack"],[data-ubi-mount] .ubi-effectsurface[data-ubi-effect="Carousel"] { border:1px solid color-mix(in srgb,var(--ubi-border) 75%,var(--ubi-accent)); border-radius:20px; background:linear-gradient(145deg,color-mix(in srgb,var(--ubi-panel) 94%,white),var(--ubi-bg)); box-shadow:0 20px 54px rgb(18 45 33 / .12),inset 0 1px rgb(255 255 255 / .42); transform-style:preserve-3d; transition:box-shadow 220ms ease,border-color 220ms ease; }
 [data-ubi-mount] .ubi-effectsurface[data-ubi-effect="TiltCard"] { transition:transform 180ms cubic-bezier(.16,1,.3,1); }
-[data-ubi-mount] .ubi-effectsurface[data-ubi-effect="CardStack"] > .ubi-node { transition:transform 320ms cubic-bezier(.16,1,.3,1); }
+[data-ubi-mount] .ubi-effectsurface[data-ubi-effect="CardStack"] { width:480px; margin-bottom:20px; border:0; background:none; box-shadow:none; }
+[data-ubi-mount] .ubi-effectsurface[data-ubi-effect="CardStack"] > .ubi-node { min-height:160px; padding:24px !important; border:1px solid var(--ubi-border); border-radius:16px; background:var(--ubi-panel); box-shadow:0 12px 30px rgb(0 0 0 / .08); transition:transform 320ms cubic-bezier(.16,1,.3,1); }
+[data-ubi-mount] .ubi-effectsurface[data-ubi-effect="Carousel"] { display:flex; flex-direction:column; justify-content:center; width:480px; min-height:160px; padding:24px !important; }
 [data-ubi-mount] .ubi-effectsurface[data-ubi-effect="Dock"] > .ubi-node { transition:transform 180ms cubic-bezier(.16,1,.3,1); transform-origin:center bottom; }
+[data-ubi-mount] .ubi-effectsurface[data-ubi-effect="Dock"] { flex-direction:row; flex-wrap:wrap; align-items:center; width:fit-content; padding:10px; border:1px solid var(--ubi-border); border-radius:18px; background:var(--ubi-panel); }
 [data-ubi-mount] .ubi-effectsurface[data-ubi-effect="SpotlightCard"] { background-image:radial-gradient(circle 160px at var(--ubi-pointer-x,50%) var(--ubi-pointer-y,50%),color-mix(in srgb,var(--ubi-accent) 22%,transparent),transparent 72%),linear-gradient(145deg,color-mix(in srgb,var(--ubi-panel) 94%,white),var(--ubi-bg)); }
 [data-ubi-mount] .ubi-effectsurface[data-ubi-effect="BorderBeam"] { overflow:hidden; border:1px solid color-mix(in srgb,var(--ubi-accent) 38%,var(--ubi-border)); border-radius:18px; background:linear-gradient(150deg,var(--ubi-bg),var(--ubi-panel)); }
 [data-ubi-mount] .ubi-effectsurface[data-ubi-effect="BorderBeam"]::before { content:""; position:absolute; inset:-1px; z-index:0; border-radius:inherit; padding:1px; background:conic-gradient(from var(--ubi-beam-angle,0deg),transparent 0 72%,var(--ubi-accent) 83%,color-mix(in srgb,var(--ubi-accent) 10%,transparent) 90%,transparent); -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask-composite:exclude; animation:ubi-beam 4s linear infinite; pointer-events:none; }
@@ -112,6 +118,7 @@
 [data-ubi-mount] .ubi-effectsurface[data-ubi-effect="ScrollReveal"] { transition:opacity 500ms ease,transform 500ms cubic-bezier(.16,1,.3,1); }
 [data-ubi-mount] .ubi-scroll-reveal-pending { opacity:0 !important; transform:translate3d(0,20px,0) scale(1) !important; }
 [data-ubi-mount] .ubi-scroll-reveal-visible { opacity:1; }
+[data-ubi-mount] [data-ubi-static][data-ubi-effect="TiltCard"],[data-ubi-mount] [data-ubi-static][data-ubi-effect="CardStack"] > .ubi-node,[data-ubi-mount] [data-ubi-static][data-ubi-effect="Dock"] > .ubi-node { transition:none; }
 @keyframes ubi-backdrop-in { from { opacity:0; } to { opacity:1; } }
 @keyframes ubi-beam { to { --ubi-beam-angle:360deg; } }
 @keyframes ubi-shimmer { 0%,32% { left:-45%; } 76%,100% { left:120%; } }

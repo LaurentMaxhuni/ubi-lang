@@ -85,7 +85,13 @@ function create(document,node) {
 function styles(element,node) {
   const p=node.props,s=node.style,style=element.style;
   style.cssText='';
-  style.gap=`${s.gap}px`; style.padding=`${s.padding}px`; style.fontSize=`${s.fontSize}px`;
+  style.gap=`${s.gap}px`;
+  if(node.kind==='Window'||node.kind==='Card') style.padding=`${s.padding}px`;
+  if(node.kind==='Heading') style.fontSize=`${s.fontSize}px`;
+  // Explicit Ubi values outrank component and compact-preview CSS defaults.
+  if(p.Padding!==undefined) style.setProperty('padding',`${s.padding}px`,'important');
+  if(p.Gap!==undefined) style.setProperty('gap',`${s.gap}px`,'important');
+  if(p.FontSize!==undefined) style.setProperty('font-size',`${s.fontSize}px`,'important');
   if(s.width!==undefined) style.width=s.width;
   if(s.height!==undefined) style.height=s.height;
   if(p.MinWidth!==undefined) style.minWidth=`min(100%, ${p.MinWidth}px)`;
@@ -156,6 +162,7 @@ export function mount(root, app, options = {}) {
       if(node.kind==='TextInput') {attr(control,'aria-controls',null);attr(control,'aria-activedescendant',null);attr(control,'aria-haspopup',null);attr(control,'aria-autocomplete',null);}
       if('disabled' in control && isActionable(node)) control.disabled=!enabled(node);
       if(editable.has(node.kind)) {
+        attr(control,'placeholder',p.Content);
         control.readOnly=p.ReadOnly; control.maxLength=16384;
         if(control.value!==p.Value) {
           const selection=document.activeElement===control && typeof control.selectionStart==='number'?[control.selectionStart,control.selectionEnd,control.selectionDirection]:null;
@@ -197,7 +204,12 @@ export function mount(root, app, options = {}) {
       attr(anchor,'role','combobox');attr(anchor,'aria-haspopup','listbox');attr(anchor,'aria-autocomplete','list');
       attr(anchor,'aria-controls',overlay?.id);attr(anchor,'aria-expanded',node.props.Open?'true':'false');
     }
-    for(const node of next.nodes) if(containers.has(node.kind)) place(nextElements.get(node.key).element,node.children.map(key=>nextElements.get(key).element));
+    for(const node of next.nodes) if(containers.has(node.kind)) {
+      const entry=nextElements.get(node.key);
+      // Leaf content and effect spans belong to the renderer, not the source child list.
+      if(entry.semantic) place(entry.element,[entry.semantic,entry.visual]);
+      else if(node.children.length || !node.props.Content) place(entry.element,node.children.map(key=>nextElements.get(key).element));
+    }
     // Roving focus is scoped to this mount and source group identity.
     for(const node of next.nodes) {
       if(!isGroupItem(node)) continue;

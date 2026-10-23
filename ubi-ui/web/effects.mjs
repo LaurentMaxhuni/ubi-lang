@@ -1,4 +1,5 @@
-const animatedEffects=new Set(['BorderBeam','AuroraBackground','GridBackground','Marquee','RotatingText','Shimmer','Skeleton']);
+const pointerEffects=new Set(['SpotlightCard','TiltCard','GridBackground','Dock']);
+const animatedEffects=new Set(['BorderBeam','AuroraBackground','GridBackground','Marquee','RotatingText','Shimmer','Skeleton','CardStack','Carousel',...pointerEffects]);
 const selectionEffects=new Set(['Carousel','CardStack','RotatingText']);
 const clamp=(value,min,max)=>Math.min(max,Math.max(min,value));
 const effectOf=node=>node?.props.Effect??(node?.kind==='Skeleton'?'Skeleton':undefined);
@@ -44,6 +45,7 @@ export function createEffects(root,options={}) {
     const node=getNode(key),element=currentEntries.get(key)?.element;if(!node||!element)return;
     const effect=effectOf(node);
     if(animatedEffects.has(effect))element.toggleAttribute('data-ubi-static',staticEffect(node));
+    if(pointerEffects.has(effect)&&staticEffect(node))resetPointer(node,element);
     if(effect==='Marquee') {
       const reasons=pauseReasons.get(key)??new Set();
       element.toggleAttribute('data-ubi-paused',node.props.Paused||staticEffect(node)||reasons.size>0);
@@ -227,7 +229,7 @@ export function createEffects(root,options={}) {
   function onPointerMove(event) {
     if(event.pointerType==='touch'||reduced())return;
     const element=event.target?.closest?.('[data-ubi-effect]');if(!element||!root.contains(element))return;
-    const node=getNode(element.getAttribute('data-ubi-key'));if(!node)return;
+    const node=getNode(element.getAttribute('data-ubi-key'));if(!node||staticEffect(node))return;
     const rect=element.getBoundingClientRect();if(rect.width<=0||rect.height<=0)return;
     const x=clamp((event.clientX-rect.left)/rect.width,0,1),y=clamp((event.clientY-rect.top)/rect.height,0,1);
     if(node.props.Effect==='SpotlightCard'||node.props.Effect==='GridBackground'){element.style.setProperty('--ubi-pointer-x',`${x*100}%`);element.style.setProperty('--ubi-pointer-y',`${y*100}%`);}
@@ -241,10 +243,14 @@ export function createEffects(root,options={}) {
     while(node&&!node.props.Effect)node=currentView.nodes.find(parent=>parent.children.includes(node.key));
     return node;
   }
+  function resetPointer(node,element) {
+    element.style.setProperty('--ubi-tilt-x','0deg');element.style.setProperty('--ubi-tilt-y','0deg');element.style.setProperty('--ubi-pointer-x','50%');element.style.setProperty('--ubi-pointer-y','50%');
+    if(node.props.Effect==='Dock')for(const key of node.children)currentEntries.get(key)?.element.style.setProperty('--ubi-dock-scale','1');
+  }
   function onPointerOut(event) {
     const node=effectForTarget(event.target);if(!node)return;
     const element=currentEntries.get(node.key)?.element;
-    if(element&&(!event.relatedTarget||!element.contains(event.relatedTarget))){element.style.setProperty('--ubi-tilt-x','0deg');element.style.setProperty('--ubi-tilt-y','0deg');element.style.setProperty('--ubi-pointer-x','50%');element.style.setProperty('--ubi-pointer-y','50%');for(const key of node.children){currentEntries.get(key)?.element.style.setProperty('--ubi-dock-scale','1');}}
+    if(element&&(!event.relatedTarget||!element.contains(event.relatedTarget)))resetPointer(node,element);
   }
   function onFocus(event,on) {
     const node=effectForTarget(event.target);if(!node)return;
