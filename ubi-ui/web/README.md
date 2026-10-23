@@ -1,5 +1,10 @@
 # Ubi UI browser host
 
+Documentation previews use exported files under `docs/public/previews/runtime`.
+The docs build verifies those files and `out/previews/runtime` against current
+sources. Regenerate examples before building when the gate reports stale files.
+Catalog and source interaction harnesses run that exported renderer.
+
 Import `renderer.css` and call `mount(root, compiledApp)` from `renderer.mjs`.
 `compiledApp` exposes Ubi's `init`, `update`, and `view` exports. Aggregates cross
 the compiled JS ABI through the bounded codec; reducers and component composition

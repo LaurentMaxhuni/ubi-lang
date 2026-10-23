@@ -1,4 +1,4 @@
-import { mount } from '../web/renderer.mjs';
+import { mount } from '../docs/public/previews/runtime/renderer.mjs';
 
 const output = document.getElementById('results');
 const fixtures = document.getElementById('fixtures');
@@ -103,6 +103,7 @@ await test('tooltip', 'focus requests a closed tooltip and blur dismisses it', (
     anchor.focus();
     assert(handle.getModel() === true, 'focus OpenRequest did not reach the source reducer');
     assert(anchor.getAttribute('aria-describedby')?.includes(byKey(root, 'help-tip').id), 'tooltip description missing');
+    assert(byKey(root, 'help-tip').textContent.includes('Your changes are saved automatically.'), 'tooltip description is not rendered');
     outside.focus();
     assert(handle.getModel() === false, 'blur did not dismiss the tooltip');
   } finally { outside.remove(); }
@@ -132,12 +133,43 @@ await test('carousel', 'carousel advances explicitly and respects boundaries', (
 
 await test('number-ticker', 'ticker reducer keeps the committed numeric value', (root, handle) => {
   const before = handle.getModel();
+  const visual = byKey(root, 'value').querySelector('.ubi-number-visual');
+  assert(visual?.isConnected && visual.textContent === String(before) && visual.getBoundingClientRect().height > 0, 'initial ticker number is not visibly rendered');
   byKey(root, 'increment').click();
   assert(handle.getModel() === before + 1, 'ticker did not increment');
+  assert(visual.isConnected && visual.textContent === String(before + 1), 'ticker visual detached after update');
   handle.setMotion('full');
   byKey(root, 'decrement').click();
   assert(handle.getModel() === before, 'presentation changed the logical number');
   handle.setMotion('reduced');
+});
+
+await test('text-reveal', 'word reveal renders the complete sentence before and after replay', (root, handle) => {
+  const visual = root.querySelector('.ubi-text-reveal-visual');
+  assert(visual?.isConnected && visual.textContent === 'Every journey needs a clear next step.' && visual.getBoundingClientRect().height > 0, 'word reveal text is not visibly rendered');
+  root.querySelector('button').click();
+  const replayed = root.querySelector('.ubi-text-reveal-visual');
+  assert(replayed?.textContent === visual.textContent && replayed.getBoundingClientRect().height > 0, 'word reveal disappeared after replay');
+});
+
+await test('table', 'table headers and cells remain readable when sorting', (root, handle) => {
+  const cells = () => [...root.querySelectorAll('[role="cell"]')].map(cell => cell.textContent);
+  assert(JSON.stringify(cells()) === JSON.stringify(['Draft brief', 'In review', 'Ship release', 'Ready']), 'table cells are blank or out of order');
+  const header = root.querySelector('button[role="columnheader"]');
+  assert(header?.textContent === 'Task', 'sortable header is blank');
+  header.click();
+  assert(handle.getModel() === true && cells()[0] === 'Ship release', 'sorting did not preserve visible cell content');
+});
+
+await test('card-stack', 'stacked cards have separate surfaces and leave room for navigation', (root, handle) => {
+  const surface = byKey(root, 'stories-stack'), next = byKey(root, 'stories-next');
+  assert(surface.getBoundingClientRect().height >= 140, 'card stack collapses to overlapping text');
+  const active = surface.querySelector('[data-ubi-key="story-a"]');
+  assert(getComputedStyle(active).transitionDuration === '0s', 'reduced motion still animates stack depth');
+  assert(getComputedStyle(active).backgroundColor !== 'rgba(0, 0, 0, 0)', 'active card does not cover inactive text');
+  assert(next.getBoundingClientRect().top >= surface.getBoundingClientRect().bottom + 20, 'stack depth overlaps navigation');
+  next.click();
+  assert(handle.getModel() === 1 && byKey(root, 'story-a').inert && !byKey(root, 'story-b').inert, 'stack selection does not update interaction ownership');
 });
 
 document.body.dataset.testStatus = results.every(item => item.ok) ? 'passed' : 'failed';

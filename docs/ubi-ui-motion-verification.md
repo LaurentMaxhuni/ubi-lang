@@ -2,6 +2,25 @@
 
 Verified 2026-10-23 against the approved [design](superpowers/specs/2026-10-22-ubi-ui-motion-design.md) and three linked [implementation plans](superpowers/plans/2026-10-22-ubi-ui-motion.md).
 
+## User-reported rendering and spacing failures, 2026-10-23
+
+The original completion claim overstated what the checks established. The browser harness imported the current development renderer, while the built documentation served older files from `previews/runtime`. A manual refresh had copied files to `previews/` instead. Passing reducer/mount checks did not detect missing visible content or collapsed effect layouts.
+
+Reproduced before repair:
+
+- NumberTicker and TextReveal had accessible labels but no visible text. Container reconciliation removed their renderer-owned spans. The same path erased table cells and tooltip content.
+- Served Tooltip and ContextMenu could not dispatch opening requests because their runtime predated that repair.
+- Compact/preview/control CSS ignored explicit source padding, gap and font-size values. Default inline zero padding also cancelled overlay CSS spacing.
+- Effect surfaces, disclosure containers and overlays lacked the flex layout needed for child gaps. Card Stack collapsed to overlapping text; menu options appeared as unrelated primary buttons.
+- Pointer tilt ignored duration zero and retained its tilted pose when reduced motion began.
+- Search and password input placeholders were not rendered.
+
+Repairs preserve renderer-owned content, honor source spacing, retain component CSS defaults, restore container layout and placeholders, give stacked cards opaque surfaces and navigation clearance, and settle disabled pointer motion. Exported previews and production output now undergo byte-for-byte checks against current runtime sources. Source interaction and catalog harnesses import that exported runtime; catalog checks require text/placeholder presence before and after updates.
+
+Follow-up evidence: 56 Node tests passed; 13 real-browser renderer regressions and 12 exported-source interaction checks passed; the strengthened catalog matrix passed 71/71 at 320/768/1440px with light/dark and full/reduced motion. The final 82-page production build passed both runtime equality gates. Ticker, spotlight and stacked-card output were inspected visually, and live docs were refreshed. Rust/native code did not change in this follow-up. Exhaustive manual visual inspection of every component and physical mobile/native assistive-technology checks remain outside this evidence.
+
+The initial rebuild encountered Windows `EBUSY` because the local HTTP server held `out/` as its working directory. Serving that directory from the repository root released the lock; rebuilding passed without disabling a check.
+
 ## Delivered
 
 - 30 new source-owned Ubi components; 70 catalog entries total, preserving the original 40. All 71 applications (components plus gallery) compile and export.
@@ -10,7 +29,7 @@ Verified 2026-10-23 against the approved [design](superpowers/specs/2026-10-22-u
 - Browser and native interaction infrastructure, including modal focus/dismissal, input composition, active-descendant combobox selection, tooltip/context requests and timer generation guards.
 - Motion guide, all 70 component pages, live compiled-source previews and 140 native light/dark captures.
 
-## Final verification
+## Original integration checks (historical)
 
 | Check | Result |
 | --- | --- |
