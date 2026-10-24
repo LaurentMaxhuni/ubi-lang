@@ -33,7 +33,7 @@ function fakeElement(document) {
       return null;
     },
     focus() { document.activeElement = this; },
-    getBoundingClientRect() { return this.rect ?? { left: 0, top: 0, right: 80, bottom: 30, width: 80, height: 30 }; },
+    getBoundingClientRect() { return this.rect ?? (this.className==='ubi-overlay-host'?{left:0,top:0,right:document.defaultView.innerWidth,bottom:document.defaultView.innerHeight,width:document.defaultView.innerWidth,height:document.defaultView.innerHeight}:{ left: 0, top: 0, right: 80, bottom: 30, width: 80, height: 30 }); },
     querySelectorAll() { return []; }, getClientRects() { return []; },
   };
   Object.defineProperty(element, 'firstElementChild', { get: () => children[0] ?? null });

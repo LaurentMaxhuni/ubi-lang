@@ -168,13 +168,13 @@ export function createEffects(root,options={}) {
     if(!visual)return;
     visual.classList.add('ubi-text-reveal-visual');element.classList.add('ubi-text-reveal');
     const motion=node.props.Motion??{},duration=clamp(motion.durationMs??420,0,2000);
-    if(record.textRevealElement===element&&record.textRevealContent===content){
+    if(record.textRevealElement===element&&record.textRevealContent===content&&record.textRevealVariant===node.props.Variant){
       if(duration===0||reduced()) {cancelAnimations(record.wordAnimations,true);record.wordAnimations?.splice(0);}
       budget.runs=Math.max(0,budget.runs-(record.wordRuns??0));budget.animations=Math.max(0,budget.animations-(record.wordAnimations?.length??0));return;
     }
     cancelAnimations(record.wordAnimations);
     visual.replaceChildren();
-    const words=[],tokens=content.match(/\s+|[^\s]+/gu)??[];let wordCount=0,tail='';
+    const words=[],tokens=node.props.Variant==='Outline'?Array.from(content):content.match(/\s+|[^\s]+/gu)??[];let wordCount=0,tail='';
     const totalWords=tokens.reduce((count,token)=>count+(/^\s+$/u.test(token)?0:1),0);
     const reserveTail=totalWords>Math.min(255,budget.runs);
     const runLimit=Math.max(0,Math.min(255,budget.runs-(reserveTail?1:0)));
@@ -187,11 +187,12 @@ export function createEffects(root,options={}) {
     let tailRun=0;
     if(tail){if(budget.runs>wordCount){const remainder=doc.createElement('span');remainder.className='ubi-text-reveal-tail';remainder.textContent=tail;visual.append(remainder);tailRun=1;}else visual.append(doc.createTextNode(tail));}
     const runCount=wordCount+tailRun;budget.runs-=runCount;
-    record.textRevealElement=element;record.textRevealVisual=visual;record.textRevealContent=content;record.wordAnimations=[];record.wordRuns=runCount;
+    record.textRevealElement=element;record.textRevealVisual=visual;record.textRevealContent=content;record.textRevealVariant=node.props.Variant;record.wordAnimations=[];record.wordRuns=runCount;
     const delay=clamp(motion.delayMs??0,0,5000);
     const animationCount=allowMotion&&!reduced()&&!hidden&&duration>0?Math.min(words.length,budget.animations):0;
     if(animationCount)words.slice(0,animationCount).forEach((word,index)=>{
-      try{const animation=word.animate?.([{opacity:0,translate:'0px 12px'},{opacity:1,translate:'0px 0px'}],{duration,delay:delay+Math.min(index,18)*36,easing:easingFor(motion.easing),fill:'both'});if(animation)record.wordAnimations.push(animation);}catch{}
+      const frames=node.props.Variant==='Secondary'?[{opacity:0,filter:'blur(10px)'},{opacity:1,filter:'blur(0px)'}]:node.props.Variant==='Outline'?[{opacity:0},{opacity:1}]:[{opacity:0,translate:'0px 12px'},{opacity:1,translate:'0px 0px'}];
+      try{const animation=word.animate?.(frames,{duration:node.props.Variant==='Outline'?Math.min(duration,120):duration,delay:delay+Math.min(index,node.props.Variant==='Outline'?80:18)*(node.props.Variant==='Outline'?22:36),easing:easingFor(motion.easing),fill:'both'});if(animation)record.wordAnimations.push(animation);}catch{}
     });
     budget.animations-=animationCount;
     records.set(node.key,record);
@@ -232,7 +233,7 @@ export function createEffects(root,options={}) {
     const node=getNode(element.getAttribute('data-ubi-key'));if(!node||staticEffect(node))return;
     const rect=element.getBoundingClientRect();if(rect.width<=0||rect.height<=0)return;
     const x=clamp((event.clientX-rect.left)/rect.width,0,1),y=clamp((event.clientY-rect.top)/rect.height,0,1);
-    if(node.props.Effect==='SpotlightCard'||node.props.Effect==='GridBackground'){element.style.setProperty('--ubi-pointer-x',`${x*100}%`);element.style.setProperty('--ubi-pointer-y',`${y*100}%`);}
+    if(node.props.Effect==='SpotlightCard'||node.props.Effect==='GridBackground'){element.style.setProperty('--ubi-pointer-x',`${x*100}%`);element.style.setProperty('--ubi-pointer-y',`${y*100}%`);element.style.setProperty('--ubi-spotlight-alpha','1');}
     if(node.props.Effect==='TiltCard'){element.style.setProperty('--ubi-tilt-x',`${-(y-.5)*12}deg`);element.style.setProperty('--ubi-tilt-y',`${(x-.5)*12}deg`);}
     if(node.props.Effect==='Dock'){
       for(const key of node.children){const child=currentEntries.get(key)?.element;if(!child)continue;const bounds=child.getBoundingClientRect(),distance=Math.abs(event.clientX-(bounds.left+bounds.width/2));child.style.setProperty('--ubi-dock-scale',String(1+Math.max(0,1-distance/160)*.35));}
@@ -244,7 +245,7 @@ export function createEffects(root,options={}) {
     return node;
   }
   function resetPointer(node,element) {
-    element.style.setProperty('--ubi-tilt-x','0deg');element.style.setProperty('--ubi-tilt-y','0deg');element.style.setProperty('--ubi-pointer-x','50%');element.style.setProperty('--ubi-pointer-y','50%');
+    element.style.setProperty('--ubi-tilt-x','0deg');element.style.setProperty('--ubi-tilt-y','0deg');element.style.setProperty('--ubi-pointer-x','50%');element.style.setProperty('--ubi-pointer-y','50%');element.style.setProperty('--ubi-spotlight-alpha','0');
     if(node.props.Effect==='Dock')for(const key of node.children)currentEntries.get(key)?.element.style.setProperty('--ubi-dock-scale','1');
   }
   function onPointerOut(event) {

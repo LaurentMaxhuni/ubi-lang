@@ -48,6 +48,18 @@ test('retargeting samples the visible value, including a delayed interruption', 
   assert.equal(state.sample(200, false).active, false);
 });
 
+test('ticker retargeting accepts fractional presentation values but keeps integer targets', () => {
+  const ticker = value => ({ ...target('ticker', 0), channels: { number: value } });
+  const state = new MotionState();
+  state.commit([ticker(128)], 0);
+  state.commit([ticker(129)], 0);
+  assert.equal(state.sample(25).channels.get('ticker').number, 128.25);
+  state.commit([ticker(128)], 25);
+  assert.equal(state.sample(75).channels.get('ticker').number, 128.125);
+  assert.equal(state.sample(125).channels.get('ticker').number, 128);
+  assert.throws(() => state.commit([ticker(128.5)], 125), TypeError);
+});
+
 test('reduced motion settles tracks and disposes their deadlines immediately', () => {
   const state = new MotionState();
   state.commit([target('item', 0, linear(0))], 0, false);

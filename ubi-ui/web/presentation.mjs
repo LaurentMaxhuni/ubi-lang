@@ -236,7 +236,7 @@ export function createPresentation(root, options = {}) {
     const byKey = new Map(nextView.nodes.map(node => [node.key, node]));
     const targets = new Map();
     const isSegmented = parent => {
-      if (parent.kind !== 'Row' || !parent.children.length) return false;
+      if (parent.kind !== 'Row' || parent.props.Role !== 'toolbar' || !parent.children.length) return false;
       const items = parent.children.map(key => byKey.get(key));
       return items.every(node => node?.kind === 'ToggleItem' && node.props.Group === parent.key);
     };

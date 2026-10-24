@@ -310,3 +310,16 @@ test('pointer effects honor zero-duration motion and settle when reduced motion 
   assert.equal(element.getAttribute('data-ubi-static'),'');
   effects.dispose();
 });
+
+test('text reveal variants use blur and character runs while retaining complete semantic text',()=>{
+  const f=visualFixture(),content='Clear motion.',host=f.makeElement(),visual=f.makeElement('span'),semantic=f.makeElement('span');semantic.textContent=content;
+  const entries=new Map([['reveal',{element:host,textVisual:visual,semantic}]]),effects=createEffects(f.root,{motion:'full'});
+  const view=Variant=>({nodes:[{key:'reveal',kind:'EffectSurface',children:[],props:{Effect:'TextReveal',Content:content,Variant}}]});
+  effects.commit(view('Secondary'),entries,'full');
+  assert.ok(f.animations.some(animation=>animation.frames[0].filter==='blur(10px)'));
+  const count=f.animations.length;
+  effects.commit(view('Outline'),entries,'full');
+  assert.ok(f.animations.length>count);
+  assert.equal(visual.textContent,content);assert.equal(semantic.textContent,content);
+  effects.dispose();
+});

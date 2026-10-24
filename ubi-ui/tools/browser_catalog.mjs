@@ -28,10 +28,15 @@ for (const example of manifest) {
       assert(appRoot, 'missing real component tree');
       assertRenderedContent(root, handle);
       assert(root.scrollWidth <= width + 1, `${width}px overflow (${root.scrollWidth}px)`);
-      const control = (example.slug === 'dock' ? root.querySelector('[data-ubi-key="workspace-dock-activity"]') : null) ?? [...root.querySelectorAll('input:not(:disabled), textarea:not(:disabled), button:not(:disabled)')].find(control => control.getClientRects().length && !control.closest('[inert]') && !control.readOnly && !(control.type === 'radio' && control.checked) && control.getAttribute('aria-selected') !== 'true' && control.getAttribute('aria-pressed') !== 'true');
+      if(['aurora-background','grid-background'].includes(example.slug)){
+        const surface=root.querySelector('.ubi-effectsurface'),bounds=surface.getBoundingClientRect();
+        for(const child of surface.children)assert(child.getBoundingClientRect().bottom<=bounds.bottom-4,`${width}px background clips its content`);
+      }
+      const control = (example.slug === 'dock' ? root.querySelector('[data-ubi-key="workspace-dock-terminal"]') : null) ?? [...root.querySelectorAll('input:not(:disabled), textarea:not(:disabled), button:not(:disabled)')].find(control => control.getClientRects().length && !control.closest('[inert]') && !control.readOnly && !(control.type === 'radio' && control.checked) && control.getAttribute('aria-selected') !== 'true' && control.getAttribute('aria-pressed') !== 'true');
       if (control && width === 320) {
         const before = JSON.stringify(handle.getModel());
-        if (control.matches('input[type=checkbox], input[type=radio], button')) control.click();
+        if(example.slug==='context-menu')control.dispatchEvent(new KeyboardEvent('keydown',{key:'F10',shiftKey:true,bubbles:true,cancelable:true}));
+        else if (control.matches('input[type=checkbox], input[type=radio], button')) control.click();
         else {
           control.value = control.type === 'range' ? '73' : control.type === 'number' ? '9' : 'Browser 🦀';
           control.dispatchEvent(new InputEvent('input', { bubbles: true }));

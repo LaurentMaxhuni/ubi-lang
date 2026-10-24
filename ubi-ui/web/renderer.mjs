@@ -57,15 +57,20 @@ function tagFor(node) {
   return {Heading:`h${node.props.Level}`,Text:'p',Kbd:'kbd',Label:'span',Badge:'span',Avatar:'span',ProgressBar:'div',Separator:'hr'}[node.kind]??'div';
 }
 function create(document,node) {
-  const element=document.createElement(tagFor(node)); let control=element, caption;
+  const element=document.createElement(tagFor(node)); let control=element, caption, decrement, increment;
   if(element.localName==='label') {
     control=document.createElement(node.kind==='TextArea'?'textarea':'input');
     if(control.localName==='input') control.type={PasswordInput:'password',NumberInput:'number',Checkbox:'checkbox',Switch:'checkbox',Radio:'radio',Slider:'range'}[node.kind]??'text';
     caption=document.createElement('span'); caption.className='ubi-caption';
-    if(editable.has(node.kind) || node.kind==='Slider') element.append(caption,control); else element.append(control,caption);
+    if(node.kind==='NumberInput') {
+      const field=document.createElement('span');field.className='ubi-number-field';
+      decrement=document.createElement('button');increment=document.createElement('button');
+      for(const [button,step,label] of [[decrement,-1,'Decrease'],[increment,1,'Increase']]){button.type='button';button.dataset.ubiNumberStep=String(step);button.textContent=step<0?'−':'+';button.setAttribute('aria-label',`${label} ${node.props.Label??'value'}`);}
+      field.append(decrement,control,increment);element.append(caption,field);
+    } else if(editable.has(node.kind) || node.kind==='Slider') element.append(caption,control); else element.append(control,caption);
   }
   if(element.localName==='button') element.type='button';
-  const entry={element,control,caption,kind:node.kind,effect:node.props.Effect};
+  const entry={element,control,caption,decrement,increment,kind:node.kind,effect:node.props.Effect};
   if(node.kind==='ProgressBar') {
     entry.progressFill=document.createElement('span');entry.progressFill.className='ubi-progress-fill';entry.progressFill.setAttribute('aria-hidden','true');element.append(entry.progressFill);
   }
@@ -124,6 +129,7 @@ export function mount(root, app, options = {}) {
       const mode=node.key===next.root ? theme??node.props.Theme?.toLowerCase()??'system' : node.props.Theme?.toLowerCase();
       attr(nextElements.get(node.key).element,'data-ubi-theme',mode==='system'?media?.matches?'dark':'light':mode);
     }
+    attr(root,'data-ubi-theme',nextElements.get(next?.root)?.element.getAttribute('data-ubi-theme'));
   }
   function patch(next) {
     root.setAttribute('data-ubi-mount',id);
@@ -134,14 +140,17 @@ export function mount(root, app, options = {}) {
       const entry=old?.kind===node.kind && old.effect===node.props.Effect && old.element.localName===tagFor(node)?old:create(document,node);
       const {element,control,caption}=entry,p=node.props;
       if(!element.id) element.id=`${id}-${revision+1}-${i}`;
+      if(node.kind==='NumberInput'){control.id=`${element.id}-control`;element.htmlFor=control.id;}
       element.className=`ubi-node ubi-${node.kind.toLowerCase()}`;
       element.setAttribute('data-ubi-key',node.key);
       attr(element,'data-ubi-effect',p.Effect);
       element.hidden=Boolean((node.kind==='Overlay'&&!p.Open)||(options.preview && next.nodes.find(item=>item.key===next.root)?.children.includes(node.key) && ['title','description'].includes(node.key)));
       if(node.kind==='Overlay')element.inert=!p.Open;
       if(node.props.Role==='tablist')element.classList.add('ubi-tablist');
+      if(node.kind==='Row'&&node.props.Role==='group'&&node.children.length&&node.children.every(key=>next.nodes.find(child=>child.key===key)?.kind==='ToggleItem'))element.classList.add('ubi-toggle-group');
       attr(element,'data-tone',p.Tone.toLowerCase()); attr(element,'data-variant',p.Variant.toLowerCase());
       attr(element,'data-checked',p.Checked?'true':null);
+      attr(element,'data-ubi-search',node.kind==='TextInput'&&p.Content==='Search...'?'true':null);
       attr(element,'data-disabled',enabled(node)?null:'true');
       styles(element,node);
       if(['Button','IconButton','Link','Switch','Tab','ToggleItem'].includes(node.kind)) {
@@ -170,10 +179,11 @@ export function mount(root, app, options = {}) {
           if(selection) control.setSelectionRange(...selection);
         }
         if(node.kind==='NumberInput') {control.min=String(p.Min); control.max=String(p.Max); control.step=String(p.Step);}
+        if(entry.decrement){entry.decrement.disabled=!enabled(node)||p.ReadOnly||Number(p.Value)<=p.Min;entry.increment.disabled=!enabled(node)||p.ReadOnly||Number(p.Value)>=p.Max;}
       }
       if(['Checkbox','Switch','Radio'].includes(node.kind)) control.checked=p.Checked;
       if(node.kind==='Radio') {control.name=`${id}-${p.Group||node.key}`; control.value=p.Option;}
-      if(node.kind==='Slider') {control.min='0';control.max='100';control.step='1';control.value=String(p.Progress);}
+      if(node.kind==='Slider') {control.min='0';control.max='100';control.step='1';control.value=String(p.Progress);control.style.setProperty('--ubi-range-progress',`${p.Progress}%`);}
       if(node.kind==='ProgressBar') {
         attr(element,'aria-valuemin','0');attr(element,'aria-valuemax','100');attr(element,'aria-valuenow',String(p.Progress));
         attr(element,'aria-label',p.Label);
@@ -230,6 +240,7 @@ export function mount(root, app, options = {}) {
     // Encode model before calling view so unsupported objects cannot mutate state.
     const encoded=argument(candidate),candidateModel=clone(candidate);
     const candidateRaw=app.view(encoded),next=validateView(candidateRaw);
+    const numberChanges=next.nodes.filter(node=>node.props.Effect==='NumberTicker').map(node=>({key:node.key,value:node.props.Number,previous:view?.nodes.find(old=>old.key===node.key)?.props.Number}));
     const candidateView=clone(candidateRaw), prepared=presentation.prepare(next,elements), preparedEffects=effects.prepare(next,elements), restore=snapshot(root), interactionFocus=document.activeElement, retain=retainInteraction(root);
     const previous={elements,bindings,revision,model,view,rawView};
     let overlaysAttempted=false,effectsAttempted=false;
@@ -242,6 +253,11 @@ export function mount(root, app, options = {}) {
       effectsAttempted=true;
       effects.commit(next,elements,motionMode,dispatchMessage,preparedEffects);
       presentation.commit(prepared,elements);
+      for(const {key,value,previous} of numberChanges)if(previous!==undefined&&value!==previous){
+        const entry=elements.get(key);entry.numberAnimation?.cancel();
+        entry.numberVisual.style.setProperty('--ubi-number-direction',value>previous?'1':'-1');
+        if(root.dataset.ubiMotion!=='reduced'&&next.nodes.find(node=>node.key===key)?.props.Motion?.durationMs!==0)try{entry.numberAnimation=entry.numberVisual.animate?.([{translate:`0 ${value>previous?18:-18}px`,opacity:0},{translate:'0 0',opacity:1}],{duration:240,easing:'cubic-bezier(.16,1,.3,1)'});}catch{}
+      }
     }
     catch(error) {
       ({elements,bindings,revision,model,view,rawView}=previous);
@@ -308,7 +324,13 @@ export function mount(root, app, options = {}) {
     else dispatch(binding,'Activate');
   }
   function click(event) {
-    const target=event.target.closest?.('button'),binding=target&&bindings.get(target);
+    const target=event.target.closest?.('button');
+    if(target?.dataset.ubiNumberStep&&root.contains(target)) {
+      const entry=elements.get(target.closest('[data-ubi-key]')?.dataset.ubiKey),binding=entry&&bindings.get(entry.control);
+      if(binding&&enabled(binding.node)&&!binding.node.props.ReadOnly&&!target.disabled){entry.control.stepUp(Number(target.dataset.ubiNumberStep));dispatch(binding,'Input',entry.control.value);entry.control.focus({preventScroll:true});}
+      return;
+    }
+    const binding=target&&bindings.get(target);
     if(binding && root.contains(target)) activate(binding);
   }
   function change(event) {
@@ -347,8 +369,8 @@ export function mount(root, app, options = {}) {
   function disconnect() {for(const [event,listener] of Object.entries(listeners)) root.removeEventListener(event,listener);media?.removeEventListener?.('change',onTheme);}
   const onTheme=()=>applyTheme();
   const handle={
-    dispose() {if(closed)return;closed=true;disconnect();effects.dispose();overlays.dispose();presentation.dispose();bindings.clear();if(owners.get(root)===handle)owners.delete(root);},
-    setMotion(mode) {if(!['system','full','reduced'].includes(mode))throw new TypeError('Unsupported Ubi motion mode');if(closed)return;motionMode=mode;presentation.setMotion(mode);effects.setMotion(mode);},
+    dispose() {if(closed)return;closed=true;disconnect();for(const entry of elements.values())entry.numberAnimation?.cancel();effects.dispose();overlays.dispose();presentation.dispose();bindings.clear();if(owners.get(root)===handle)owners.delete(root);},
+    setMotion(mode) {if(!['system','full','reduced'].includes(mode))throw new TypeError('Unsupported Ubi motion mode');if(closed)return;motionMode=mode;presentation.setMotion(mode);effects.setMotion(mode);if(root.dataset.ubiMotion==='reduced')for(const entry of elements.values())entry.numberAnimation?.cancel();},
     setTheme(mode) {if(!['light','dark','system'].includes(mode))throw new TypeError('Unsupported Ubi theme');if(closed)return;theme=mode;applyTheme();},
     getModel:()=>clone(model),getView:()=>clone(rawView),
   };

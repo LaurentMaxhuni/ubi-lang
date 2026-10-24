@@ -172,5 +172,57 @@ await test('card-stack', 'stacked cards have separate surfaces and leave room fo
   assert(handle.getModel() === 1 && byKey(root, 'story-a').inert && !byKey(root, 'story-b').inert, 'stack selection does not update interaction ownership');
 });
 
+await test('toggle-group','multiple toggles keep independent state and stable styling',(root,handle)=>{
+  const group=byKey(root,'demo');assert(group.classList.contains('ubi-toggle-group')&&!group.classList.contains('ubi-segmented'),'exclusive styling on multiselect');
+  byKey(root,'demo-week').click();assert(JSON.stringify(handle.getModel())===JSON.stringify(['day','week']),'second option cleared first');
+  byKey(root,'demo-day').click();assert(JSON.stringify(handle.getModel())===JSON.stringify(['week']),'toggle removed wrong option');
+  assert(group.classList.contains('ubi-toggle-group'),'selected count changed layout');
+});
+await test('number-input','number step controls update bounded source values',(root,handle)=>{
+  const field=byKey(root,'demo');field.querySelector('[data-ubi-number-step="1"]').click();assert(handle.getModel()==='14','increment ignored Step(2)');
+  field.querySelector('[data-ubi-number-step="-1"]').click();assert(handle.getModel()==='12','decrement failed');
+});
+for(const slug of ['accordion','collapsible'])await test(slug,`${slug} keeps its trigger aligned`,(root,handle)=>{
+  const trigger=byKey(root,'demo-trigger'),x=trigger.getBoundingClientRect().left;trigger.click();
+  assert(Math.abs(trigger.getBoundingClientRect().left-x)<1,'trigger teleported');trigger.click();
+  assert(Math.abs(trigger.getBoundingClientRect().left-x)<1&&root.querySelector(`.ubi-${slug}`),'disclosure layout changed');
+});
+await test('command-palette','palette filters readable commands and supports keyboard selection',(root,handle)=>{
+  const launch=byKey(root,'launch');launch.focus();launch.click();const panel=byKey(root,'commands'),input=byKey(root,'commands-search').querySelector('input');
+  assert(getComputedStyle(panel).backgroundColor!=='rgba(0, 0, 0, 0)','transparent palette');
+  input.value='help';input.dispatchEvent(new InputEvent('input',{bubbles:true}));assert(!byKey(root,'commands-item-settings')&&byKey(root,'commands-item-help'),'filter failed');
+  input.dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowDown',bubbles:true,cancelable:true}));
+  const help=byKey(root,'commands-item-help');assert(document.activeElement===help,'Down did not focus a command');
+  help.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true,cancelable:true}));assert(!handle.getModel().open&&handle.getModel().action==='Help opened','command did not run');
+});
+await test('popover','popover edits task priority in context',(root,handle)=>{
+  const trigger=byKey(root,'trigger');trigger.focus();trigger.click();const high=byKey(root,'high');high.focus();high.click();
+  assert(handle.getModel().priority==='High'&&!handle.getModel().open,'priority was not committed');
+  assert(document.activeElement===trigger&&trigger.textContent.includes('High'),'updated trigger did not regain focus');
+});
+await test('drawer','drawer items navigate the workspace',(root,handle)=>{
+  const open=byKey(root,'open');open.focus();open.click();byKey(root,'settings').click();assert(handle.getModel().page==='Settings'&&!handle.getModel().open,'drawer did not navigate');
+});
+await test('context-menu','context menu opens on right click rather than ordinary click',(root,handle)=>{
+  const target=byKey(root,'project');target.click();assert(!handle.getModel().open,'left click opened context menu');
+  const r=target.getBoundingClientRect();target.dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:r.left+30,clientY:r.top+30}));assert(handle.getModel().open,'right click failed');
+});
+await test('rotating-text','rotation has explicit next and pause controls',(root,handle)=>{
+  byKey(root,'tagline-next').click();assert(handle.getModel().selected===1,'next phrase failed');
+  byKey(root,'tagline-pause').click();assert(handle.getModel().paused,'pause failed');
+  byKey(root,'tagline-next').click();assert(handle.getModel().selected===2,'manual advance unavailable while paused');
+});
+await test('progress','four progress variants keep exact semantic values',(root,handle)=>{
+  assert(root.querySelectorAll('[role="progressbar"]').length===4,'variants missing');
+  assert(byKey(root,'complete').getAttribute('aria-valuenow')==='100','completion value incorrect');
+  assert(byKey(root,'slim').getBoundingClientRect().height<byKey(root,'demo').getBoundingClientRect().height,'slim variant missing');
+});
+await test('text-reveal','three reveal variants retain their complete sentences',(root,handle)=>{
+  const visuals=[...root.querySelectorAll('.ubi-text-reveal-visual')];assert(visuals.length===3&&visuals.every(el=>el.textContent&&el.getBoundingClientRect().height>0),'variant text missing');
+});
+await test('number-ticker','ticker direction follows increases and decreases',(root,handle)=>{
+  handle.setMotion('full');byKey(root,'increment').click();assert(root.querySelector('.ubi-number-visual').style.getPropertyValue('--ubi-number-direction')==='1','increase direction');
+  byKey(root,'decrement').click();const direction=root.querySelector('.ubi-number-visual').style.getPropertyValue('--ubi-number-direction');assert(direction==='-1',`decrease direction: ${direction}, value=${handle.getModel()}`);
+});
 document.body.dataset.testStatus = results.every(item => item.ok) ? 'passed' : 'failed';
 window.__ubiInteractionTests = results;

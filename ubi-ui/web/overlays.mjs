@@ -7,12 +7,21 @@ function focusables(element) {
   return [...element.querySelectorAll(focusSelector)].filter(item=>!item.hidden&&item.getClientRects().length>0&&!item.closest('[inert]'));
 }
 
-function pointFor(anchor,overlay,placement,pointer,viewport) {
-  const margin=8, box=overlay.getBoundingClientRect(), width=box.width||Math.min(320,viewport.width-16), height=box.height||80;
-  if(pointer) return {left:clamp(pointer.x,margin,Math.max(margin,viewport.width-width-margin)),top:clamp(pointer.y,margin,Math.max(margin,viewport.height-height-margin))};
+function pointFor(anchor,overlay,placement,pointer,viewport,gap=8) {
+  const margin=8, box=overlay.getBoundingClientRect(), width=box.width||Math.min(320,viewport.width-16);
+  let height=box.height||80;
+  const leftEdge=(viewport.left??0)+margin,rightEdge=(viewport.right??viewport.width)-margin;
+  const clampLeft=left=>clamp(left,leftEdge,Math.max(leftEdge,rightEdge-width));
+  if(pointer) return {left:clampLeft(pointer.x),top:clamp(pointer.y,margin,Math.max(margin,viewport.height-height-margin))};
   if(!anchor||placement==='Center') return {left:(viewport.width-width)/2,top:(viewport.height-height)/2};
-  const rect=anchor.getBoundingClientRect(), gap=8;
+  const rect=anchor.getBoundingClientRect();
   let preferred=placement, left, top;
+  if(preferred==='Bottom'||preferred==='Top') {
+    const above=Math.max(0,rect.top-gap-margin),below=Math.max(0,viewport.height-rect.bottom-gap-margin);
+    if(height>(preferred==='Bottom'?below:above))preferred=below>=above?'Bottom':'Top';
+    const available=preferred==='Bottom'?below:above;
+    if(available>=32&&height>available){height=available;overlay.style.maxHeight=`${available}px`;}
+  }
   const position=side=>{
     if(side==='Top') return {left:rect.left+(rect.width-width)/2,top:rect.top-height-gap};
     if(side==='Bottom') return {left:rect.left+(rect.width-width)/2,top:rect.bottom+gap};
@@ -22,10 +31,10 @@ function pointFor(anchor,overlay,placement,pointer,viewport) {
   ({left,top}=position(preferred));
   if(preferred==='Bottom'&&top+height>viewport.height-margin) preferred='Top';
   else if(preferred==='Top'&&top<margin) preferred='Bottom';
-  else if(preferred==='Right'&&left+width>viewport.width-margin) preferred='Left';
-  else if(preferred==='Left'&&left<margin) preferred='Right';
+  else if(preferred==='Right'&&left+width>rightEdge) preferred='Left';
+  else if(preferred==='Left'&&left<leftEdge) preferred='Right';
   ({left,top}=position(preferred));
-  return {left:clamp(left,margin,Math.max(margin,viewport.width-width-margin)),top:clamp(top,margin,Math.max(margin,viewport.height-height-margin))};
+  return {left:clampLeft(left),top:clamp(top,margin,Math.max(margin,viewport.height-height-margin))};
 }
 
 /** Per-mount overlay stack, focus isolation and visible-time timers. */
@@ -61,15 +70,17 @@ export function createOverlays(root,options={}) {
   function placeOverlay(node,element,index) {
     const kind=node.props.OverlayKind,placement=node.props.Placement;
     element.classList.add('ubi-overlay'); element.dataset.ubiOverlayKind=kind;
-    element.style.position='fixed';element.style.maxWidth='calc(100vw - 16px)';element.style.maxHeight='calc(100dvh - 16px)';
+    const origin=host.getBoundingClientRect(),availableWidth=Math.min(root.clientWidth||win.innerWidth,win.innerWidth);
+    element.style.position='fixed';element.style.maxWidth=`${Math.max(64,availableWidth-16)}px`;element.style.maxHeight='calc(100dvh - 16px)';
     if(kind==='Toast') {element.style.right='16px';element.style.left='auto';element.style.top=`${16+index*12}px`;element.style.bottom='auto';element.style.translate='none';return;}
     if(kind==='Drawer') {
       element.style.top='0';element.style.bottom='0';element.style.left=placement==='Left'?'0':'auto';element.style.right=placement==='Left'?'auto':'0';element.style.translate='none';return;
     }
     if(modalKinds.has(kind)||placement==='Center') {element.style.left='50%';element.style.top='50%';element.style.right='auto';element.style.bottom='auto';element.style.translate='-50% -50%';return;}
     const anchor=currentEntries.get(node.props.Anchor)?.element,pointer=pointerAnchors.get(node.key);
-    const rect=pointFor(anchor,element,placement,pointer,{width:win.innerWidth,height:win.innerHeight});
-    element.style.left=`${rect.left}px`;element.style.top=`${rect.top}px`;element.style.right='auto';element.style.bottom='auto';element.style.translate='none';
+    if(['Select','Combobox','DropdownMenu','ContextMenu','Popover'].includes(kind)&&node.style?.width===undefined)element.style.width=`${Math.min(kind==='Popover'?360:320,Math.max(200,anchor?.getBoundingClientRect().width??240),win.innerWidth-16)}px`;
+    const rect=pointFor(anchor,element,placement,pointer,{width:win.innerWidth,height:win.innerHeight,left:Math.max(0,origin.left),right:Math.min(win.innerWidth,origin.right)},kind==='Tooltip'?4:8);
+    element.style.left=`${rect.left-origin.left}px`;element.style.top=`${rect.top-origin.top}px`;element.style.right='auto';element.style.bottom='auto';element.style.translate='none';
   }
   function restoreInert() {
     for(const [element,value] of originalInert){if(element.isConnected)element.inert=value;}
@@ -217,6 +228,14 @@ export function createOverlays(root,options={}) {
   }
   function handleComboboxInputKeydown(event,node,onSelect=()=>{}) {
     if(node?.kind!=='TextInput'||event.altKey||event.ctrlKey||event.metaKey||event.isComposing||event.keyCode===229)return false;
+    const palette=menuOverlayFor(node);
+    if(palette?.props.Open&&palette.props.OverlayKind==='CommandPalette'&&['ArrowDown','ArrowUp','Enter'].includes(event.key)){
+      const commands=overlayItems(palette,'MenuItem').filter(item=>!item.props.Disabled&&!item.props.Busy),target=event.key==='ArrowUp'?commands.at(-1):commands[0];
+      if(!target)return false;
+      event.preventDefault();
+      if(event.key==='Enter'){if(!event.repeat)onSelect(target);}else (currentEntries.get(target.key)?.control??currentEntries.get(target.key)?.element)?.focus({preventScroll:true});
+      return true;
+    }
     const overlay=openOverlays().find(item=>item.props.OverlayKind==='Combobox'&&item.props.Anchor===node.key);
     if(!overlay)return false;
     const peers=overlayItems(overlay,'OptionItem').filter(item=>!item.props.Disabled&&!item.props.Busy);

@@ -39,14 +39,14 @@ function clampChannel(name, value) {
   return value;
 }
 
-function validChannel(name, value) {
+function validChannel(name, value, sampled = false) {
   if (!Number.isFinite(value)) return false;
   if (name === 'opacity') return value >= 0 && value <= 1;
   if (name === 'scale') return value >= 0.25 && value <= 2;
   if (name === 'translate-x' || name === 'translate-y' || name === 'indicator-x' || name === 'indicator-y') return Math.abs(value) <= 100000;
   if (name === 'switch-position') return value >= 0 && value <= 1;
   if (name === 'progress') return value >= 0 && value <= 100;
-  if (name === 'number') return Number.isInteger(value) && value >= -2147483648 && value <= 2147483647;
+  if (name === 'number') return (sampled || Number.isInteger(value)) && value >= -2147483648 && value <= 2147483647;
   if (name === 'disclosure-height' || name === 'indicator-width' || name === 'indicator-height') return value >= 0 && value <= 100000;
   return Math.abs(value) <= 100000;
 }
@@ -172,7 +172,7 @@ function makeTracks(from, to, startMs, motion) {
     const fallback = name === 'opacity' || name === 'scale' ? 1 : 0;
     const source = Object.hasOwn(from, name) ? from[name] : fallback;
     const target = Object.hasOwn(to, name) ? to[name] : source;
-    if (!validChannel(name, source) || !validChannel(name, target)) throw new TypeError('Invalid Ubi motion channel value');
+    if (!validChannel(name, source, true) || !validChannel(name, target)) throw new TypeError('Invalid Ubi motion channel value');
     if (motion.durationMs !== 0 && source !== target) {
       tracks.set(name, { from: source, to: target, startMs, motion });
       values[name] = source;
