@@ -130,15 +130,20 @@ fn components(out: &std::path::Path) -> Result<(), Box<dyn std::error::Error>> {
             .values()
             .any(|node| node.overlay_kind.is_some() && !node.open)
         {
-            let (key, message) = app
-                .view()
-                .order
-                .iter()
-                .find_map(|key| {
-                    app.view().nodes[key]
-                        .activate
-                        .as_ref()
-                        .map(|message| (key.clone(), message.clone()))
+            let request = app.view().order.iter().find_map(|key| {
+                let node = &app.view().nodes[key];
+                node.open_request
+                    .as_ref()
+                    .map(|message| (key.clone(), message.clone()))
+            });
+            let (key, message) = request
+                .or_else(|| {
+                    app.view().order.iter().find_map(|key| {
+                        app.view().nodes[key]
+                            .activate
+                            .as_ref()
+                            .map(|message| (key.clone(), message.clone()))
+                    })
                 })
                 .ok_or("overlay example needs an explicit opening action")?;
             app.dispatch(&Event {

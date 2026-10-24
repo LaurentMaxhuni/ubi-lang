@@ -625,5 +625,58 @@
       ]
     },
     "valid": true
+  },
+  {
+    "name": "segmented toolbar role accepted on both hosts",
+    "view": {
+      "schemaVersion": 1,
+      "root": "root",
+      "nodes": [
+        {
+          "key": "root",
+          "kind": {
+            "tag": "Window",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Role",
+              "values": [
+                "toolbar"
+              ]
+            }
+          ],
+          "children": [
+            "surface"
+          ]
+        },
+        {
+          "key": "surface",
+          "kind": {
+            "tag": "EffectSurface",
+            "values": []
+          },
+          "props": [
+            {
+              "tag": "Effect",
+              "values": [
+                {
+                  "tag": "NumberTicker",
+                  "values": []
+                }
+              ]
+            },
+            {
+              "tag": "Number",
+              "values": [
+                -2147483648
+              ]
+            }
+          ],
+          "children": []
+        }
+      ]
+    },
+    "valid": true
   }
 ]

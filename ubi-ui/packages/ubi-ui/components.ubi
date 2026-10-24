@@ -1,4 +1,4 @@
-import { View, Prop, Tone, Choice, MenuAction, TableColumn, TableRow } from "./core.ubi";
+import { View, Prop, Tone, ButtonVariant, Choice, MenuAction, TableColumn, TableRow } from "./core.ubi";
 import { windowComponent } from "./components/window.ubi";
 import { viewComponent } from "./components/view.ubi";
 import { columnComponent } from "./components/column.ubi";
@@ -18,7 +18,7 @@ import { sliderComponent } from "./components/slider.ubi";
 import { textInputComponent } from "./components/input.ubi";
 import { passwordInputComponent } from "./components/password-input.ubi";
 import { badgeComponent } from "./components/badge.ubi";
-import { progressBarComponent } from "./components/progress.ubi";
+import { progressBarComponent, progressBarVariantComponent } from "./components/progress.ubi";
 import { accordionComponent } from "./components/accordion.ubi";
 import { collapsibleComponent } from "./components/collapsible.ubi";
 import { alertComponent } from "./components/alert.ubi";
@@ -40,7 +40,7 @@ import { tabsComponent } from "./components/tabs.ubi";
 import { toggleComponent } from "./components/toggle.ubi";
 import { toggleGroupComponent } from "./components/toggle-group.ubi";
 import { numberTickerComponent } from "./components/number-ticker.ubi";
-import { textRevealComponent } from "./components/text-reveal.ubi";
+import { textRevealComponent, textRevealBlurComponent, textRevealCharactersComponent } from "./components/text-reveal.ubi";
 import { animatedListComponent } from "./components/animated-list.ubi";
 import { shimmerButtonComponent } from "./components/shimmer-button.ubi";
 import { dialogComponent } from "./components/dialog.ubi";
@@ -140,3 +140,7 @@ export fn borderBeam<M>(key: string, props: List<Prop<M>>, children: List<View<M
 export fn auroraBackground<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { auroraBackgroundComponent(key, props, children) }
 export fn gridBackground<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { gridBackgroundComponent(key, props, children) }
 export fn scrollReveal<M>(key: string, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { scrollRevealComponent(key, props, children) }
+
+export fn progressBarVariant<M>(key: string, label: string, value: int, variant: ButtonVariant, tone: Tone) -> View<M> { progressBarVariantComponent(key, label, value, variant, tone) }
+export fn textRevealBlur<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { textRevealBlurComponent(key, content, props) }
+export fn textRevealCharacters<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { textRevealCharactersComponent(key, content, props) }

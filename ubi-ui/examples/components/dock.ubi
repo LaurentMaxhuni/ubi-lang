@@ -4,12 +4,12 @@ import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
 import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
 import { dock } from "../../packages/ubi-ui/components/dock.ubi";
 
-export fn init() -> string { "Overview" }
+export fn init() -> string { "Messages" }
 export fn update(model: string, event: Event<string>) -> string { match (event) { Event.Activate(value) => value, _ => model } }
 export fn view(model: string) -> View<string> {
     windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
         headingComponent("title", "Dock", 1),
-        dock("workspace-dock", "Workspace navigation", [MenuAction { value: "overview", label: "Overview", message: "Overview", disabled: false }, MenuAction { value: "activity", label: "Activity", message: "Activity", disabled: false }, MenuAction { value: "settings", label: "Settings", message: "Settings", disabled: false }], []),
+        dock("workspace-dock", "Workspace navigation", [MenuAction { value: "messages", label: "Messages", message: "Messages", disabled: false }, MenuAction { value: "terminal", label: "Terminal", message: "Terminal", disabled: false }, MenuAction { value: "browser", label: "Browser", message: "Browser", disabled: false }, MenuAction { value: "files", label: "Files", message: "Files", disabled: false }], []),
         textComponent("current", "Current section: " + model)
     ])
 }

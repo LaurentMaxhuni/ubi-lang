@@ -5,7 +5,7 @@ export enum Kind {
     PasswordInput, Badge, ProgressBar, Radio, Tab, Toggle, ToggleItem, Link,
     TextArea, NumberInput, Avatar, Alert, Kbd, Skeleton, Label, Overlay,
     MenuItem, OptionItem, EffectSurface, Pagination, Table, TableRow,
-    TableHeader, TableCell
+    TableHeader, TableCell, Accordion, Collapsible
 }
 export enum Easing { Linear, EaseOut, EaseInOut, Spring }
 export enum Transition { None, Fade, Rise, Scale }

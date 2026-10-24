@@ -13,6 +13,6 @@ export fn view(model: bool) -> View<Message> {
     windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
         headingComponent("title", "Collapsible", 1),
         textComponent("description", "Controlled expandable region with an accessible toggle trigger."),
-        collapsible("demo", "How does native UI work?", model, Message.Toggle, [Prop.Gap(Space.Md)], [textComponent("answer", "Ubi owns the view and reducer. Rust paints and handles input.")])
+        collapsible("demo", "Show advanced settings", model, Message.Toggle, [Prop.Gap(Space.Md)], [textComponent("answer", "Additional workspace preferences"), textComponent("sync", "Sync interval: every 15 minutes"), textComponent("history", "Keep activity history for 30 days")])
     ])
 }

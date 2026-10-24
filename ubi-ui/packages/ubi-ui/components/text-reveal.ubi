@@ -1,7 +1,12 @@
-import { View, Kind, Prop, Effect, Transition, node } from "../core.ubi";
+import { View, Kind, Prop, Effect, Transition, ButtonVariant, node } from "../core.ubi";
 
 export fn textRevealComponent<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> {
     node(key, Kind.EffectSurface, append(append(append(append(props, Prop.Effect(Effect.TextReveal)), Prop.Content(content)), Prop.Label(content)), Prop.Enter(Transition.Rise)))
 }
 
 export fn textReveal<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { textRevealComponent(key, content, props) }
+
+export fn textRevealBlurComponent<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { textRevealComponent(key, content, append(props, Prop.Variant(ButtonVariant.Secondary))) }
+export fn textRevealCharactersComponent<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { textRevealComponent(key, content, append(props, Prop.Variant(ButtonVariant.Outline))) }
+export fn textRevealBlur<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { textRevealBlurComponent(key, content, props) }
+export fn textRevealCharacters<M>(key: string, content: string, props: List<Prop<M>>) -> View<M> { textRevealCharactersComponent(key, content, props) }

@@ -1,8 +1,8 @@
-import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { View, Event, Prop, Space, ButtonVariant, Tone } from "../../packages/ubi-ui/core.ubi";
 import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
 import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
 import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
-import { progressBar } from "../../packages/ubi-ui/components/progress.ubi";
+import { progressBar, progressBarVariant } from "../../packages/ubi-ui/components/progress.ubi";
 
 export enum Message { Action, Toggle, Input, Select }
 export fn init() -> int { 0 }
@@ -13,6 +13,13 @@ export fn view(model: int) -> View<Message> {
     windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Lg)], [
         headingComponent("title", "Progress", 1),
         textComponent("description", "Read-only progress from zero to one hundred."),
-        progressBar("demo", "Upload progress", 64)
+        textComponent("default-label", "Upload · 64%"),
+        progressBar("demo", "Upload progress", 64),
+        textComponent("segmented-label", "Milestones · 48%"),
+        progressBarVariant("segmented", "Milestones", 48, ButtonVariant.Secondary, Tone.Neutral),
+        textComponent("slim-label", "Storage · 82%"),
+        progressBarVariant("slim", "Storage", 82, ButtonVariant.Outline, Tone.Neutral),
+        textComponent("complete-label", "Complete · 100%"),
+        progressBarVariant("complete", "Complete", 100, ButtonVariant.Primary, Tone.Success)
     ])
 }

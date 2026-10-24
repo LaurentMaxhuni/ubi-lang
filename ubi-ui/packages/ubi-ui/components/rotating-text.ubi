@@ -9,6 +9,7 @@ export fn rotatingTextComponent<M>(key: string, phrases: List<string>, selected:
     }
     let surface = group(key + "-phrases", Kind.EffectSurface, append(append(append(append(props, Prop.Effect(Effect.RotatingText)), Prop.Index(selected)), Prop.Advance(advance)), Prop.Paused(paused)), phraseViews);
     let pause: View<M> = node(key + "-pause", Kind.Button, [Prop.Label(if (paused) { "Resume phrase rotation" } else { "Pause phrase rotation" }), Prop.Content(if (paused) { "Resume" } else { "Pause" }), Prop.Pressed(paused), Prop.Activate(toggle)]);
-    group(key, Kind.Column, [], [surface, pause])
+    let next: View<M> = node(key + "-next", Kind.Button, [Prop.Label("Next phrase"), Prop.Content("Next phrase"), Prop.Activate(advance)]);
+    group(key, Kind.Column, [], [surface, next, pause])
 }
 export fn rotatingText<M>(key: string, phrases: List<string>, selected: int, advance: M, paused: bool, toggle: M, props: List<Prop<M>>) -> View<M> { rotatingTextComponent(key, phrases, selected, advance, paused, toggle, props) }

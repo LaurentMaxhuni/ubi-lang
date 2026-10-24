@@ -1,17 +1,35 @@
-import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { View, Event, Prop, Space, ButtonVariant } from "../../packages/ubi-ui/core.ubi";
 import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
 import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
 import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
 import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
 import { drawer } from "../../packages/ubi-ui/components/drawer.ubi";
 
-export enum Message { Open, Close }
-export fn init() -> bool { false }
-export fn update(model: bool, event: Event<Message>) -> bool { match (event) { Event.Activate(Message.Open) => true, Event.Activate(Message.Close) => false, _ => model } }
-export fn view(model: bool) -> View<Message> {
+export record Model { open: bool, page: string }
+export enum Message { Open, Close, Projects, Activity, Settings }
+export fn init() -> Model { Model { open: false, page: "Projects" } }
+export fn update(model: Model, event: Event<Message>) -> Model {
+    match (event) {
+        Event.Activate(Message.Open) => Model { ...model, open: true },
+        Event.Activate(Message.Close) => Model { ...model, open: false },
+        Event.Activate(Message.Projects) => Model { open: false, page: "Projects" },
+        Event.Activate(Message.Activity) => Model { open: false, page: "Activity" },
+        Event.Activate(Message.Settings) => Model { open: false, page: "Settings" },
+        _ => model
+    }
+}
+export fn view(model: Model) -> View<Message> {
     windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
         headingComponent("title", "Drawer", 1),
-        buttonComponent("open", "Open navigation", Message.Open, []),
-        drawer("drawer", "Workspace navigation", model, Message.Close, [], [textComponent("copy", "Projects · Activity · Settings"), buttonComponent("close", "Close navigation", Message.Close, [])])
+        buttonComponent("open", "Open workspace", Message.Open, []),
+        textComponent("current", "Workspace / " + model.page),
+        drawer("drawer", "Workspace navigation", model.open, Message.Close, [Prop.Gap(Space.Lg)], [
+            headingComponent("drawer-title", "Your workspace", 2),
+            textComponent("copy", "Everything you are working on, in one place."),
+            buttonComponent("projects", "Projects", Message.Projects, [Prop.Variant(ButtonVariant.Outline), Prop.WidthPercent(100)]),
+            buttonComponent("activity", "Activity", Message.Activity, [Prop.Variant(ButtonVariant.Outline), Prop.WidthPercent(100)]),
+            buttonComponent("settings", "Settings", Message.Settings, [Prop.Variant(ButtonVariant.Outline), Prop.WidthPercent(100)]),
+            buttonComponent("close", "Close navigation", Message.Close, [Prop.Variant(ButtonVariant.Secondary)])
+        ])
     ])
 }

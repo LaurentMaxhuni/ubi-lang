@@ -3,7 +3,7 @@ import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
 import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
 import { rowComponent } from "../../packages/ubi-ui/components/row.ubi";
 import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
-import { textReveal } from "../../packages/ubi-ui/components/text-reveal.ubi";
+import { textReveal, textRevealBlur, textRevealCharacters } from "../../packages/ubi-ui/components/text-reveal.ubi";
 
 export enum Message { Replay }
 export fn init() -> int { 0 }
@@ -12,6 +12,8 @@ export fn view(model: int) -> View<Message> {
     windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
         headingComponent("title", "Text Reveal", 1),
         textReveal("story-" + toString(model), "Every journey needs a clear next step.", [Prop.FontSize(32), Prop.MaxWidth(640)]),
+        textRevealBlur("blur-" + toString(model), "A softer, cinematic entrance.", [Prop.FontSize(24), Prop.MaxWidth(640)]),
+        textRevealCharacters("characters-" + toString(model), "One character at a time.", [Prop.FontSize(22), Prop.MaxWidth(640)]),
         rowComponent("controls", [Prop.Gap(Space.Sm)], [buttonComponent("replay", "Replay reveal", Message.Replay, [])])
     ])
 }

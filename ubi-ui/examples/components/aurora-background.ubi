@@ -11,7 +11,7 @@ export fn update(model: int, event: Event<Message>) -> int { match (event) { Eve
 export fn view(model: int) -> View<Message> {
     windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
         headingComponent("title", "Aurora Background", 1),
-        auroraBackground("aurora", [Prop.Padding(24), Prop.Height(220)], [headingComponent("welcome", "A quieter workspace", 2), textComponent("copy", "A bounded gradient field stays behind readable content."), buttonComponent("explore", "Explore workspace", Message.Explore, [])]),
+        auroraBackground("aurora", [Prop.Padding(24), Prop.MinHeight(220)], [headingComponent("welcome", "A quieter workspace", 2), textComponent("copy", "A bounded gradient field stays behind readable content."), buttonComponent("explore", "Explore workspace", Message.Explore, [])]),
         textComponent("actions", "Actions: " + toString(model))
     ])
 }

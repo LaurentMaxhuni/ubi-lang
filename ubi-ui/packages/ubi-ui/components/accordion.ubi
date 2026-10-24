@@ -5,7 +5,9 @@ export fn accordionComponent<M>(key: string, title: string, open: bool, message:
     let mut content: List<View<M>> = [];
     if (open) { content = children; }
     let disclosure: View<M> = group(key + "-content", Kind.Column, [Prop.Role("group"), Prop.Disclosure(open)], content);
-    group(key, Kind.Column, props, [trigger, disclosure])
+    let mut surfaceProps: List<Prop<M>> = [Prop.WidthPercent(100), Prop.MaxWidth(560)];
+    for (prop in props) { surfaceProps = append(surfaceProps, prop); }
+    group(key, Kind.Accordion, surfaceProps, [trigger, disclosure])
 }
 
 export fn accordion<M>(key: string, title: string, open: bool, message: M, props: List<Prop<M>>, children: List<View<M>>) -> View<M> { accordionComponent(key, title, open, message, props, children) }

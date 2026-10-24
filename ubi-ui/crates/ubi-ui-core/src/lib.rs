@@ -620,6 +620,7 @@ impl View {
                         let role = text()?;
                         if ![
                             "group",
+                            "toolbar",
                             "radiogroup",
                             "tablist",
                             "tabpanel",

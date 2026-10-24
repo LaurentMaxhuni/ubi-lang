@@ -1,4 +1,4 @@
-import { View, Event, Prop, Space } from "../../packages/ubi-ui/core.ubi";
+import { View, Event, Prop, Space, ButtonVariant } from "../../packages/ubi-ui/core.ubi";
 import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
 import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
 import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
@@ -12,6 +12,6 @@ export fn view(model: bool) -> View<Message> {
     windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
         headingComponent("title", "Dialog", 1),
         buttonComponent("open", "Open dialog", Message.Open, []),
-        dialog("dialog", "Project details", model, Message.Close, [], [textComponent("copy", "A labelled modal surface with a controlled open state."), buttonComponent("close", "Close dialog", Message.Close, [])])
+        dialog("dialog", "Project details", model, Message.Close, [], [textComponent("copy", "A labelled modal surface with a controlled open state."), buttonComponent("close", "Close dialog", Message.Close, [Prop.Variant(ButtonVariant.Secondary)])])
     ])
 }

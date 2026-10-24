@@ -1,7 +1,12 @@
-import { View, Kind, Prop, node } from "../core.ubi";
+import { View, Kind, Prop, ButtonVariant, Tone, node } from "../core.ubi";
 
 export fn progressBarComponent<M>(key: string, label: string, value: int) -> View<M> {
     node(key, Kind.ProgressBar, [Prop.Label(label), Prop.Progress(value)])
 }
 
 export fn progressBar<M>(key: string, label: string, value: int) -> View<M> { progressBarComponent(key, label, value) }
+
+export fn progressBarVariantComponent<M>(key: string, label: string, value: int, variant: ButtonVariant, tone: Tone) -> View<M> {
+    node(key, Kind.ProgressBar, [Prop.Label(label), Prop.Progress(value), Prop.Variant(variant), Prop.Tone(tone)])
+}
+export fn progressBarVariant<M>(key: string, label: string, value: int, variant: ButtonVariant, tone: Tone) -> View<M> { progressBarVariantComponent(key, label, value, variant, tone) }

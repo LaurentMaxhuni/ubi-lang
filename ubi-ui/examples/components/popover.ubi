@@ -1,17 +1,35 @@
-import { View, Event, Prop, Space, Placement } from "../../packages/ubi-ui/core.ubi";
+import { View, Event, Prop, Space, Placement, ButtonVariant } from "../../packages/ubi-ui/core.ubi";
 import { windowComponent } from "../../packages/ubi-ui/components/window.ubi";
 import { headingComponent } from "../../packages/ubi-ui/components/heading.ubi";
 import { textComponent } from "../../packages/ubi-ui/components/text.ubi";
 import { buttonComponent } from "../../packages/ubi-ui/components/button.ubi";
 import { popover } from "../../packages/ubi-ui/components/popover.ubi";
 
-export enum Message { Open, Close }
-export fn init() -> bool { false }
-export fn update(model: bool, event: Event<Message>) -> bool { match (event) { Event.Activate(Message.Open) => true, Event.Activate(Message.Close) => false, _ => model } }
-export fn view(model: bool) -> View<Message> {
+export record Model { open: bool, priority: string }
+export enum Message { Open, Close, High, Normal, Low }
+export fn init() -> Model { Model { open: false, priority: "Normal" } }
+export fn update(model: Model, event: Event<Message>) -> Model {
+    match (event) {
+        Event.Activate(Message.Open) => Model { ...model, open: !model.open },
+        Event.Activate(Message.Close) => Model { ...model, open: false },
+        Event.Activate(Message.High) => Model { open: false, priority: "High" },
+        Event.Activate(Message.Normal) => Model { open: false, priority: "Normal" },
+        Event.Activate(Message.Low) => Model { open: false, priority: "Low" },
+        _ => model
+    }
+}
+export fn view(model: Model) -> View<Message> {
     windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
         headingComponent("title", "Popover", 1),
-        buttonComponent("trigger", "Choose a date", Message.Open, [Prop.Expanded(model)]),
-        popover("calendar", "Choose date", model, Message.Close, [Prop.Anchor("trigger"), Prop.Placement(Placement.Bottom)], [textComponent("date", "October 22"), buttonComponent("close", "Close date picker", Message.Close, [])])
+        textComponent("task", "Prepare the launch brief"),
+        buttonComponent("trigger", "Priority: " + model.priority, Message.Open, [Prop.Expanded(model.open), Prop.Variant(ButtonVariant.Outline)]),
+        popover("priority-popover", "Task priority", model.open, Message.Close, [Prop.Anchor("trigger"), Prop.Placement(Placement.Bottom)], [
+            headingComponent("popover-title", "Task priority", 3),
+            textComponent("hint", "Update this task without leaving your work."),
+            buttonComponent("high", "High · Do this first", Message.High, [Prop.Variant(ButtonVariant.Outline)]),
+            buttonComponent("normal", "Normal · This week", Message.Normal, [Prop.Variant(ButtonVariant.Outline)]),
+            buttonComponent("low", "Low · When there is time", Message.Low, [Prop.Variant(ButtonVariant.Outline)]),
+            buttonComponent("close", "Cancel", Message.Close, [Prop.Variant(ButtonVariant.Ghost)])
+        ])
     ])
 }

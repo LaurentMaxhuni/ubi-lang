@@ -11,7 +11,7 @@ export fn update(model: int, event: Event<Message>) -> int { match (event) { Eve
 export fn view(model: int) -> View<Message> {
     windowComponent("app", [Prop.Padding(32), Prop.Gap(Space.Md)], [
         headingComponent("title", "Grid Background", 1),
-        gridBackground("canvas", [Prop.Padding(24), Prop.Height(220)], [headingComponent("grid-title", "Plan the next release", 2), textComponent("grid-copy", "The optional highlight stays inside this surface."), buttonComponent("add", "Add a milestone", Message.Add, [])]),
+        gridBackground("canvas", [Prop.Padding(24), Prop.MinHeight(220)], [headingComponent("grid-title", "Plan the next release", 2), textComponent("grid-copy", "The optional highlight stays inside this surface."), buttonComponent("add", "Add a milestone", Message.Add, [])]),
         textComponent("milestones", "Milestones added: " + toString(model))
     ])
 }
