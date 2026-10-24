@@ -14,11 +14,14 @@ User approved execution and restricted subagents to GPT-6 Luna at max reasoning.
 All 30 source additions and examples exist; the catalog contains 70 components.
 Browser/native motion and interaction integration passed final review corrections.
 [Verification](docs/ubi-ui-motion-verification.md) records 336 Rust tests,
-56 Node tests, the 71-example browser matrix, source interactions, native GPU
+59 Node tests, the 71-example browser matrix, source interactions, native GPU
 captures and platform coverage limits. Documentation builds 82 static pages.
 User-reported browser failures prompted follow-up repairs to visible content,
 spacing, effect layouts and motion opt-outs. The verification document records
 the failures missed by the original checks and the exported-runtime build gate.
+The detailed 2026-10-24 review also refined controls, variants, menus and effects.
+Current evidence includes 24 source interaction checks, 20 refinement checks,
+selected-option contrast, visible autoplay/pause and background clipping checks.
 
 ## New priority: Ubi UI, requested 2026-10-21
 

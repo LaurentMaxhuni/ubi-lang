@@ -1,6 +1,32 @@
 # Ubi UI motion and expansion verification
 
-Verified 2026-10-23 against the approved [design](superpowers/specs/2026-10-22-ubi-ui-motion-design.md) and three linked [implementation plans](superpowers/plans/2026-10-22-ubi-ui-motion.md).
+Verified through 2026-10-24 against the approved [design](superpowers/specs/2026-10-22-ubi-ui-motion-design.md) and three linked [implementation plans](superpowers/plans/2026-10-22-ubi-ui-motion.md).
+
+## Detailed component refinement, 2026-10-24
+
+The user's second review identified further visual and interaction failures. Reproduced causes included missing theme variables in the overlay portal, generic selected-button styles overriding option text colors, multi-select groups being treated as exclusive segmented controls, and fractional ticker samples being rejected when an animation was interrupted. Manual 320px inspection also found fixed-height background examples clipping wrapped content.
+
+Changes include custom form-control chrome and number steppers; readable tables, tabs, selected options and steps; stable disclosure triggers; distinct collapsible styling; opaque themed modals and clearer action variants; bounded anchored menus; closer tooltips; actual right-click context menus; keyboard command selection; useful priority-editor and workspace-navigation examples; four progress treatments; three text-reveal treatments; directional ticker entry; immediate interaction-triggered shimmer; cleared off-hover spotlights; flat tilt composition; circular dock apps; visible rotating-text controls; and rounded backgrounds that expand with their content. Existing source constructor signatures remain available. Motion preference can be selected in each docs preview.
+
+| Check | Result |
+| --- | --- |
+| Rust workspace with `native-ui` | 336 tests passed across 40 suites |
+| Rust formatting and Clippy with warnings denied | Passed; filesystem hard-link fallback notices only |
+| Node unit tests | 59 passed, including interrupted ticker retargeting and missing preview import rejection |
+| Exported source catalog | 71/71 applications at 320/768/1440px, light/dark, full/reduced motion; includes background-content clipping assertions |
+| Exported source interactions | 24/24, including independent toggles, steppers, palette keyboard selection, right-click context menu, drawer navigation and ticker direction reversal |
+| Browser refinement harness | 20/20, including selected-option AA contrast, popup clearance, opaque portal theme, pointer exit and visible autoplay/pause |
+| Browser renderer / host requests | 13/13 and 4/4 |
+| Docs production build | 82 pages; both runtime equality gates and all 603 module assets passed |
+| Native captures | All 70 source applications captured in both themes on AMD Radeon(TM) Graphics |
+
+The refinement harness first passed only 6/19 checks on the old runtime. Its added selected-option contrast assertions subsequently failed before the CSS correction, and the ticker regression failed before fractional sampled values were accepted. Test fixture corrections are separate from product fixes: the autoplay fixture now decodes the renderer's model argument; OptionItem fixtures supply their required Change binding.
+
+Manual browser inspection used actual 320/768/1440px viewport overrides and covered custom controls, table/tabs/stepper contrast, Select loading and selected state, combobox placement, opaque command content, progress variants, dock, Aurora, tooltip spacing and tilted card content. Shimmer has no idle animation and a 600ms interaction animation with zero delay. The automatic rotation test waits for real DOM changes while visible, then verifies that pause prevents advancement. Viewport overrides were reset afterward.
+
+The first docs build hit sandbox EPERM while creating a Next.js prerender directory; the authorized elevated build passed. Docs are served from a complete snapshot during export and switched to the completed output afterward. This avoids serving partially rebuilt preview modules. Final native raw captures are retained in `.ubi-build/refinement-native-20261024`; browser proof is `.ubi-build/component-refinement-preview.jpg`.
+
+Limits: native TextReveal retains the shared word animation for the browser's blur/character variants. Native capture extraction still selects the original `demo` subtree when present, so its Progress image shows the original treatment. These checks do not establish every component's subjective visual quality, physical mobile coverage or native screen-reader integration.
 
 ## User-reported rendering and spacing failures, 2026-10-23
 
