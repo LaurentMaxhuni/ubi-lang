@@ -4,6 +4,7 @@ mod analyzer;
 mod diagnostics;
 mod effects;
 mod formatter;
+mod inspect;
 mod interpreter;
 mod ir;
 mod js_backend;
@@ -24,6 +25,10 @@ use source::SourceSet;
 
 pub use diagnostics::{Diagnostic, RelatedDiagnostic, Severity};
 pub use formatter::format_source;
+pub use inspect::{
+    DeclarationSummary, ExportSummary, ImportSummary, ModuleInspection, ModuleSummary,
+    ParameterSummary, TypeParameterSummary, VariantSummary,
+};
 pub use runtime::{Runtime, RuntimeError};
 pub use source::SourceError;
 pub use span::Span;
@@ -70,6 +75,11 @@ impl Compiler {
     pub fn check(&self) -> CheckResult {
         let analysis = analyzer::analyze(&self.sources);
         check_result(&analysis)
+    }
+
+    /// Summarize checked public interfaces without executing or generating code.
+    pub fn inspect(&self) -> Result<ModuleInspection, Vec<Diagnostic>> {
+        inspect::inspect(&analyzer::analyze(&self.sources), &self.sources)
     }
 
     /// Prepare bounded, synchronous native execution of checked pure exports.

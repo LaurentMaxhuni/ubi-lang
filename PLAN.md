@@ -1,5 +1,9 @@
 # Ubi implementation plan
 
+## Checked module summary API, 2026-10-29
+
+Library inspection and independent API contracts are implemented. CLI delivery follows.
+
 ## Ubi UI expansion, authorized 2026-10-22
 
 User approved the Skiper / Animate UI / React Bits / Magic UI direction after

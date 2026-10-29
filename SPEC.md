@@ -207,6 +207,7 @@ The package provides these commands (options may appear in either order after th
 
 ```text
 ubi check [entry.ubi] [--root <project-dir>] [--target <target>] [--json]
+ubi inspect [entry.ubi] [--root <project-dir>] [--target <target>] [--json]
 ubi build [entry.ubi] [--root <project-dir>] [--target <target>] [--out-dir <directory>] [--json]
 ubi run [entry.ubi] [--root <project-dir>] [--target <target>] [--function <name>] [--args <JSON-array>]
 ubi dev [entry.ubi] [--root <project-dir>] [--target web] [--port <0-65535>]
@@ -261,6 +262,45 @@ diagnostics, and block generated-module requests with 503 until recovery. Web as
 edits also reload the page. This initial reload resets in-memory browser state.
 
 Exit status `0` means success, `1` means the reachable graph has compiler errors, and `2` means invalid command/input, root or entry access failure, other source I/O failure, or artifact write failure. The CLI enforces source-byte, project-byte, and module-count budgets before reading additional input; exceeding those filesystem input budgets is an operational error that mentions `UBI0090`, writes to stderr (even with `--json`), and exits `2`. Parser/token/nesting resource diagnostics use the schema-v1 envelope and exit `1`. With `--json`, successful checks/builds and compiler diagnostics use the schema-v1 envelope from section 9 on stdout, with no human text mixed in; a compiler-error result exits `1`. Usage and operational errors are human-readable on stderr (also when `--json` is present) and exit `2`. Without `--json`, diagnostics are written to stderr as `<sourceId>:<start>-<end>: <severity>[<code>]: <message>`.
+
+### Checked module summaries (2026-10-29)
+
+`inspect` loads and checks the same reachable graph as `check`, without executing
+source, generating JavaScript, or writing artifacts. Both with and without
+`--json`, success writes one JSON object and a newline to stdout. Compiler errors
+use the existing diagnostic reporting and exit codes, with no partial summary.
+Operational failures retain stderr and exit 2. Config-driven entry/target
+selection and filesystem/resource restrictions match `check`.
+
+The summary has `schemaVersion: 1`, `offsetUnit: "utf8-byte"`, and `modules`, sorted
+by source ID. Each module contains `id`, its exact-byte `revision`, `imports`
+(source order: `names`, literal `path`, resolved `targetId`), and `exports` sorted
+by name. Imports are references, not re-exported declarations. Private declarations
+and function bodies are omitted. Empty/private-only modules still appear.
+
+Every export has `name`, `kind` (`function`, `record`, `enum`), `documentation`,
+`span` (`sourceId`, `start`, `end` for the complete declaration), and
+`typeParameters` (source order, each `name` and nullable `bound`). Documentation
+is the contiguous block of lexer-recognized `///` line comments immediately
+preceding the declaration, with no intervening blank line or code. Strip `///`
+and one optional space; join lines with `\n`. Otherwise use an empty string.
+Comments inside strings or function bodies cannot document another declaration.
+
+Functions also contain `parameters` (source-order `name`/`type` pairs),
+`returnType` (the checked return type), `async` (boolean), and sorted
+`effects` (declared capability effects; an empty array means pure).
+Records contain source-order `fields` (`name`/`type` pairs). Enums contain
+source-order `variants` (`name`, `payloads` as type strings).
+
+Type strings describe checked types: primitive/capability names, `List<T>`, `Option<T>`,
+`Result<T, E>`, `HostError`, `Map<K, V>`, `(A, B)` (a singleton has a trailing comma), and
+`fn(A, B) -> R`. Generic parameters retain their declared name; nominal types use
+`source/id.ubi::Name` followed by `<arguments>` when generic. Nominal references
+do not expand fields or variants, so recursive types terminate. Each rendered
+type is limited to 65,536 UTF-8 bytes; exceeding this returns `UBI0090` and no
+summary. This interface reports compiler facts; no model/provider is consulted.
+Existing annotation requirements are unchanged, including explicit return
+annotations on exported functions.
 
 ## 11. Review artifacts
 

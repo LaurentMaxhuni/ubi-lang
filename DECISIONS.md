@@ -1,5 +1,16 @@
 # Ubi decisions and milestone evidence
 
+## Checked module summaries, 2026-10-29
+
+User accepted module summaries as the next agent-tooling slice and deferred Jev.
+Expose `Compiler::inspect()` and `ubi inspect [entry] --json` using checked compiler
+data and the existing reachable-graph loader. Keep nominal identities explicit,
+source revisions exact, private implementations absent, and errors transactional.
+Reuse lexer comment spans for adjacent `///` documentation. A separate syntax-only
+index would duplicate name/type/effect rules; generated-JavaScript inspection
+would lose source contracts. No AI integration, new dependency, language semantic
+change, structured edits, or release/milestone sign-off belongs to this slice.
+
 ## Component-library module budget, 2026-10-22
 
 The approved 70-component source-owned facade exceeds the initial 64-module
