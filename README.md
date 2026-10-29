@@ -45,6 +45,20 @@ SDKs/build hosts. Packages remain unsigned; no store release is claimed.
 Ubi source files use `.ubi`. The Rust compiler checks source and emits JavaScript
 ES modules; supported language behavior is documented in [SPEC.md](SPEC.md).
 
+Inspect a checked public interface without running code or generating artifacts:
+
+```powershell
+cargo run -- inspect main.ubi --root examples/foundations --json
+```
+
+The versioned JSON lists reachable modules and exact source revisions, imports,
+exported functions/records/enums, resolved types, generic constraints, async flags,
+declared effects and adjacent `///` documentation. Private implementations are
+omitted. Invalid programs return the existing compiler diagnostics instead of
+partial summaries. Nominal types include their defining source ID. The library's
+filesystem-independent `Compiler::inspect()` returns the same serializable summary.
+See [the summary contract](SPEC.md#checked-module-summaries-2026-10-29).
+
 Current support includes typed variables/functions, records, immutable tuples/lists,
 `Option`/`Result`, generics, immutable maps, user-defined enums and exhaustive matching, loops/ranges, snapshot
 closures, collection helpers, and pure string/math/conversion utilities. Record fields and collection

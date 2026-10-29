@@ -1,4 +1,8 @@
 use serde_json::{json, Value};
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Output};
+use std::time::{SystemTime, UNIX_EPOCH};
 use ubi_lang::Compiler;
 
 fn compiler(sources: &[(&str, &str)]) -> Compiler {
@@ -266,4 +270,140 @@ fn expanded_types_hit_the_summary_budget_without_partial_results() {
     assert!(diagnostics
         .iter()
         .any(|diagnostic| diagnostic.code == "UBI0090"));
+}
+
+struct TempDir(PathBuf);
+
+impl TempDir {
+    fn new() -> Self {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("ubi-inspect-{}-{nonce}", std::process::id()));
+        fs::create_dir_all(&path).unwrap();
+        Self(path)
+    }
+
+    fn write(&self, name: &str, source: &str) {
+        let path = self.0.join(name);
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, source).unwrap();
+    }
+
+    fn run(&self, args: &[&str]) -> Output {
+        Command::new(env!("CARGO_BIN_EXE_ubi"))
+            .current_dir(&self.0)
+            .args(args)
+            .output()
+            .unwrap()
+    }
+}
+
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
+}
+
+fn files(root: &Path) -> Vec<PathBuf> {
+    let mut result = Vec::new();
+    for entry in fs::read_dir(root).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            result.extend(files(&path));
+        } else {
+            result.push(path);
+        }
+    }
+    result.sort();
+    result
+}
+
+#[test]
+fn cli_inspects_only_reachable_modules_and_leaves_every_file_untouched() {
+    let project = TempDir::new();
+    project.write(
+        "app/main.ubi",
+        "import { answer } from \"../lib.ubi\"; export fn main() -> int { answer() }",
+    );
+    project.write("lib.ubi", "export fn answer() -> int { 42 }");
+    project.write("unrelated.ubi", "this is deliberately invalid");
+    let before: Vec<_> = files(&project.0)
+        .into_iter()
+        .map(|path| {
+            let bytes = fs::read(&path).unwrap();
+            (path, bytes)
+        })
+        .collect();
+    let output = project.run(&["inspect", "app/main.ubi", "--json"]);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(output.stderr.is_empty());
+    assert_eq!(output.stdout.last(), Some(&b'\n'));
+    let summary: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let ids: Vec<_> = summary["modules"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|module| module["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["app/main.ubi", "lib.ubi"]);
+    let default = project.run(&["inspect", "app/main.ubi"]);
+    assert_eq!(default.status.code(), Some(0));
+    assert_eq!(default.stdout, output.stdout);
+    let after: Vec<_> = files(&project.0)
+        .into_iter()
+        .map(|path| {
+            let bytes = fs::read(&path).unwrap();
+            (path, bytes)
+        })
+        .collect();
+    assert_eq!(before, after);
+    assert!(!project.0.join(".ubi-build").exists());
+    assert!(!project.0.join(".ubi-dist").exists());
+}
+
+#[test]
+fn cli_config_selection_and_errors_match_existing_check_contract() {
+    let project = TempDir::new();
+    project.write("ubi.json", r#"{"schemaVersion":1,"name":"inspect-test","entry":"src/main.ubi","targets":["web","cli"]}"#);
+    project.write("src/main.ubi", "export fn main() -> int { 1 }");
+    let configured = project.run(&["inspect", "--target", "cli", "--json"]);
+    assert_eq!(
+        configured.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&configured.stderr)
+    );
+    let summary: Value = serde_json::from_slice(&configured.stdout).unwrap();
+    assert_eq!(summary["modules"][0]["id"], "src/main.ubi");
+    project.write("src/main.ubi", "export fn main() -> int { missing }");
+    let inspect = project.run(&["inspect", "--target", "cli", "--json"]);
+    let check = project.run(&["check", "--target", "cli", "--json"]);
+    assert_eq!(inspect.status.code(), Some(1));
+    assert_eq!(inspect.stdout, check.stdout);
+    assert_eq!(inspect.stderr, check.stderr);
+    let diagnostic: Value = serde_json::from_slice(&inspect.stdout).unwrap();
+    assert!(diagnostic.get("modules").is_none());
+    let human = project.run(&["inspect", "--target", "cli"]);
+    assert_eq!(human.status.code(), Some(1));
+    assert!(human.stdout.is_empty());
+    assert!(!human.stderr.is_empty());
+    for args in [
+        vec!["inspect", "missing.ubi", "--json"],
+        vec!["inspect", "../outside.ubi", "--json"],
+        vec!["inspect", "src/main.ubi", "--out-dir", "out"],
+        vec!["inspect", "src/main.ubi", "--json", "--json"],
+        vec!["inspect", "src/main.ubi", "--function", "main"],
+    ] {
+        let output = project.run(&args);
+        assert_eq!(output.status.code(), Some(2), "{args:?}");
+        assert!(output.stdout.is_empty(), "{args:?}");
+        assert!(!output.stderr.is_empty(), "{args:?}");
+    }
 }

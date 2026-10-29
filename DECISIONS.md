@@ -11,6 +11,25 @@ index would duplicate name/type/effect rules; generated-JavaScript inspection
 would lose source contracts. No AI integration, new dependency, language semantic
 change, structured edits, or release/milestone sign-off belongs to this slice.
 
+Implementation evidence:
+
+- Added public serializable summary types, checked nominal identities, generic
+  bounds, function/record/enum contracts, source revisions/spans and lexer-backed
+  documentation. Types render under a 65,536-byte limit; invalid graphs return
+  diagnostics without partial summaries. Existing export annotations remain required.
+- Independently authored 10 API/CLI tests; initial missing-API failure is retained
+  in ignored `.ubi-build/inspect-red.log`. Independent review found no unresolved
+  correctness issue. No evaluator-owned hidden test set was run.
+- `rtk cargo test --locked`: 254 passed across 19 suites (196.93 seconds), including
+  the existing web/native initial-view and event parity matrix. Initial sandbox
+  artifact-replacement access failures were resolved by running tests with normal
+  filesystem access; production artifact code was unchanged.
+- Formatting, denied-warning Clippy, whitespace checks and
+  `rtk cargo check --locked --features native-ui` pass. Native feature compilation
+  is verified; native GPU/OS execution was not rerun for this read-only command.
+- Real gallery inspection emits schema-v1 JSON for 74 modules and 246 exports.
+  Preserved the pre-existing deleted `ubi-ui/docs/public/Inter.ttf` unstaged.
+
 ## Component-library module budget, 2026-10-22
 
 The approved 70-component source-owned facade exceeds the initial 64-module

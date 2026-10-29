@@ -12,6 +12,7 @@ use ubi_lang::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Command {
     Check,
+    Inspect,
     Build,
     Run,
     Dev,
@@ -157,6 +158,17 @@ fn run_inner(
     }
 
     match arguments.command {
+        Command::Inspect => match compiler.inspect() {
+            Ok(summary) => {
+                serde_json::to_writer(&mut *stdout, &summary)
+                    .map_err(|error| format!("cannot write summary to stdout: {error}"))?;
+                stdout
+                    .write_all(b"\n")
+                    .map_err(|error| format!("cannot write summary to stdout: {error}"))?;
+                Ok(0)
+            }
+            Err(diagnostics) => report(&compiler, &diagnostics, arguments.json, stdout, stderr),
+        },
         Command::Check => {
             let check = compiler.check();
             let status = report_check(&compiler, &check, arguments.json, stdout, stderr)?;
@@ -244,6 +256,7 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
             Some("check") => Command::Check,
             Some("build") => Command::Build,
             Some("run") => Command::Run,
+            Some("inspect") => Command::Inspect,
             Some("dev") => Command::Dev,
             Some("init") => Command::Init,
             Some("package") => Command::Package,
@@ -251,7 +264,7 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
             Some("ui") => Command::Ui,
             Some("--version") => Command::Version,
             _ => return Err(
-                "expected `check`, `build`, `run`, `dev`, `init`, `package`, `fmt`, `ui`, or `--version`"
+                "expected `check`, `inspect`, `build`, `run`, `dev`, `init`, `package`, `fmt`, `ui`, or `--version`"
                     .to_owned(),
             ),
         };
@@ -384,8 +397,14 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     if command != Command::Package && entry.is_some() && target.is_some() {
         return Err("`--target` requires project config mode; omit the entry source ID".to_owned());
     }
-    if !matches!(command, Command::Check | Command::Build | Command::Package) && json {
-        return Err("`--json` is supported only by `check`, `build`, and `package`".to_owned());
+    if !matches!(
+        command,
+        Command::Check | Command::Inspect | Command::Build | Command::Package
+    ) && json
+    {
+        return Err(
+            "`--json` is supported only by `check`, `inspect`, `build`, and `package`".to_owned(),
+        );
     }
     if command == Command::Dev && target.as_deref().is_some_and(|value| value != "web") {
         return Err("`dev` supports only the web target".to_owned());

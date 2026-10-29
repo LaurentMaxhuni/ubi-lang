@@ -1,8 +1,13 @@
 # Ubi implementation plan
 
-## Checked module summary API, 2026-10-29
+## Current work: checked module summaries, authorized 2026-10-29
 
-Library inspection and independent API contracts are implemented. CLI delivery follows.
+Milestone 6 first slice is implemented: `Compiler::inspect()` and
+`ubi inspect --json`, specified in SPEC section 10. Jev integration remains
+deferred. The [completed summary plan](docs/superpowers/plans/2026-10-29-module-summaries.md)
+records independent contracts, source-graph safeguards, and verification.
+Next tooling slices remain revision-checked structured edits and agent benchmarks;
+no overall milestone gate or release is asserted.
 
 ## Ubi UI expansion, authorized 2026-10-22
 
