@@ -74,8 +74,15 @@ fn run_inner(
     let working_directory = std::env::current_dir()
         .map_err(|error| format!("cannot read current working directory: {error}"))?;
     if arguments.command == Command::Init {
-        return crate::package::init(&working_directory.join(arguments.entry.as_deref().unwrap()))
-            .map(|()| 0);
+        let destination = working_directory.join(arguments.entry.as_deref().unwrap());
+        crate::package::init(&destination)?;
+        writeln!(
+            stdout,
+            "Created Ubi project: {}\nFrom that directory:\n  ubi dev\n  ubi check --target web\n  ubi package --target cli",
+            destination.display()
+        )
+        .map_err(|error| format!("cannot write project instructions: {error}"))?;
+        return Ok(0);
     }
     let root_argument = arguments.root.as_deref().unwrap_or(&working_directory);
     let root = fs::canonicalize(root_argument).map_err(|error| {
@@ -267,13 +274,13 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
             Some("inspect") => Command::Inspect,
             Some("edit") => Command::Edit,
             Some("dev") => Command::Dev,
-            Some("init") => Command::Init,
+            Some("new") | Some("init") => Command::Init,
             Some("package") => Command::Package,
             Some("fmt") => Command::Format,
             Some("ui") => Command::Ui,
             Some("--version") => Command::Version,
             _ => return Err(
-                "expected `check`, `inspect`, `edit`, `build`, `run`, `dev`, `init`, `package`, `fmt`, `ui`, or `--version`"
+                "expected `check`, `inspect`, `edit`, `build`, `run`, `dev`, `new`, `init`, `package`, `fmt`, `ui`, or `--version`"
                     .to_owned(),
             ),
         };
@@ -296,7 +303,7 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
             return Err("`--version` accepts no additional arguments".to_owned());
         }
         if command == Command::Init && (argument.starts_with('-') || entry.is_some()) {
-            return Err("expected `init <directory>`".to_owned());
+            return Err("expected `new <directory>` or `init <directory>`".to_owned());
         }
         match argument.as_str() {
             "--request" if command == Command::Edit && request.is_none() => {
@@ -406,7 +413,7 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     }
 
     if command == Command::Init && entry.is_none() {
-        return Err("expected `init <directory>`".to_owned());
+        return Err("expected `new <directory>` or `init <directory>`".to_owned());
     }
     if command == Command::Edit && request.is_none() {
         return Err("expected `edit [entry.ubi] --request <request.json> [--apply]`".into());

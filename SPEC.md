@@ -207,6 +207,8 @@ The package provides these commands (options may appear in either order after th
 
 ```text
 ubi check [entry.ubi] [--root <project-dir>] [--target <target>] [--json]
+ubi new <directory>
+ubi init <directory>
 ubi inspect [entry.ubi] [--root <project-dir>] [--target <target>] [--json]
 ubi build [entry.ubi] [--root <project-dir>] [--target <target>] [--out-dir <directory>] [--json]
 ubi run [entry.ubi] [--root <project-dir>] [--target <target>] [--function <name>] [--args <JSON-array>]
@@ -827,8 +829,17 @@ visible data on failed writes or corrupt reads. Web/desktop/mobile controls
 support keyboard, accessible labels, touch, and narrow screens. Reload and
 mobile suspend/resume preserve data through the host storage adapter.
 
-`ubi init <directory>` creates a runnable four-target app without replacing
-existing files. `ubi package [entry] --target <target>` checks/builds fresh code and
+`ubi new <directory>` (alias `ubi init <directory>`) creates a runnable four-target
+app without replacing existing files. Both commands use the same starter and
+accept exactly one directory, relative to the process working directory or
+absolute, with no options. Missing/extra arguments or unsupported options exit 2.
+On success they exit 0 and print the created directory plus these next steps to
+run from that directory: `ubi dev`, `ubi check --target web`,
+`ubi package --target cli`. They do not run those commands, install dependencies,
+initialize Git or open applications. Existing generator preflight, no-clobber and
+symlink protections apply to both aliases; unrelated existing files are preserved.
+
+`ubi package [entry] --target <target>` checks/builds fresh code and
 produces a self-contained target directory in `.ubi-dist/<target>` by default;
 an output override follows build semantics. Web includes public assets and
 compiled modules; CLI includes its Node host; desktop includes an Electron

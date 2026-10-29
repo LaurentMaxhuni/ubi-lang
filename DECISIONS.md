@@ -1,5 +1,31 @@
 # Ubi decisions and milestone evidence
 
+## Project scaffolding command, 2026-10-29
+
+User requested project scaffolding. The existing `init` generator already creates
+the complete four-host reference starter. Expose `ubi new <directory>` as the
+discoverable project-creation command, retaining `init` as an alias and reusing
+the same preflight/templates. Print next commands after success; leave execution,
+dependency installation and Git initialization explicit. No second generator,
+template framework, new dependency or provider is needed.
+
+Implementation evidence:
+
+- Added the `new` spelling and success instructions through `Command::Init`;
+  the generator and embedded templates are unchanged. Both spellings retain
+  exactly-one-directory validation and existing file/symlink preflight.
+- Three independent contracts cover byte-identical four-target starters, paths
+  with spaces/metacharacters, generated web checks, no implicit artifacts,
+  late-file collision preservation and invalid arguments without writes.
+  Missing-command red is retained in ignored `.ubi-build/scaffold-red.log`.
+- Scoped scaffolding/package/CLI/v1/edit/inspect/API/stack/guard regressions:
+  88 tests pass. Formatting, denied-warning Clippy and whitespace checks pass.
+  Complete output is retained in `.ubi-build/scaffold-regressions.log` and
+  `scaffold-clippy.log`. Independent final review found no unresolved issue.
+- Existing Windows symlink privilege limits remain; no new native OS, hidden
+  evaluator or UI-matrix claim is made. The generator safety code is reused,
+  and the unrelated deleted font remains unstaged.
+
 ## Revision-checked function-body edits, 2026-10-29
 
 User authorized the next tooling slice: target a function by module/name, require

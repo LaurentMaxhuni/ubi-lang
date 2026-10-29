@@ -11,10 +11,23 @@ V1 integration includes async/await, project creation, formatting, and productio
 host packages. Release readiness and unexecuted platform checks are tracked in
 [platform evidence](docs/PLATFORMS.md).
 
-Create a four-target application or run the persistent reference app:
+Create a project with the installed CLI:
 
 ```powershell
-cargo run -- init my-app
+ubi new my-app
+cd my-app
+ubi dev
+```
+
+This scaffolds Ubi source, project configuration, web assets and CLI/desktop/mobile
+hosts, then prints next steps. Existing template files are never overwritten.
+`ubi init my-app` remains an alias. Native packages need their documented tooling;
+scaffolding does not install dependencies or launch applications.
+
+From this compiler repository, use Cargo or run the persistent reference app:
+
+```powershell
+cargo run -- new my-app
 cargo run -- dev --root my-app
 # Or use the checked-in reference app:
 cargo run -- dev --root examples/v1

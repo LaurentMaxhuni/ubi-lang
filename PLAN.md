@@ -1,5 +1,13 @@
 # Ubi implementation plan
 
+## Current work: project scaffolding command, authorized 2026-10-29
+
+Implemented `ubi new <directory>` using the existing four-target `init` starter,
+with actionable next steps. The completed
+[scaffolding plan](docs/superpowers/plans/2026-10-29-project-scaffolding.md)
+records three independent contracts and 88 passing scoped regressions.
+Generator safety and the unrelated font deletion are preserved; Jev stays deferred.
+
 ## Current work: revision-checked function-body edits, authorized 2026-10-29
 
 The accepted next Milestone 6 slice is implemented, specified in SPEC section 10:
