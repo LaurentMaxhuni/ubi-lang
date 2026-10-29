@@ -59,6 +59,33 @@ partial summaries. Nominal types include their defining source ID. The library's
 filesystem-independent `Compiler::inspect()` returns the same serializable summary.
 See [the summary contract](SPEC.md#checked-module-summaries-2026-10-29).
 
+Preview a checked function-body edit, then save it explicitly:
+
+```powershell
+cargo run -- edit main.ubi --root my-app --request body-edit.json --json
+cargo run -- edit main.ubi --root my-app --request body-edit.json --apply --json
+```
+
+Create `body-edit.json` with the module revision returned by `inspect`:
+
+```json
+{
+  "schemaVersion": 1,
+  "sourceId": "main.ubi",
+  "function": "answer",
+  "sourceRevision": "sha256:<copy the current 64-digit hash>",
+  "body": "{ 42 }"
+}
+```
+
+Preview returns a unified diff without writing files. Apply checks the entire
+candidate graph and rechecks source revisions before saving; stale requests,
+invalid blocks and compiler errors leave the proposed edit unapplied. Bytes
+outside the selected body stay unchanged. Requests replace one complete block;
+signatures, renames and multi-file edits remain outside this command's scope.
+For library integrations use `Compiler::prepare_function_body_edit()`.
+See [the edit contract](SPEC.md#revision-checked-function-body-edits-2026-10-29).
+
 Current support includes typed variables/functions, records, immutable tuples/lists,
 `Option`/`Result`, generics, immutable maps, user-defined enums and exhaustive matching, loops/ranges, snapshot
 closures, collection helpers, and pure string/math/conversion utilities. Record fields and collection

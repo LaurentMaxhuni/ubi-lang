@@ -22,6 +22,33 @@ retain parser limits and main-thread UI execution. Cargo's
 and MSVC's [stack reservation option](https://learn.microsoft.com/en-us/cpp/build/reference/stack-stack-allocations)
 support the targeted setting. No new dependency or worker-thread policy is needed.
 
+Implementation evidence:
+
+- Added the strict JSON request, pure prepared-edit API, parser-bounded block
+  replacement, exact-byte revisions, unified diff and candidate diagnostics.
+  Preview writes nothing; `--apply` rechecks graph revisions and canonical paths
+  before the existing staged-file/backup replacement. Outside-body bytes and
+  permissions are preserved. Canonical aliases to another loaded module reject.
+- Independently authored 16 API/CLI contracts, one existing-CLI nesting regression,
+  and five pre-install guard fixtures. Four guard fixtures execute; symlink-dependent
+  cases cannot execute on this Windows host (privilege 1314). Independent final
+  review found no remaining correctness issue. No hidden evaluator was run.
+- Initial missing-API, parser-resource reporting, and Windows stack-crash failures
+  are retained in ignored `.ubi-build/edit-red.log`, `edit-parser-budget-red.log`
+  and `cli-stack-red.log`. Both compiler-resource regressions now pass, including
+  existing `check --json` and edit preview/apply rejection without source writes.
+- Final `rtk proxy cargo test --locked`: 276 tests pass, including the existing
+  web/native parity matrix (204.37 seconds for that test). Full logs are retained
+  in ignored `.ubi-build/edit-final-tests.log`. Formatting, denied-warning Clippy,
+  whitespace checks and native-feature compilation pass. Native GPU/OS execution
+  was not rerun for this compiler/CLI change; no release/milestone gate is asserted.
+- Isolated preview/apply demonstration preserves comments and CRLF around the body,
+  changes only `{ 1 }` to `{ 42 }`, updates its hash and produces no build artifacts.
+  Existing deleted `ubi-ui/docs/public/Inter.ttf` remains unstaged.
+- Filesystem revision checks are not cross-process compare-and-swap; concurrent
+  writers must be serialized as specified. Renames, multi-file edits, behavioral
+  agent benchmarks and Jev remain outside this completed slice.
+
 ## Checked module summaries, 2026-10-29
 
 User accepted module summaries as the next agent-tooling slice and deferred Jev.

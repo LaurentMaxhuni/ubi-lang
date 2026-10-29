@@ -5,14 +5,19 @@ use std::io::{Read, Write};
 use std::path::{Component, Path, PathBuf};
 
 use ubi_lang::{
-    format_source, BuildResult, CheckResult, Compiler, Diagnostic, Severity, SourceError,
-    MAX_MODULES, MAX_PROJECT_BYTES, MAX_SOURCE_BYTES,
+    format_source, BuildResult, CheckResult, Compiler, Diagnostic, EditError, FunctionBodyEdit,
+    Severity, SourceError, MAX_MODULES, MAX_PROJECT_BYTES, MAX_SOURCE_BYTES,
 };
+
+#[cfg(test)]
+#[path = "edit_transaction_tests.rs"]
+mod edit_transaction_tests;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Command {
     Check,
     Inspect,
+    Edit,
     Build,
     Run,
     Dev,
@@ -37,6 +42,8 @@ struct Arguments {
     format_check: bool,
     smoke: bool,
     capture: Option<PathBuf>,
+    request: Option<PathBuf>,
+    apply: bool,
 }
 
 pub(crate) fn run(
@@ -158,6 +165,7 @@ fn run_inner(
     }
 
     match arguments.command {
+        Command::Edit => edit_project(&root, &entry, &compiler, &arguments, stdout, stderr),
         Command::Inspect => match compiler.inspect() {
             Ok(summary) => {
                 serde_json::to_writer(&mut *stdout, &summary)
@@ -257,6 +265,7 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
             Some("build") => Command::Build,
             Some("run") => Command::Run,
             Some("inspect") => Command::Inspect,
+            Some("edit") => Command::Edit,
             Some("dev") => Command::Dev,
             Some("init") => Command::Init,
             Some("package") => Command::Package,
@@ -264,7 +273,7 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
             Some("ui") => Command::Ui,
             Some("--version") => Command::Version,
             _ => return Err(
-                "expected `check`, `inspect`, `build`, `run`, `dev`, `init`, `package`, `fmt`, `ui`, or `--version`"
+                "expected `check`, `inspect`, `edit`, `build`, `run`, `dev`, `init`, `package`, `fmt`, `ui`, or `--version`"
                     .to_owned(),
             ),
         };
@@ -280,6 +289,8 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     let mut format_check = false;
     let mut smoke = false;
     let mut capture = None;
+    let mut request = None;
+    let mut apply = false;
     while let Some(argument) = args.next() {
         if command == Command::Version {
             return Err("`--version` accepts no additional arguments".to_owned());
@@ -288,6 +299,18 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
             return Err("expected `init <directory>`".to_owned());
         }
         match argument.as_str() {
+            "--request" if command == Command::Edit && request.is_none() => {
+                request = Some(PathBuf::from(
+                    args.next().ok_or("`--request` needs a JSON file path")?,
+                ));
+            }
+            "--request" if command == Command::Edit => {
+                return Err("`--request` may be specified only once".into())
+            }
+            "--apply" if command == Command::Edit && !apply => apply = true,
+            "--apply" if command == Command::Edit => {
+                return Err("`--apply` may be specified only once".into())
+            }
             "--smoke" if command == Command::Ui && !smoke => smoke = true,
             "--capture" if command == Command::Ui && capture.is_none() => {
                 capture = Some(PathBuf::from(
@@ -385,6 +408,9 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     if command == Command::Init && entry.is_none() {
         return Err("expected `init <directory>`".to_owned());
     }
+    if command == Command::Edit && request.is_none() {
+        return Err("expected `edit [entry.ubi] --request <request.json> [--apply]`".into());
+    }
     if command == Command::Package && target.is_none() {
         return Err("expected `package [entry] --target <target>`".to_owned());
     }
@@ -399,11 +425,12 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
     }
     if !matches!(
         command,
-        Command::Check | Command::Inspect | Command::Build | Command::Package
+        Command::Check | Command::Inspect | Command::Edit | Command::Build | Command::Package
     ) && json
     {
         return Err(
-            "`--json` is supported only by `check`, `inspect`, `build`, and `package`".to_owned(),
+            "`--json` is supported only by `check`, `inspect`, `edit`, `build`, and `package`"
+                .to_owned(),
         );
     }
     if command == Command::Dev && target.as_deref().is_some_and(|value| value != "web") {
@@ -422,7 +449,122 @@ fn parse_arguments(arguments: impl IntoIterator<Item = OsString>) -> Result<Argu
         format_check,
         smoke,
         capture,
+        request,
+        apply,
     })
+}
+
+fn edit_project(
+    root: &Path,
+    entry: &str,
+    compiler: &Compiler,
+    arguments: &Arguments,
+    stdout: &mut impl Write,
+    stderr: &mut impl Write,
+) -> Result<u8, String> {
+    let request_path = arguments.request.as_ref().expect("required edit request");
+    let file = fs::File::open(request_path).map_err(|error| {
+        format!(
+            "cannot open edit request `{}`: {error}",
+            request_path.display()
+        )
+    })?;
+    if !file
+        .metadata()
+        .map_err(|error| format!("cannot inspect edit request: {error}"))?
+        .is_file()
+    {
+        return Err("edit request must be a regular file".into());
+    }
+    let mut bytes = Vec::new();
+    file.take(MAX_SOURCE_BYTES as u64 + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|error| format!("cannot read edit request: {error}"))?;
+    if bytes.len() > MAX_SOURCE_BYTES {
+        return Err("UBI0090: edit request exceeds 1048576 bytes".into());
+    }
+    let request: FunctionBodyEdit =
+        serde_json::from_slice(&bytes).map_err(|error| format!("invalid edit request: {error}"))?;
+    let revisions = compiler.source_revisions();
+    let paths: Vec<_> = revisions
+        .iter()
+        .map(|source| {
+            let path = fs::canonicalize(root.join(&source.id))
+                .map_err(|error| format!("cannot resolve source `{}`: {error}", source.id))?;
+            if !path.starts_with(root) {
+                return Err(format!(
+                    "source escapes canonical project root: {}",
+                    source.id
+                ));
+            }
+            Ok((source.id.clone(), path))
+        })
+        .collect::<Result<_, String>>()?;
+    let prepared = match compiler.prepare_function_body_edit(&request) {
+        Ok(prepared) => prepared,
+        Err(EditError::Request(message)) => return Err(message),
+        Err(EditError::Diagnostics {
+            sources,
+            diagnostics,
+        }) => {
+            return report_sources(&sources, &diagnostics, arguments.json, stdout, stderr);
+        }
+    };
+    let path = &paths
+        .iter()
+        .find(|(id, _)| id == &prepared.source_id)
+        .expect("prepared source is loaded")
+        .1;
+    if paths
+        .iter()
+        .any(|(id, other)| id != &prepared.source_id && other == path)
+    {
+        return Err("edit target aliases another loaded module".into());
+    }
+    if arguments.apply {
+        let guard = || recheck_edit_sources(root, entry, &revisions, &paths);
+        if prepared.original_source() == prepared.updated_source() {
+            guard()?;
+        } else {
+            replace_sources(
+                &mut [FormatChange {
+                    path: path.clone(),
+                    original: prepared.original_source().as_bytes().to_vec(),
+                    formatted: prepared.updated_source().to_owned(),
+                    staged: None,
+                    backup: None,
+                }],
+                guard,
+            )?;
+        }
+    }
+    if arguments.json {
+        let output =
+            serde_json::json!({"schemaVersion": 1, "applied": arguments.apply, "edit": prepared});
+        serde_json::to_writer(&mut *stdout, &output)
+            .map_err(|error| format!("cannot write edit result: {error}"))?;
+        stdout
+            .write_all(b"\n")
+            .map_err(|error| format!("cannot write edit result: {error}"))?;
+    } else {
+        if arguments.apply {
+            writeln!(
+                stdout,
+                "Applied {}::{}",
+                prepared.source_id, prepared.function
+            )
+            .map_err(|error| format!("cannot write edit result: {error}"))?;
+        }
+        let diff = if prepared.diff.is_empty() {
+            "No changes.\n"
+        } else {
+            &prepared.diff
+        };
+        stdout
+            .write_all(diff.as_bytes())
+            .map_err(|error| format!("cannot write edit diff: {error}"))?;
+    }
+    Ok(0)
 }
 
 pub(crate) fn load_compiler(root: &Path, entry: &str) -> Result<Compiler, String> {
@@ -433,6 +575,26 @@ pub(crate) fn load_compiler(root: &Path, entry: &str) -> Result<Compiler, String
     add_source(&mut compiler, entry, bytes)?;
     load_import_graph(root, &mut compiler, &mut budget)?;
     Ok(compiler)
+}
+
+fn recheck_edit_sources(
+    root: &Path,
+    entry: &str,
+    revisions: &[ubi_lang::SourceRevision],
+    paths: &[(String, PathBuf)],
+) -> Result<(), String> {
+    for (id, expected) in paths {
+        let current = fs::canonicalize(root.join(id))
+            .map_err(|error| format!("source changed before edit `{id}`: {error}"))?;
+        if &current != expected {
+            return Err(format!("source path changed before edit: {id}"));
+        }
+    }
+    let current = load_compiler(root, entry)?;
+    if current.source_revisions() != revisions {
+        return Err("source graph changed before edit; retry with current sources".into());
+    }
+    Ok(())
 }
 
 fn format_project(
@@ -519,7 +681,7 @@ fn format_project(
     if check_only {
         return Ok(u8::from(!changes.is_empty()));
     }
-    replace_sources(&mut changes.into_values().collect::<Vec<_>>())?;
+    replace_sources(&mut changes.into_values().collect::<Vec<_>>(), || Ok(()))?;
     Ok(0)
 }
 
@@ -555,7 +717,10 @@ fn format_temp(path: &Path, suffix: &str) -> Result<(PathBuf, fs::File), String>
     }
 }
 
-fn replace_sources(changes: &mut [FormatChange]) -> Result<(), String> {
+fn replace_sources(
+    changes: &mut [FormatChange],
+    before_replace: impl FnOnce() -> Result<(), String>,
+) -> Result<(), String> {
     let operation = (|| {
         for change in changes.iter_mut() {
             let metadata = fs::metadata(&change.path).map_err(|error| {
@@ -586,6 +751,7 @@ fn replace_sources(changes: &mut [FormatChange]) -> Result<(), String> {
                     )
                 })?;
         }
+        before_replace()?;
         for change in changes.iter() {
             if !source_unchanged(&change.path, &change.original)? {
                 return Err(format!(
@@ -854,8 +1020,24 @@ fn report(
     stdout: &mut impl Write,
     stderr: &mut impl Write,
 ) -> Result<u8, String> {
+    report_sources(
+        &compiler.source_revisions(),
+        diagnostics,
+        json,
+        stdout,
+        stderr,
+    )
+}
+
+fn report_sources(
+    sources: &[ubi_lang::SourceRevision],
+    diagnostics: &[Diagnostic],
+    json: bool,
+    stdout: &mut impl Write,
+    stderr: &mut impl Write,
+) -> Result<u8, String> {
     if json {
-        let output = diagnostic_json(&compiler.source_revisions(), diagnostics);
+        let output = diagnostic_json(sources, diagnostics);
         stdout
             .write_all(output.as_bytes())
             .and_then(|()| stdout.write_all(b"\n"))

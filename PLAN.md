@@ -1,8 +1,15 @@
 # Ubi implementation plan
 
-## Revision-checked body edit API, 2026-10-29
+## Current work: revision-checked function-body edits, authorized 2026-10-29
 
-Pure checked body replacement and independent API contracts are implemented. CLI preview/apply delivery follows.
+The accepted next Milestone 6 slice is implemented, specified in SPEC section 10:
+preview-first `ubi edit --request <file>`, explicit `--apply`, source revisions,
+single-block replacement and full candidate checks. The completed
+[body-edit plan](docs/superpowers/plans/2026-10-29-function-body-edits.md)
+records independent contracts, Windows parser-stack repair and 276 passing tests.
+The unrelated font deletion is preserved. Next: benchmark inspect/edit/check on
+fixed agent tasks; Jev, renames and multi-file edits remain deferred. No overall
+milestone acceptance or release is asserted.
 
 ## Current work: checked module summaries, authorized 2026-10-29
 
