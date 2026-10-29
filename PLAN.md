@@ -1,5 +1,9 @@
 # Ubi implementation plan
 
+## Revision-checked body edit API, 2026-10-29
+
+Pure checked body replacement and independent API contracts are implemented. CLI preview/apply delivery follows.
+
 ## Current work: checked module summaries, authorized 2026-10-29
 
 Milestone 6 first slice is implemented: `Compiler::inspect()` and

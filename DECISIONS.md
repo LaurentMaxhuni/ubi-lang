@@ -1,5 +1,27 @@
 # Ubi decisions and milestone evidence
 
+## Revision-checked function-body edits, 2026-10-29
+
+User authorized the next tooling slice: target a function by module/name, require
+its exact source revision, validate the candidate program, preserve surrounding
+bytes and preview the diff. Use a strict versioned JSON request and preview-first
+CLI with explicit `--apply`; retain Jev deferral. Reuse parser spans, compiler
+checks and the formatter's staged replacement/backup path. Reject body injection,
+recheck graph revisions before saving and preserve compiler/capability budgets.
+Support fixing existing type errors when target syntax is parseable. Generic
+text patches would expose raw offsets; renames or multi-file edits need a larger
+contract and remain deferred. Validation establishes compiler correctness only;
+benchmarks and evaluator-owned behavioral checks remain separate work.
+
+Parser-budget regression follow-up: checked replacement bodies must retain normal
+`UBI0090` diagnostics with candidate revisions. Testing this exposed Windows/MSVC
+CLI stack exhaustion on deeply nested input before the existing depth guard.
+Reserve 8 MiB for the `ubi` executable through a platform-specific linker option;
+retain parser limits and main-thread UI execution. Cargo's
+[binary-specific linker directive](https://doc.rust-lang.org/cargo/reference/build-scripts.html#rustc-link-arg-bin)
+and MSVC's [stack reservation option](https://learn.microsoft.com/en-us/cpp/build/reference/stack-stack-allocations)
+support the targeted setting. No new dependency or worker-thread policy is needed.
+
 ## Checked module summaries, 2026-10-29
 
 User accepted module summaries as the next agent-tooling slice and deferred Jev.

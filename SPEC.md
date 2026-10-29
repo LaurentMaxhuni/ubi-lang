@@ -302,6 +302,71 @@ summary. This interface reports compiler facts; no model/provider is consulted.
 Existing annotation requirements are unchanged, including explicit return
 annotations on exported functions.
 
+### Revision-checked function-body edits (2026-10-29)
+
+The Windows/MSVC `ubi` executable reserves 8 MiB of main-thread stack so the
+existing 32-level parser limit can report `UBI0090` instead of exhausting the
+platform's smaller default stack. Parsing limits and main-thread UI hosting do
+not change. Other build targets retain their platform stack configuration.
+
+```text
+ubi edit [entry.ubi] --request <request.json> [--root <project-dir>] [--target <target>] [--apply] [--json]
+```
+
+This first structured-edit slice replaces one named top-level function body in
+one module of the loaded graph. Functions may be private. The required JSON
+request has exactly `schemaVersion: 1`, `sourceId`, `function`, `sourceRevision`,
+and `body`. Unknown/duplicate fields, unsupported schema versions, unreachable
+source IDs, unknown/non-function names, malformed SHA-256 revision strings,
+and stale revisions are rejected. `body` contains a complete brace-delimited
+block, with optional leading/trailing whitespace, and no comments or declarations
+outside that block. It cannot modify the signature or inject top-level code.
+Request files must be regular files, valid UTF-8 JSON, at most 1,048,576 bytes.
+Library callers have the same body/source/project limits.
+
+`Compiler::prepare_function_body_edit(&FunctionBodyEdit)` is filesystem-independent:
+it returns `PreparedBodyEdit` on success, or `EditError::Request(String)` /
+`EditError::Diagnostics { sources, diagnostics }` on failure. The target's syntax
+must be parseable to locate the function. Existing type errors may be repaired;
+the entire candidate graph must pass the ordinary compiler check. Candidate
+diagnostics refer to candidate source bytes/revisions; original syntax failures
+refer to original sources. Compiler budgets and effect/capability checks remain
+unchanged. Body text is never executed, and no build artifacts are emitted.
+
+`PreparedBodyEdit` serializes as `sourceId`, `function`, `sourceRevision`,
+`resultingRevision`, `start`, `end`, `replacement`, and `diff`. The offsets are
+half-open UTF-8 byte offsets covering exactly the old block's braces and contents.
+`replacement` is the supplied block after trimming its outer whitespace. The
+prepared value also exposes `original_source()` / `updated_source()` getters;
+those complete source strings are omitted from JSON. Every byte outside the old
+block is preserved, including comments, Unicode, line endings and final newline.
+Replacement bytes retain their supplied line endings. `diff` is a unified diff
+with `a/<sourceId>` / `b/<sourceId>` headers, one hunk, up to three unchanged
+context lines at either end and missing-final-newline markers. Identical edits
+have an empty diff and unchanged revision.
+
+Preview is the default and never writes source or staging files. `--apply`
+explicitly enables saving. Both paths prepare and validate the edit; apply also
+rechecks all loaded source revisions and the canonical target path immediately
+before replacement. Changed/missing dependencies or changed target identity abort
+without saving the proposed edit. Save through a same-directory staged file and
+backup, preserving permissions and recovering the original on ordinary failure;
+failed recovery must name the retained backup. No-op apply performs no writes.
+Targets aliasing another loaded module's canonical file are rejected.
+Existing root containment, graph reachability, project selection and resource
+limits apply. As with formatting, callers must serialize concurrent writers:
+revision comparison and filesystem replacement are not a cross-process
+compare-and-swap operation.
+
+With `--json`, success emits `{ "schemaVersion": 1, "applied": <bool>, "edit":
+<PreparedBodyEdit> }` and a newline. `applied` is true only for `--apply` (also for
+accepted no-ops). Without `--json`, preview prints the diff or `No changes.`,
+and apply prints `Applied <sourceId>::<function>` followed by the diff. Compiler
+diagnostics follow section 9, exit 1, and never include a success object. Invalid
+requests/usage, stale revisions, resource input limits and filesystem failures
+write human-readable stderr, including with `--json`, and exit 2. All rejection
+paths leave proposed source changes unapplied. No model/provider is involved.
+
 ## 11. Review artifacts
 
 `examples/conformance.json` lists public sources, required profiles, entrypoints, typed arguments, and expected values/faults or required compile diagnostics. Float expectations use tagged strings for NaN, infinities, and signed zero so JSON does not lose information; nominal aggregates identify their module/type, enum variant, and payload. The corpus README defines the oracle format. Public `.ubi` fixtures use LF line endings, enforced by `.gitattributes` so checkout conversion cannot invalidate hashes/spans; the compiler still accepts CRLF and counts its exact bytes. `examples/task-list.ubi` declares the intended pure domain interface, with executable example bodies; persistence belongs to later application/host layers.

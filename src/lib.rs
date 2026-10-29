@@ -2,6 +2,7 @@
 
 mod analyzer;
 mod diagnostics;
+mod edit;
 mod effects;
 mod formatter;
 mod inspect;
@@ -24,6 +25,7 @@ use parser::Module;
 use source::SourceSet;
 
 pub use diagnostics::{Diagnostic, RelatedDiagnostic, Severity};
+pub use edit::{EditError, FunctionBodyEdit, PreparedBodyEdit};
 pub use formatter::format_source;
 pub use inspect::{
     DeclarationSummary, ExportSummary, ImportSummary, ModuleInspection, ModuleSummary,
@@ -80,6 +82,14 @@ impl Compiler {
     /// Summarize checked public interfaces without executing or generating code.
     pub fn inspect(&self) -> Result<ModuleInspection, Vec<Diagnostic>> {
         inspect::inspect(&analyzer::analyze(&self.sources), &self.sources)
+    }
+
+    /// Prepare one checked body replacement without changing supplied sources.
+    pub fn prepare_function_body_edit(
+        &self,
+        request: &FunctionBodyEdit,
+    ) -> Result<PreparedBodyEdit, EditError> {
+        edit::prepare(self, request)
     }
 
     /// Prepare bounded, synchronous native execution of checked pure exports.

@@ -66,7 +66,6 @@ impl SourceFile {
         &self.id
     }
 
-    #[cfg(test)]
     pub(crate) fn bytes(&self) -> &[u8] {
         &self.bytes
     }
